@@ -1,0 +1,127 @@
+"use client";
+
+/**
+ * Nagrania głosek zrobione przez rodzica.
+ *
+ * Trzymane w IndexedDB, bo to jedyne miejsce w przeglądarce, gdzie sensownie
+ * mieszczą się pliki dźwiękowe (localStorage przyjmuje tylko tekst i ma ~5 MB).
+ *
+ * PRYWATNOŚĆ: nagranie nie opuszcza urządzenia. Nie ma tu żadnego wysyłania,
+ * żadnego API zewnętrznego i żadnej oceny wymowy — to tylko podmiana wzorca,
+ * którego słucha dziecko.
+ *
+ * Nagrania są per urządzenie i per przeglądarka. Żeby były wszędzie i na stałe,
+ * rodzic może je pobrać i wrzucić do public/audio/phonemes/ — wtedy stają się
+ * zwykłym plikiem aplikacji.
+ */
+
+const DB_NAME = "liga-dzwiekow";
+const DB_VERSION = 1;
+const STORE = "phoneme-recordings";
+
+export type RecordingMeta = {
+  id: string;
+  mime: string;
+  size: number;
+  createdTs: number;
+};
+
+type RecordingRow = RecordingMeta & { blob: Blob };
+
+function openDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        db.createObjectStore(STORE, { keyPath: "id" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function run<T>(
+  mode: IDBTransactionMode,
+  action: (store: IDBObjectStore) => IDBRequest<T>,
+): Promise<T> {
+  return openDb().then(
+    (db) =>
+      new Promise<T>((resolve, reject) => {
+        const transaction = db.transaction(STORE, mode);
+        const request = action(transaction.objectStore(STORE));
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+        transaction.oncomplete = () => db.close();
+      }),
+  );
+}
+
+/** Adresy blobów trzymamy w pamięci — inaczej każde odtworzenie cieknie. */
+const urlCache = new Map<string, string>();
+
+function dropUrl(id: string): void {
+  const url = urlCache.get(id);
+  if (url) {
+    URL.revokeObjectURL(url);
+    urlCache.delete(id);
+  }
+}
+
+export async function saveRecording(id: string, blob: Blob): Promise<void> {
+  const row: RecordingRow = {
+    id,
+    blob,
+    mime: blob.type || "audio/webm",
+    size: blob.size,
+    createdTs: Date.now(),
+  };
+  await run("readwrite", (store) => store.put(row));
+  dropUrl(id);
+}
+
+export async function deleteRecording(id: string): Promise<void> {
+  await run("readwrite", (store) => store.delete(id));
+  dropUrl(id);
+}
+
+export async function getRecording(id: string): Promise<RecordingRow | null> {
+  try {
+    const row = await run<RecordingRow | undefined>("readonly", (store) => store.get(id));
+    return row ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function listRecordings(): Promise<RecordingMeta[]> {
+  try {
+    const rows = await run<RecordingRow[]>("readonly", (store) => store.getAll());
+    return rows.map(({ id, mime, size, createdTs }) => ({ id, mime, size, createdTs }));
+  } catch {
+    return [];
+  }
+}
+
+/** Adres do odtworzenia nagrania, albo null gdy go nie ma. */
+export async function getRecordingUrl(id: string): Promise<string | null> {
+  const cached = urlCache.get(id);
+  if (cached) return cached;
+
+  const row = await getRecording(id);
+  if (!row) return null;
+
+  const url = URL.createObjectURL(row.blob);
+  urlCache.set(id, url);
+  return url;
+}
+
+/** Rozszerzenie pliku pasujące do formatu, w którym nagrała przeglądarka. */
+export function extensionFor(mime: string): string {
+  if (mime.includes("webm")) return "webm";
+  if (mime.includes("mp4") || mime.includes("m4a") || mime.includes("aac")) return "m4a";
+  if (mime.includes("ogg")) return "ogg";
+  if (mime.includes("wav")) return "wav";
+  return "webm";
+}
