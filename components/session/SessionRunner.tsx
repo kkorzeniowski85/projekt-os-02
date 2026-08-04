@@ -14,7 +14,13 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { HeroAvatar } from "@/components/HeroAvatar";
 import { BigButton, Card, ParentTip, PhonemeSpeaker, StepDots, WordSpeaker } from "@/components/ui";
-import { playFeedbackTone, playPhonemeStrict, playWord, primeSpeech } from "@/lib/audio";
+import {
+  playFeedbackTone,
+  playPhonemeStrict,
+  playWord,
+  primeSpeech,
+  unlockAudio,
+} from "@/lib/audio";
 import type { ChoiceRound, Lesson, ListenItem, WordCard } from "@/lib/curriculum/lessons";
 import type { Sound } from "@/lib/curriculum/sounds";
 import { getHero, HEROES_BY_ID } from "@/lib/heroes";
@@ -86,6 +92,9 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
 
   const start = useCallback(
     (chosenMode: SessionMode) => {
+      // Kliknięcie startu to gest użytkownika — jedyny moment, w którym iOS
+      // pozwala "odblokować" audio na resztę sesji.
+      unlockAudio();
       setMode(chosenMode);
       setScreens(buildScreens(lesson, role));
       attemptsRef.current = [];
@@ -292,10 +301,13 @@ function ListenScreen({
   onDone: (attempt: PendingAttempt) => void;
 }) {
   const [answer, setAnswer] = useState<boolean | null>(null);
+  const [needsTap, setNeedsTap] = useState(false);
   const startRef = useRef(Date.now());
 
   useEffect(() => {
-    void playWord(item.word);
+    // Gdy przeglądarka zablokuje automatyczne odtworzenie (iOS bez wcześniejszego
+    // gestu), pokazujemy dziecku, że ma stuknąć w głośnik.
+    void playWord(item.word).then((result) => setNeedsTap(result.source === "unavailable"));
   }, [item.word]);
 
   useEffect(() => {
@@ -331,7 +343,15 @@ function ListenScreen({
       <div className="text-8xl animate-pop-in" aria-hidden>
         {item.emoji}
       </div>
-      <WordSpeaker word={item.word} label="Jeszcze raz" size="lg" />
+      <div
+        className={needsTap ? "animate-pulse-ring rounded-blob" : undefined}
+        onClickCapture={() => setNeedsTap(false)}
+      >
+        <WordSpeaker word={item.word} label="Jeszcze raz" size="lg" />
+      </div>
+      {needsTap && (
+        <p className="text-sm font-bold text-hero-gold">Stuknij 🔊, żeby usłyszeć słowo</p>
+      )}
 
       {answer === null ? (
         <div className="flex w-full max-w-md gap-3">
@@ -493,12 +513,15 @@ function ChoiceScreen({
   onDone: (attempt: PendingAttempt) => void;
 }) {
   const [picked, setPicked] = useState<string | null>(null);
+  const [needsTap, setNeedsTap] = useState(false);
   const startRef = useRef(Date.now());
 
   const options = useMemo(() => round.options, [round]);
 
   useEffect(() => {
-    void playWord(round.answer);
+    void playWord(round.answer).then((result) =>
+      setNeedsTap(result.source === "unavailable"),
+    );
   }, [round.answer]);
 
   useEffect(() => {
@@ -527,7 +550,15 @@ function ChoiceScreen({
   return (
     <Card className="no-select flex flex-col items-center gap-5 text-center">
       <h2 className="text-2xl font-bold">Które słowo słyszysz?</h2>
-      <WordSpeaker word={round.answer} label="Posłuchaj" size="lg" />
+      <div
+        className={needsTap ? "animate-pulse-ring rounded-blob" : undefined}
+        onClickCapture={() => setNeedsTap(false)}
+      >
+        <WordSpeaker word={round.answer} label="Posłuchaj" size="lg" />
+      </div>
+      {needsTap && (
+        <p className="text-sm font-bold text-hero-gold">Stuknij 🔊, żeby usłyszeć słowo</p>
+      )}
 
       <div className="grid w-full max-w-2xl gap-3 sm:grid-cols-3">
         {options.map((option) => {

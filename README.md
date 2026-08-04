@@ -59,6 +59,8 @@ Wynik ląduje w `angielski/out/` jako czysta statyka.
   iść dalej (`lib/progress/rules.ts`).
 - **Tryb rodzica** (`/rodzic`): tabela postępu, eksport raportu (Markdown do
   wklejenia Claude + CSV), sprawdzanie brakujących nagrań, reset postępu.
+  Wejście chronione bramką „przytrzymaj 3 sekundy" (pamiętaną do zamknięcia
+  przeglądarki), żeby dziecko nie weszło tam przypadkiem.
 - **Reorganizacja interfejsu wg urządzenia** — nie skalowanie, tylko inny układ:
   telefon dostaje skróconą „szybką misję", tablet pełną sesję, komputer
   dodatkową kolumnę dla rodzica.

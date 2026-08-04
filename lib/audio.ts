@@ -96,29 +96,88 @@ export function findClip(base: string): Promise<string | null> {
   return pending;
 }
 
-let currentClip: HTMLAudioElement | null = null;
+/**
+ * JEDEN współdzielony element audio zamiast nowego na każde odtworzenie.
+ * To celowy wzorzec pod iOS: Safari pozwala grać elementowi, który choć raz
+ * zagrał w geście użytkownika — późniejsza podmiana `src` już nie wymaga
+ * gestu. Nowy element tworzony z opóźnieniem (po setTimeout) bywa blokowany.
+ */
+let sharedAudio: HTMLAudioElement | null = null;
 
-async function playUrl(url: string): Promise<boolean> {
-  currentClip?.pause();
-  const audio = new Audio(url);
-  currentClip = audio;
+function getSharedAudio(): HTMLAudioElement {
+  if (!sharedAudio) sharedAudio = new Audio();
+  return sharedAudio;
+}
+
+type PlayStatus = "ok" | "blocked" | "failed";
+
+async function playUrl(url: string): Promise<PlayStatus> {
+  const audio = getSharedAudio();
+  audio.pause();
+  audio.muted = false;
+  audio.src = url;
   try {
     await audio.play();
-    return true;
-  } catch {
-    return false;
+    return "ok";
+  } catch (error) {
+    return (error as DOMException)?.name === "NotAllowedError" ? "blocked" : "failed";
   }
 }
 
-async function playClip(path: string): Promise<boolean> {
-  if (!(await clipExists(path))) return false;
+async function playClip(path: string): Promise<PlayStatus> {
+  if (!(await clipExists(path))) return "failed";
   return playUrl(path);
 }
 
 /** Nagranie rodzica, jeśli istnieje dla tego grafemu. */
-async function playParentRecording(graphemeId: string): Promise<boolean> {
+async function playParentRecording(graphemeId: string): Promise<PlayStatus> {
   const url = await getRecordingUrl(graphemeId);
-  return url ? playUrl(url) : false;
+  return url ? playUrl(url) : "failed";
+}
+
+let unlockAttempted = false;
+
+/**
+ * Odblokowanie audio — wywoływane w handlerze kliknięcia (start sesji).
+ * Gra wyciszone, krótkie prawdziwe nagranie na współdzielonym elemencie,
+ * budzi syntezę mowy pustą wypowiedzią i wznawia AudioContext sygnałów.
+ * Wszystko best-effort: gdy się nie uda, interfejs i tak pokaże podpowiedź
+ * "stuknij 🔊" przy pierwszym zablokowanym odtworzeniu.
+ */
+export function unlockAudio(): void {
+  if (typeof window === "undefined" || unlockAttempted) return;
+  unlockAttempted = true;
+
+  try {
+    const audio = getSharedAudio();
+    audio.muted = true;
+    audio.src = wordClipPath("the");
+    const unlockSrc = audio.src;
+    audio
+      .play()
+      .then(() => {
+        // Nie zatrzymuj, jeśli w międzyczasie gra już coś prawdziwego.
+        if (audio.src === unlockSrc) {
+          audio.pause();
+          audio.currentTime = 0;
+        }
+        audio.muted = false;
+      })
+      .catch(() => {
+        audio.muted = false;
+      });
+  } catch {
+    // brak wsparcia — trudno
+  }
+
+  try {
+    window.speechSynthesis?.speak(new SpeechSynthesisUtterance(""));
+  } catch {
+    // jw.
+  }
+
+  const context = getToneContext();
+  if (context?.state === "suspended") void context.resume();
 }
 
 // --- Synteza mowy ----------------------------------------------------------
@@ -189,8 +248,12 @@ function speak(text: string, rate = 0.8): boolean {
 /** Odtwarza całe słowo. */
 export async function playWord(word: string): Promise<PlaybackResult> {
   const clip = await findClip(wordClipBase(word));
-  if (clip && (await playUrl(clip))) {
-    return { source: "clip", approximate: false };
+  if (clip) {
+    const status = await playUrl(clip);
+    if (status === "ok") return { source: "clip", approximate: false };
+    // Zablokowane = potrzebny gest użytkownika. Nie próbujemy syntezą —
+    // też byłaby zablokowana; interfejs pokaże "stuknij 🔊".
+    if (status === "blocked") return { source: "unavailable", approximate: false };
   }
   return speak(word)
     ? { source: "tts", approximate: false }
@@ -205,12 +268,14 @@ export async function playPhoneme(
   soundId: string,
   exampleWord: string,
 ): Promise<PlaybackResult> {
-  if (await playParentRecording(soundId)) {
+  if ((await playParentRecording(soundId)) === "ok") {
     return { source: "recording", approximate: false };
   }
   const clip = await findClip(phonemeClipBase(soundId));
-  if (clip && (await playUrl(clip))) {
-    return { source: "clip", approximate: false };
+  if (clip) {
+    const status = await playUrl(clip);
+    if (status === "ok") return { source: "clip", approximate: false };
+    if (status === "blocked") return { source: "unavailable", approximate: false };
   }
   return speak(exampleWord, 0.7)
     ? { source: "tts-example", approximate: true }
@@ -226,23 +291,39 @@ export async function playPhoneme(
  * programy phonics. Lepiej nie odtworzyć nic i oddać głos rodzicowi.
  */
 export async function playPhonemeStrict(graphemeId: string): Promise<PlaybackResult> {
-  if (await playParentRecording(graphemeId)) {
+  if ((await playParentRecording(graphemeId)) === "ok") {
     return { source: "recording", approximate: false };
   }
   const clip = await findClip(phonemeClipBase(graphemeId));
-  if (clip && (await playUrl(clip))) {
+  if (clip && (await playUrl(clip)) === "ok") {
     return { source: "clip", approximate: false };
   }
   return { source: "unavailable", approximate: false };
 }
 
+/**
+ * Jeden AudioContext na całą sesję — iOS ma twardy limit równoczesnych
+ * kontekstów, więc tworzenie nowego przy każdym sygnale kończy się ciszą.
+ */
+let toneContext: AudioContext | null = null;
+
+function getToneContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  if (toneContext) return toneContext;
+  const AudioCtx =
+    window.AudioContext ??
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioCtx) return null;
+  toneContext = new AudioCtx();
+  return toneContext;
+}
+
 /** Krótki sygnał zwrotny — bez plików, generowany w przeglądarce. */
 export function playFeedbackTone(kind: "good" | "try-again"): void {
-  if (typeof window === "undefined") return;
-  const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioCtx) return;
+  const context = getToneContext();
+  if (!context) return;
+  if (context.state === "suspended") void context.resume();
 
-  const context = new AudioCtx();
   const oscillator = context.createOscillator();
   const gain = context.createGain();
 
@@ -258,7 +339,6 @@ export function playFeedbackTone(kind: "good" | "try-again"): void {
   oscillator.connect(gain).connect(context.destination);
   oscillator.start();
   oscillator.stop(context.currentTime + 0.32);
-  oscillator.onended = () => void context.close();
 }
 
 /**
@@ -267,7 +347,7 @@ export function playFeedbackTone(kind: "good" | "try-again"): void {
  * dokładnie ten plik, który usłyszy dziecko, albo nie usłyszeć nic.
  */
 export async function playClipFile(path: string): Promise<boolean> {
-  return playClip(path);
+  return (await playClip(path)) === "ok";
 }
 
 /** Dla panelu rodzica: które pliki są na miejscu (w dowolnym formacie). */

@@ -21,6 +21,7 @@ import {
   wordClipPath,
   type VoiceStatus,
 } from "@/lib/audio";
+import { ParentGate } from "@/components/ParentGate";
 import { PhonemeRecorder } from "@/components/PhonemeRecorder";
 import { lessonGraphemes, lessonWords } from "@/lib/curriculum/lessons";
 import { IPA_BY_GRAPHEME, trickyHint } from "@/lib/curriculum/ipa";
@@ -141,6 +142,7 @@ export default function ParentPage() {
     : null;
 
   return (
+    <ParentGate>
     <div className="flex flex-col gap-6">
       <header className="flex items-center justify-between gap-4">
         <h1 className="text-3xl font-black">Tryb rodzica</h1>
@@ -390,5 +392,6 @@ export default function ParentPage() {
         </div>
       </Card>
     </div>
+    </ParentGate>
   );
 }
