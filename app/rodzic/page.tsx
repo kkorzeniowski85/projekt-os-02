@@ -78,7 +78,7 @@ function WordClipList({
               }`}
             >
               {path && <span aria-hidden>▶ </span>}
-              <span className="font-bold">{word}</span>
+              <span className="font-reading font-bold">{word}</span>
             </button>
           );
         })}
@@ -154,9 +154,9 @@ export default function ParentPage() {
       <Card>
         <h2 className="mb-3 text-lg font-bold">Co dalej</h2>
         <p className="text-paper/80">{recommendation.labelPl}</p>
-        <Link href={`/sesja/${recommendation.soundId}`} className="mt-4 inline-block">
-          <BigButton onClick={() => {}}>Otwórz tę sesję</BigButton>
-        </Link>
+        <div className="mt-4 inline-block">
+          <BigButton href={`/sesja/${recommendation.soundId}`}>Otwórz tę sesję</BigButton>
+        </div>
       </Card>
 
       <Card>

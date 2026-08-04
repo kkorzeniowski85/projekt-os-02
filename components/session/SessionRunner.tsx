@@ -27,15 +27,39 @@ type Screen =
   | { kind: "blend"; card: WordCard }
   | { kind: "choice"; round: ChoiceRound };
 
+/** Fisher-Yates na kopii — wywoływane po kliknięciu startu, nigdy w renderze. */
+function shuffled<T>(items: readonly T[]): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
 /**
  * Telefon dostaje krótszą sesję ("szybka misja" z briefu) — te same ćwiczenia,
  * mniej powtórzeń. Tablet i komputer dostają pełny zestaw.
+ *
+ * Kolejność słuchania i opcje wyboru są tasowane przy KAŻDYM starcie — inaczej
+ * dziecko przy "Jeszcze raz" zapamiętuje pozycje odpowiedzi zamiast słuchać.
+ * Sklejanie zostaje w kolejności z lekcji (ma progresję trudności).
  */
 function buildScreens(lesson: Lesson, role: DeviceRole): Screen[] {
   const short = role === "phone";
-  const listen = short ? lesson.listen.slice(0, 4) : lesson.listen;
+
+  // Krótka sesja losuje słowa, ale zawsze po równo TAK i NIE — losowanie z całej
+  // puli potrafiłoby dać same "NIE" i dziecko ani razu nie usłyszałoby dźwięku.
+  const withTarget = shuffled(lesson.listen.filter((item) => item.hasTarget));
+  const withoutTarget = shuffled(lesson.listen.filter((item) => !item.hasTarget));
+  const listen = short
+    ? shuffled([...withTarget.slice(0, 2), ...withoutTarget.slice(0, 2)])
+    : shuffled(lesson.listen);
+
   const blend = short ? lesson.blend.slice(0, 2) : lesson.blend;
-  const choice = short ? lesson.choice.slice(0, 2) : lesson.choice;
+  const choice = shuffled(lesson.choice)
+    .slice(0, short ? 2 : lesson.choice.length)
+    .map((round) => ({ ...round, options: shuffled(round.options) }));
 
   return [
     ...listen.map<Screen>((item) => ({ kind: "listen", item })),
@@ -123,7 +147,7 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
             ← Przerwij
           </Link>
           <StepDots total={screens.length} current={index} />
-          <span className="rounded-full bg-white/10 px-3 py-1 text-sm font-bold">
+          <span className="font-reading rounded-full bg-white/10 px-3 py-1 text-sm font-bold">
             {sound.grapheme}
           </span>
         </header>
@@ -224,12 +248,14 @@ function IntroScreen({
       </div>
 
       <h1 className="text-3xl font-black">
-        Dziś dźwięk <span className="text-hero-gold">{sound.grapheme}</span>
+        Dziś dźwięk <span className="font-reading text-hero-gold">{sound.grapheme}</span>
       </h1>
 
       <PhonemeSpeaker soundId={sound.id} grapheme={sound.grapheme} exampleWord={sound.example} />
 
-      <p className="text-2xl font-bold tracking-widest text-hero-lime">{lesson.chant}</p>
+      <p className="font-reading text-2xl font-bold tracking-widest text-hero-lime">
+        {lesson.chant}
+      </p>
 
       {/* Na telefonie przyciski startu muszą być nad zgięciem — wskazówka dla
           rodzica ląduje pod nimi, bo to dorosły ją czyta, nie dziecko. */}
@@ -278,6 +304,8 @@ function ListenScreen({
     playFeedbackTone(correct ? "good" : "try-again");
     if (!correct) void playWord(item.word);
 
+    // Po błędzie dłuższa pauza: słowo gra jeszcze raz, a dziecko ma zdążyć
+    // je usłyszeć ZANIM ekran zniknie. 2 sekundy było za mało.
     const timer = setTimeout(
       () =>
         onDone({
@@ -288,7 +316,7 @@ function ListenScreen({
           correct,
           responseMs: Date.now() - startRef.current,
         }),
-      correct ? 900 : 2000,
+      correct ? 1100 : 3200,
     );
     return () => clearTimeout(timer);
   }, [answer, item, sound.id, onDone]);
@@ -298,7 +326,7 @@ function ListenScreen({
   return (
     <Card className="no-select flex flex-col items-center gap-5 text-center">
       <h2 className="text-2xl font-bold">
-        Słyszysz <span className="text-hero-gold">{sound.grapheme}</span>?
+        Słyszysz <span className="font-reading text-hero-gold">{sound.grapheme}</span>?
       </h2>
       <div className="text-8xl animate-pop-in" aria-hidden>
         {item.emoji}
@@ -318,7 +346,7 @@ function ListenScreen({
         <div className="animate-pop-in flex flex-col items-center gap-1">
           <p className="text-3xl font-black">{correct ? "🎉 Tak jest!" : "🙂 Posłuchaj jeszcze raz"}</p>
           <p className="text-xl font-bold text-hero-cyan">
-            {item.word} — {item.pl}
+            <span className="font-reading">{item.word}</span> — {item.pl}
           </p>
           <p className="text-sm text-paper/70">
             {item.hasTarget
@@ -387,7 +415,7 @@ function BlendScreen({
                 const result = await playPhonemeStrict(grapheme);
                 if (result.source === "unavailable") setMissingClip(true);
               }}
-              className={`min-w-20 rounded-2xl px-5 py-4 text-4xl font-black transition active:translate-y-1 ${
+              className={`font-reading min-w-20 rounded-2xl px-5 py-4 text-4xl font-black transition active:translate-y-1 ${
                 isTarget
                   ? "bg-hero-gold text-night shadow-[0_6px_0_#c99a1f]"
                   : "bg-white/15 text-paper shadow-[0_6px_0_rgba(0,0,0,0.3)]"
@@ -423,7 +451,7 @@ function BlendScreen({
           <div className="text-7xl" aria-hidden>
             {card.emoji}
           </div>
-          <p className="text-4xl font-black">{card.word}</p>
+          <p className="font-reading text-4xl font-black">{card.word}</p>
           <p className="text-lg text-hero-cyan">{card.pl}</p>
           <WordSpeaker word={card.word} label="Posłuchaj" />
 
@@ -477,6 +505,9 @@ function ChoiceScreen({
     if (picked === null) return;
     const correct = picked === round.answer;
     playFeedbackTone(correct ? "good" : "try-again");
+    // Po błędzie: słowo jeszcze raz, przy podświetlonej poprawnej odpowiedzi —
+    // dziecko łączy dźwięk z właściwym zapisem, a nie tylko widzi "źle".
+    if (!correct) void playWord(round.answer);
 
     const timer = setTimeout(
       () =>
@@ -488,7 +519,7 @@ function ChoiceScreen({
           correct,
           responseMs: Date.now() - startRef.current,
         }),
-      correct ? 900 : 2000,
+      correct ? 1100 : 3200,
     );
     return () => clearTimeout(timer);
   }, [picked, round, sound.id, onDone]);
@@ -515,13 +546,13 @@ function ChoiceScreen({
               type="button"
               disabled={picked !== null}
               onClick={() => setPicked(option)}
-              className={`rounded-blob px-4 py-6 text-3xl font-black transition active:translate-y-1 ${
+              className={`font-reading rounded-blob px-4 py-6 text-3xl font-black transition active:translate-y-1 ${
                 state === "idle"
                   ? "bg-white/15 text-paper shadow-[0_6px_0_rgba(0,0,0,0.3)]"
                   : state === "correct"
                     ? "bg-hero-lime text-night"
                     : state === "wrong"
-                      ? "bg-hero-pink text-white"
+                      ? "bg-hero-pink text-night"
                       : "bg-white/5 text-paper/40"
               }`}
             >
@@ -537,7 +568,7 @@ function ChoiceScreen({
             {round.emoji}
           </div>
           <p className="text-xl font-bold text-hero-cyan">
-            {round.answer} — {round.pl}
+            <span className="font-reading">{round.answer}</span> — {round.pl}
           </p>
         </div>
       )}
@@ -582,7 +613,7 @@ function RewardScreen({
 
       <Card className="w-full max-w-md">
         <p className="text-xl font-bold">
-          Dźwięk <span className="text-hero-gold">{sound.grapheme}</span>
+          Dźwięk <span className="font-reading text-hero-gold">{sound.grapheme}</span>
         </p>
         <p className="text-paper/80">
           {outcome.session.scored > 0
@@ -620,7 +651,7 @@ function RewardScreen({
           </p>
           <div className="mt-3 flex justify-center gap-3">
             {lesson.redWords.map((word) => (
-              <WordSpeaker key={word} word={word} label={word} />
+              <WordSpeaker key={word} word={word} label={word} reading />
             ))}
           </div>
         </Card>
@@ -630,11 +661,9 @@ function RewardScreen({
         <BigButton onClick={onAgain} full>
           Jeszcze raz
         </BigButton>
-        <Link href="/" className="w-full">
-          <BigButton tone="quiet" onClick={() => {}} full>
-            Koniec
-          </BigButton>
-        </Link>
+        <BigButton href="/" tone="quiet" full>
+          Koniec
+        </BigButton>
       </div>
     </div>
   );

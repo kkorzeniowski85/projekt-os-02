@@ -51,7 +51,7 @@ export function HeroAvatar({ hero, emblem, size = 160, dimmed = false, cheering 
         fontSize={label.length > 2 ? 15 : 19}
         fontWeight="bold"
         fill="#10163a"
-        fontFamily="inherit"
+        className="font-reading"
       >
         {label}
       </text>

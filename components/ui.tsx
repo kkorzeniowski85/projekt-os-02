@@ -1,18 +1,27 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { playPhoneme, playWord } from "@/lib/audio";
 
-/** Duży przycisk — minimum 64 px wysokości, bo celuje w niego palec 7-latka. */
+/**
+ * Duży przycisk — minimum 64 px wysokości, bo celuje w niego palec 7-latka.
+ *
+ * Z `href` renderuje się jako link w stylu przycisku. To zastępuje wcześniejsze
+ * zagnieżdżanie <button> w <Link> — niepoprawne HTML, przez które klikalny
+ * obszar linku miał kilkanaście pikseli wysokości.
+ */
 export function BigButton({
   children,
   onClick,
+  href,
   tone = "primary",
   disabled = false,
   full = false,
 }: {
   children: ReactNode;
-  onClick: () => void;
+  onClick?: () => void;
+  href?: string;
   tone?: "primary" | "yes" | "no" | "quiet";
   disabled?: boolean;
   full?: boolean;
@@ -20,17 +29,27 @@ export function BigButton({
   const tones: Record<string, string> = {
     primary: "bg-hero-blue text-white shadow-[0_6px_0_#1c47b3]",
     yes: "bg-hero-lime text-night shadow-[0_6px_0_#4fae42]",
-    no: "bg-hero-pink text-white shadow-[0_6px_0_#c93c76]",
+    // Ciemny granat zamiast bieli: biały tekst na różowym tle nie spełniał
+    // progu kontrastu nawet dla dużego tekstu (2.9:1).
+    no: "bg-hero-pink text-night shadow-[0_6px_0_#c93c76]",
     quiet: "bg-white/10 text-paper shadow-[0_4px_0_rgba(0,0,0,0.25)]",
   };
 
+  const className = `min-h-16 rounded-blob px-7 py-4 text-2xl font-bold transition active:translate-y-1 active:shadow-none disabled:opacity-40 ${tones[tone]} ${full ? "w-full" : ""}`;
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className={`${className} flex items-center justify-center text-center`}
+      >
+        {children}
+      </Link>
+    );
+  }
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`min-h-16 rounded-blob px-7 py-4 text-2xl font-bold transition active:translate-y-1 active:shadow-none disabled:opacity-40 ${tones[tone]} ${full ? "w-full" : ""}`}
-    >
+    <button type="button" onClick={onClick} disabled={disabled} className={className}>
       {children}
     </button>
   );
@@ -52,15 +71,21 @@ export function Card({
   );
 }
 
-/** Przycisk "posłuchaj" dla całego słowa. */
+/**
+ * Przycisk "posłuchaj" dla całego słowa.
+ * `reading` — gdy etykietą jest angielskie słowo do przeczytania (nie polski
+ * napis), włącza font czytelniczy.
+ */
 export function WordSpeaker({
   word,
   label = "Posłuchaj",
   size = "md",
+  reading = false,
 }: {
   word: string;
   label?: string;
   size?: "md" | "lg";
+  reading?: boolean;
 }) {
   return (
     <button
@@ -69,7 +94,7 @@ export function WordSpeaker({
       aria-label={`${label}: ${word}`}
       className={`flex items-center gap-3 rounded-blob bg-hero-gold font-bold text-night shadow-[0_6px_0_#c99a1f] transition active:translate-y-1 active:shadow-none ${
         size === "lg" ? "px-8 py-5 text-3xl" : "px-5 py-3 text-xl"
-      }`}
+      } ${reading ? "font-reading" : ""}`}
     >
       <span aria-hidden>🔊</span>
       {label}
@@ -104,7 +129,7 @@ export function PhonemeSpeaker({
         aria-label={`Posłuchaj dźwięku ${grapheme}`}
         className="animate-pulse-ring flex h-40 w-40 flex-col items-center justify-center rounded-full bg-hero-gold text-night shadow-[0_8px_0_#c99a1f] transition active:translate-y-1 active:shadow-none"
       >
-        <span className="text-6xl font-black">{grapheme}</span>
+        <span className="font-reading text-6xl font-black">{grapheme}</span>
         <span className="text-lg font-bold">🔊 posłuchaj</span>
       </button>
       {approximate && (

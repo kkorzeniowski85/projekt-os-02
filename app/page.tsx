@@ -55,7 +55,10 @@ export default function HomePage() {
             </p>
           </div>
           {role !== "desktop" && (
-            <Link href="/rodzic" className="rounded-full bg-white/10 px-4 py-2 text-sm">
+            <Link
+              href="/rodzic"
+              className="flex min-h-11 items-center rounded-full bg-white/10 px-5 text-sm"
+            >
               Rodzic
             </Link>
           )}
@@ -68,18 +71,17 @@ export default function HomePage() {
               {role === "phone" ? "Szybka misja" : "Misja na dziś"}
             </p>
             <p className="mt-1 mb-4 text-2xl font-black">
-              Dźwięk <span className="text-hero-gold">{recommendedSound.grapheme}</span>
+              Dźwięk{" "}
+              <span className="font-reading text-hero-gold">{recommendedSound.grapheme}</span>
               {recommendedSound.variantNote && (
                 <span className="ml-2 text-base font-normal text-paper/60">
                   {recommendedSound.variantNote}
                 </span>
               )}
             </p>
-            <Link href={`/sesja/${recommendation.soundId}`}>
-              <BigButton onClick={() => {}} full>
-                {recommendation.reason === "repeat-hard" ? "Powtórka" : "Zaczynamy!"}
-              </BigButton>
-            </Link>
+            <BigButton href={`/sesja/${recommendation.soundId}`} full>
+              {recommendation.reason === "repeat-hard" ? "Powtórka" : "Zaczynamy!"}
+            </BigButton>
             <p className="mt-3 text-xs text-paper/60">{recommendation.labelPl}</p>
           </Card>
         )}
@@ -162,11 +164,11 @@ export default function HomePage() {
                 <dd className="font-bold">{state.attempts.length}</dd>
               </div>
             </dl>
-            <Link href="/rodzic" className="mt-4 block">
-              <BigButton tone="quiet" onClick={() => {}} full>
+            <div className="mt-4">
+              <BigButton href="/rodzic" tone="quiet" full>
                 Raport i ustawienia
               </BigButton>
-            </Link>
+            </div>
           </Card>
           <Card className="text-sm text-paper/70">
             <p className="font-bold text-paper">Jak to działa</p>
@@ -205,7 +207,9 @@ function SoundSetRow({
           const playable = hasLesson(sound.id);
           const status = statuses[sound.id]?.status ?? "new";
           const style = playable ? STATUS_STYLE[status] : STATUS_STYLE.locked;
-          const label = <span className="text-lg font-black">{sound.grapheme}</span>;
+          const label = (
+            <span className="font-reading text-lg font-black">{sound.grapheme}</span>
+          );
 
           return playable ? (
             <Link

@@ -159,7 +159,7 @@ export function PhonemeRecorder({
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="min-w-12 text-2xl font-black">{grapheme}</span>
+        <span className="font-reading min-w-12 text-2xl font-black">{grapheme}</span>
         {ipa && <span className="text-sm text-paper/50">/{ipa}/</span>}
         <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${statusStyle}`}>
           {status}
