@@ -41,9 +41,19 @@ Aplikacja jest już pod to przygotowana: sesja zapisuje się jako zamknięta
 paczka z własnym `id` i znacznikami czasu, a cały dostęp do danych idzie przez
 `lib/progress/store.tsx` — to jedyny plik do przepisania, gdy dojdzie API.
 
-Skala jest mała (jedno dziecko, 2-3 urządzenia), więc wystarczy rozstrzyganie
-konfliktów „wygrywa nowszy zapis” na poziomie sesji — sesje są niepodzielne i
-nie nakładają się na siebie.
+**Przenoszenie postępu między urządzeniami działa już ręcznie** (tryb rodzica →
+„Postęp między urządzeniami"): zapis pliku JSON → Dysk Google → wczytanie na
+drugim urządzeniu. Scalanie to unia sesji po `id` z odtworzeniem stanu
+pochodnego (`lib/progress/merge.ts`) — idempotentne, nic nie nadpisuje,
+kolejność wczytań bez znaczenia. Ta sama funkcja scalająca posłuży przyszłej
+synchronizacji automatycznej.
+
+Droga do pełnej automatyzacji bez własnego serwera: **Google Drive API**
+(zapis pliku postępu w appDataFolder konta rodzinnego, odczyt i scalenie przy
+starcie aplikacji). Wymaga jednorazowo od rodzica: projekt w Google Cloud
+Console → OAuth Client ID (typ: Web application) → identyfikator wkleja się do
+konfiguracji aplikacji. Bez tego kroku automatyczna synchronizacja nie ruszy —
+Claude nie może go wykonać, bo wymaga zalogowania na konto Google rodzica.
 
 ## Kolejka funkcji (propozycja)
 

@@ -26,8 +26,11 @@ Każdy `git push` na gałąź `main` uruchamia build i publikację
 następnym otwarciu aplikacji — nic nie trzeba przeinstalowywać.
 
 **Uwaga:** postęp dziecka i nagrania głosek są zapisane w pamięci konkretnego
-urządzenia (localStorage + IndexedDB). Aktualizacja ich nie kasuje, ale nadal
-nie przenoszą się między urządzeniami — na to potrzebny jest backend.
+urządzenia (localStorage + IndexedDB). Aktualizacja aplikacji ich nie kasuje.
+Postęp między urządzeniami przenosi się plikiem przez Dysk Google (tryb
+rodzica → „Postęp między urządzeniami") — wczytywanie scala sesje i niczego
+nie nadpisuje. Automatyczna synchronizacja: patrz
+[docs/nastepne-kroki.md](docs/nastepne-kroki.md).
 
 ## Praca lokalna
 

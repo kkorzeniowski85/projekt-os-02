@@ -18,6 +18,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { mergeProgress } from "./merge";
 import { applySessionResult, RULES } from "./rules";
 import {
   emptyProgress,
@@ -53,6 +54,8 @@ type ProgressContextValue = {
   ready: boolean;
   state: ProgressState;
   commitSession: (commit: SessionCommit) => SessionOutcome;
+  /** Scala postęp z pliku (unia sesji). Zwraca liczbę dodanych sesji. */
+  importProgress: (incoming: ProgressState) => number;
   setChildName: (name: string) => void;
   resetAll: () => void;
 };
@@ -163,6 +166,19 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     [update],
   );
 
+  const importProgress = useCallback(
+    (incoming: ProgressState): number => {
+      let addedSessions = 0;
+      update((previous) => {
+        const merged = mergeProgress(previous, incoming);
+        addedSessions = merged.sessions.length - previous.sessions.length;
+        return merged;
+      });
+      return addedSessions;
+    },
+    [update],
+  );
+
   const setChildName = useCallback(
     (name: string) => update((previous) => ({ ...previous, childName: name })),
     [update],
@@ -174,8 +190,8 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<ProgressContextValue>(
-    () => ({ ready, state, commitSession, setChildName, resetAll }),
-    [ready, state, commitSession, setChildName, resetAll],
+    () => ({ ready, state, commitSession, importProgress, setChildName, resetAll }),
+    [ready, state, commitSession, importProgress, setChildName, resetAll],
   );
 
   return <ProgressContext.Provider value={value}>{children}</ProgressContext.Provider>;

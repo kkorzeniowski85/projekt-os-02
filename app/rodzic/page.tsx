@@ -9,7 +9,7 @@
  */
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BigButton, Card } from "@/components/ui";
 import {
   auditClips,
@@ -28,6 +28,11 @@ import { IPA_BY_GRAPHEME, trickyHint } from "@/lib/curriculum/ipa";
 import { getSound } from "@/lib/curriculum/sounds";
 import { listRecordings } from "@/lib/recordings";
 import {
+  buildProgressExport,
+  parseProgressFile,
+  progressFileName,
+} from "@/lib/progress/merge";
+import {
   buildAttemptsCsv,
   buildMarkdownReport,
   buildSessionsCsv,
@@ -36,6 +41,15 @@ import {
 import { accuracyOf, recommendNext, RULES } from "@/lib/progress/rules";
 import { useProgress } from "@/lib/progress/store";
 import type { SoundState } from "@/lib/progress/types";
+
+/** Polska odmiana: 1 sesję, 2-4 sesje, 5+ sesji (z wyjątkiem 12-14). */
+function sessionsWord(count: number): string {
+  if (count === 1) return "sesję";
+  const lastDigit = count % 10;
+  const lastTwo = count % 100;
+  if (lastDigit >= 2 && lastDigit <= 4 && !(lastTwo >= 12 && lastTwo <= 14)) return "sesje";
+  return "sesji";
+}
 
 const STATUS_LABEL: Record<SoundState["status"], string> = {
   new: "nowy",
@@ -89,8 +103,11 @@ function WordClipList({
 }
 
 export default function ParentPage() {
-  const { state, setChildName, resetAll, ready } = useProgress();
+  const { state, importProgress, setChildName, resetAll, ready } = useProgress();
   const [copied, setCopied] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [canShareFile, setCanShareFile] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
   const [resolved, setResolved] = useState<Record<string, string | null> | null>(null);
   const [auditing, setAuditing] = useState(false);
   const [recordedIds, setRecordedIds] = useState<string[]>([]);
@@ -140,6 +157,52 @@ export default function ParentPage() {
   const missingWords = resolved
     ? words.filter((word) => !resolved[wordClipBase(word)]).length
     : null;
+
+  // Web Share API z plikami działa głównie na telefonach/tabletach — tam
+  // arkusz udostępniania ma "Zapisz na Dysku" i to najkrótsza droga.
+  useEffect(() => {
+    try {
+      const probe = new File(["x"], "probe.json", { type: "application/json" });
+      setCanShareFile(Boolean(navigator.canShare?.({ files: [probe] })));
+    } catch {
+      setCanShareFile(false);
+    }
+  }, []);
+
+  function exportProgressFile() {
+    downloadFile(progressFileName(), buildProgressExport(state), "application/json");
+  }
+
+  async function shareProgressFile() {
+    try {
+      const file = new File([buildProgressExport(state)], progressFileName(), {
+        type: "application/json",
+      });
+      await navigator.share({ files: [file], title: "Postęp nauki — Liga Dźwięków" });
+    } catch {
+      // Anulowanie arkusza udostępniania też tu trafia — nic nie robimy.
+    }
+  }
+
+  async function onImportFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    const incoming = parseProgressFile(await file.text());
+    if (!incoming) {
+      setSyncMessage(
+        "Nie udało się odczytać pliku. To nie jest plik postępu z tej aplikacji albo pochodzi z innej jej wersji.",
+      );
+      return;
+    }
+    const added = importProgress(incoming);
+    setSyncMessage(
+      added > 0
+        ? `Scalono postęp: dodano ${added} ${sessionsWord(added)}. Nic nie zostało nadpisane.`
+        : "Plik wczytany — wszystkie sesje z tego pliku już tu były. Nic się nie zmieniło.",
+    );
+  }
 
   return (
     <ParentGate>
@@ -275,6 +338,50 @@ export default function ParentPage() {
       </Card>
 
       <Card>
+        <h2 className="mb-1 text-lg font-bold">Postęp między urządzeniami (Dysk Google)</h2>
+        <p className="mb-3 text-sm text-paper/70">
+          Postęp zapisuje się w pamięci tego urządzenia. Żeby przenieść go na inne, zapisz
+          plik i umieść na Dysku Google, a na drugim urządzeniu wczytaj go stamtąd.
+          Wczytywanie <strong>scala</strong> — sesje z obu urządzeń się sumują i nic nie
+          jest nadpisywane, więc kolejność i liczba wczytań nie mają znaczenia.
+        </p>
+        <ol className="mb-4 list-decimal space-y-1 pl-5 text-sm text-paper/70">
+          <li>
+            Tu: {canShareFile ? "„Wyślij na Dysk” (wybierz Dysk Google w oknie udostępniania) albo " : ""}
+            „Zapisz plik” i wrzuć go do folderu na Dysku.
+          </li>
+          <li>
+            Na drugim urządzeniu: „Wczytaj plik” — okno wyboru plików na telefonie i
+            tablecie ma Dysk Google wbudowany.
+          </li>
+        </ol>
+        <div className="flex flex-wrap gap-3">
+          {canShareFile && <BigButton onClick={() => void shareProgressFile()}>Wyślij na Dysk</BigButton>}
+          <BigButton tone={canShareFile ? "quiet" : "primary"} onClick={exportProgressFile}>
+            Zapisz plik
+          </BigButton>
+          <BigButton tone="quiet" onClick={() => importInputRef.current?.click()}>
+            Wczytaj plik
+          </BigButton>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".json,application/json"
+            onChange={(event) => void onImportFile(event)}
+            className="hidden"
+          />
+        </div>
+        {syncMessage && (
+          <p className="mt-3 rounded-2xl bg-black/25 p-3 text-sm text-paper/85">{syncMessage}</p>
+        )}
+        <p className="mt-3 text-xs text-paper/50">
+          Ten sam plik służy też jako kopia zapasowa (np. przed czyszczeniem danych
+          przeglądarki). Nagrania głosek nie wchodzą do pliku — mają własny przycisk ⤓ w
+          studiu głosek.
+        </p>
+      </Card>
+
+      <Card>
         <h2 className="mb-1 text-lg font-bold">Audio</h2>
         <p className="mb-3 text-sm text-paper/70">
           {voice === null
@@ -386,8 +493,8 @@ export default function ParentPage() {
             Wyczyść postęp
           </BigButton>
           <p className="mt-2 text-xs text-paper/50">
-            Dane siedzą tylko w tej przeglądarce (localStorage). Synchronizacja między
-            urządzeniami wymaga backendu — jeszcze go nie ma.
+            Dane siedzą w tej przeglądarce. Przenoszenie między urządzeniami: karta
+            „Postęp między urządzeniami” wyżej.
           </p>
         </div>
       </Card>
