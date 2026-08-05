@@ -65,7 +65,8 @@ export function progressFileName(now = new Date()): string {
  */
 export function parseProgressFile(text: string): ProgressState | null {
   try {
-    const data = JSON.parse(text) as ProgressState;
+    // BOM i białe znaki zdarzają się po przejściu pliku przez edytory/Dysk.
+    const data = JSON.parse(text.replace(/^﻿/, "").trim()) as ProgressState;
     if (typeof data !== "object" || data === null) return null;
     if (data.version !== PROGRESS_SCHEMA_VERSION) return null;
     if (!Array.isArray(data.sessions) || !Array.isArray(data.attempts)) return null;

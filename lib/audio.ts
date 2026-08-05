@@ -23,6 +23,7 @@ import { getRecordingUrl } from "./recordings";
 export type PlaybackSource =
   | "recording"
   | "clip"
+  | "clip-example"
   | "tts"
   | "tts-example"
   | "unavailable";
@@ -261,8 +262,10 @@ export async function playWord(word: string): Promise<PlaybackResult> {
 }
 
 /**
- * Odtwarza czystą głoskę. Bez nagrania spada do przykładowego słowa —
- * i mówi o tym wprost przez `approximate`.
+ * Odtwarza czystą głoskę. Bez nagrania spada do przykładowego SŁOWA —
+ * najpierw z brytyjskiego nagrania (te mamy dla wszystkich słów lekcji),
+ * dopiero w ostateczności z syntezatora urządzenia, który bywa niebrytyjski.
+ * O namiastce mówi wprost przez `approximate`.
  */
 export async function playPhoneme(
   soundId: string,
@@ -276,6 +279,12 @@ export async function playPhoneme(
     const status = await playUrl(clip);
     if (status === "ok") return { source: "clip", approximate: false };
     if (status === "blocked") return { source: "unavailable", approximate: false };
+  }
+  const exampleClip = await findClip(wordClipBase(exampleWord));
+  if (exampleClip) {
+    const status = await playUrl(exampleClip);
+    if (status === "ok") return { source: "clip-example", approximate: true };
+    if (status === "blocked") return { source: "unavailable", approximate: true };
   }
   return speak(exampleWord, 0.7)
     ? { source: "tts-example", approximate: true }

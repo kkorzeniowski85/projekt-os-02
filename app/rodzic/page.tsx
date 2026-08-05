@@ -189,10 +189,20 @@ export default function ParentPage() {
     event.target.value = "";
     if (!file) return;
 
-    const incoming = parseProgressFile(await file.text());
+    let text: string;
+    try {
+      text = await file.text();
+    } catch {
+      setSyncMessage(
+        `Nie udało się otworzyć pliku „${file.name}”. Jeśli wybierasz go z Dysku Google, sprawdź połączenie z internetem i spróbuj ponownie.`,
+      );
+      return;
+    }
+
+    const incoming = parseProgressFile(text);
     if (!incoming) {
       setSyncMessage(
-        "Nie udało się odczytać pliku. To nie jest plik postępu z tej aplikacji albo pochodzi z innej jej wersji.",
+        `Plik „${file.name}” nie wygląda na plik postępu z tej aplikacji (albo pochodzi z innej jej wersji). Szukaj pliku o nazwie liga-dzwiekow-postep-….json.`,
       );
       return;
     }
@@ -351,8 +361,10 @@ export default function ParentPage() {
             „Zapisz plik” i wrzuć go do folderu na Dysku.
           </li>
           <li>
-            Na drugim urządzeniu: „Wczytaj plik” — okno wyboru plików na telefonie i
-            tablecie ma Dysk Google wbudowany.
+            Na drugim urządzeniu: „Wczytaj plik” → w oknie wyboru otwórz Dysk Google
+            (na tablecie: menu ☰ albo „Przeglądaj” → Dysk Google) i wybierz plik{" "}
+            <code>liga-dzwiekow-postep-DATA.json</code> — jeśli jest kilka, bierz ten
+            z najnowszą datą w nazwie.
           </li>
         </ol>
         <div className="flex flex-wrap gap-3">
@@ -363,10 +375,13 @@ export default function ParentPage() {
           <BigButton tone="quiet" onClick={() => importInputRef.current?.click()}>
             Wczytaj plik
           </BigButton>
+          {/* Celowo BEZ filtra `accept`: okno wyboru plików na Androidzie
+              wyszarza pliki z Dysku Google, gdy ich typ MIME nie pasuje
+              dokładnie do filtra — a Dysk różnie zapisuje typ JSON-a.
+              Zawartość i tak jest walidowana po wczytaniu. */}
           <input
             ref={importInputRef}
             type="file"
-            accept=".json,application/json"
             onChange={(event) => void onImportFile(event)}
             className="hidden"
           />
