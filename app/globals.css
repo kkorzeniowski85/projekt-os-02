@@ -92,6 +92,12 @@ body {
   }
 }
 
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .animate-pop-in {
   animation: pop-in 260ms ease-out both;
 }
@@ -104,10 +110,16 @@ body {
   animation: pulse-ring 1600ms ease-out infinite;
 }
 
+/* Promienie za bohaterem na ekranie zwycięstwa. */
+.animate-spin-slow {
+  animation: spin-slow 16s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-pop-in,
   .animate-cheer,
-  .animate-pulse-ring {
+  .animate-pulse-ring,
+  .animate-spin-slow {
     animation: none;
   }
 }

@@ -56,6 +56,9 @@ Wynik ląduje w `angielski/out/` jako czysta statyka.
   w słowo (Fred Talk) → „które słowo słyszysz?" → podsumowanie z nagrodą.
 - **Tryb „z rodzicem" i „sam"** — w trybie wspólnym rodzic widzi wskazówki i to
   on ocenia czytanie na głos.
+- **Scenka zwycięstwa** na koniec sesji: fajerwerki i confetti, gwiazdki
+  wpadające z dzwoneczkami, fanfara (własną muzykę można podłożyć jako
+  `public/audio/celebration.mp3` — patrz [docs/audio.md](docs/audio.md)).
 - **Śledzenie postępu** (localStorage): status każdego dźwięku, log prób z
   czasami reakcji, historia sesji.
 - **Automatyczna adaptacja**: proste progi decydują, czy powtórzyć dźwięk, czy

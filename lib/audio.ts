@@ -318,6 +318,109 @@ function getToneContext(): AudioContext | null {
   return toneContext;
 }
 
+type NoteSpec = {
+  freq: number;
+  /** Start względem "teraz", w sekundach. */
+  at: number;
+  dur: number;
+  vol?: number;
+  type?: OscillatorType;
+};
+
+function scheduleNote(context: AudioContext, destination: AudioNode, note: NoteSpec): void {
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.type = note.type ?? "triangle";
+  oscillator.frequency.value = note.freq;
+
+  const start = context.currentTime + note.at;
+  const volume = note.vol ?? 0.16;
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(volume, start + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + note.dur);
+
+  oscillator.connect(gain).connect(destination);
+  oscillator.start(start);
+  oscillator.stop(start + note.dur + 0.05);
+}
+
+/** Dzwoneczek pojawiającej się gwiazdki — kolejne gwiazdki brzmią coraz wyżej. */
+export function playStarDing(index: number): void {
+  const context = getToneContext();
+  if (!context) return;
+  if (context.state === "suspended") void context.resume();
+
+  const freqs = [523.25, 659.25, 783.99]; // C5, E5, G5
+  const freq = freqs[Math.min(index, freqs.length - 1)];
+  scheduleNote(context, context.destination, { freq, at: 0, dur: 0.35, vol: 0.14 });
+  scheduleNote(context, context.destination, {
+    freq: freq * 2,
+    at: 0,
+    dur: 0.25,
+    vol: 0.05,
+    type: "sine",
+  });
+}
+
+/**
+ * Fanfara zwycięzcy na koniec sesji.
+ *
+ * Rodzic może podłożyć własną muzykę: plik public/audio/celebration.mp3
+ * (albo .webm/.m4a/.wav) wygrywa z syntezą. Bez pliku gra krótka, ORYGINALNA
+ * fanfara (do-mi-sol-DO… ti-DO z akordem) — celowo nie cytat z żadnej gry
+ * ani filmu, żeby nie wnosić cudzych melodii.
+ */
+export async function playVictoryFanfare(): Promise<void> {
+  const clip = await findClip(`${CLIP_BASE}/celebration`);
+  if (clip && (await playUrl(clip)) === "ok") return;
+
+  const context = getToneContext();
+  if (!context) return;
+  if (context.state === "suspended") {
+    try {
+      await context.resume();
+    } catch {
+      return;
+    }
+  }
+
+  const master = context.createGain();
+  master.gain.value = 0.9;
+  master.connect(context.destination);
+
+  const C4 = 261.63, G4 = 392.0, C5 = 523.25, E5 = 659.25, G5 = 783.99, B5 = 987.77, C6 = 1046.5;
+
+  const melody: NoteSpec[] = [
+    { freq: C5, at: 0.0, dur: 0.14 },
+    { freq: E5, at: 0.13, dur: 0.14 },
+    { freq: G5, at: 0.26, dur: 0.14 },
+    { freq: C6, at: 0.4, dur: 0.5, vol: 0.18 },
+    { freq: B5, at: 0.95, dur: 0.13, vol: 0.13 },
+    { freq: C6, at: 1.1, dur: 0.75, vol: 0.18 },
+  ];
+  // Cichy błysk oktawę wyżej + bas i akord finałowy — brzmi jak "orkiestra",
+  // a to wciąż tylko kilka oscylatorów.
+  const shimmer: NoteSpec[] = melody.map((note) => ({
+    ...note,
+    freq: note.freq * 2,
+    vol: (note.vol ?? 0.16) * 0.25,
+    type: "sine" as const,
+  }));
+  const bass: NoteSpec[] = [
+    { freq: C4, at: 0.0, dur: 0.35, vol: 0.1 },
+    { freq: G4, at: 0.4, dur: 0.45, vol: 0.09 },
+    { freq: C4, at: 1.1, dur: 0.75, vol: 0.1 },
+  ];
+  const finalChord: NoteSpec[] = [
+    { freq: E5, at: 1.1, dur: 0.75, vol: 0.07, type: "sine" },
+    { freq: G5, at: 1.1, dur: 0.75, vol: 0.07, type: "sine" },
+  ];
+
+  for (const note of [...melody, ...shimmer, ...bass, ...finalChord]) {
+    scheduleNote(context, master, note);
+  }
+}
+
 /** Krótki sygnał zwrotny — bez plików, generowany w przeglądarce. */
 export function playFeedbackTone(kind: "good" | "try-again"): void {
   const context = getToneContext();

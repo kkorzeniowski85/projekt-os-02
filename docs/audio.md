@@ -102,6 +102,14 @@ pokazuje pełną listę brakujących plików.
 Przy materiałach RWI/Oxford Owl sprawdź warunki licencji, zanim wrzucisz pliki
 do aplikacji — nawet prywatnej.
 
+## Muzyka zwycięstwa (opcjonalnie)
+
+Na koniec sesji gra krótka fanfara syntezowana w przeglądarce (oryginalna
+melodia, bez praw autorskich). Żeby podłożyć własną muzykę, wrzuć plik
+`public/audio/celebration.mp3` (albo `.webm`/`.m4a`/`.wav`) — aplikacja użyje
+go automatycznie zamiast syntezy. Krótki utwór (2-5 s) sprawdzi się najlepiej,
+bo gra przy każdym ukończeniu sesji.
+
 ## Generowanie nagrań
 
 ```bash

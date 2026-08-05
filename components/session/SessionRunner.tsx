@@ -12,11 +12,14 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Celebration } from "@/components/Celebration";
 import { HeroAvatar } from "@/components/HeroAvatar";
 import { BigButton, Card, ParentTip, PhonemeSpeaker, StepDots, WordSpeaker } from "@/components/ui";
 import {
   playFeedbackTone,
   playPhonemeStrict,
+  playStarDing,
+  playVictoryFanfare,
   playWord,
   primeSpeech,
   unlockAudio,
@@ -631,15 +634,62 @@ function RewardScreen({
   // Zawsze co najmniej jedna gwiazdka — brief: bez kar za błędy.
   const stars = accuracy === null ? 2 : accuracy >= 0.9 ? 3 : accuracy >= 0.7 ? 2 : 1;
 
+  // Sekwencja zwycięstwa: gwiazdki wpadają jedna po drugiej z coraz wyższym
+  // dzwoneczkiem, po ostatniej gra fanfara. Czasy zsynchronizowane z animacją
+  // CSS gwiazdek (animationDelay niżej).
+  const STAR_START = 400;
+  const STAR_STEP = 420;
+  useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (let i = 0; i < stars; i++) {
+      timers.push(setTimeout(() => playStarDing(i), STAR_START + i * STAR_STEP));
+    }
+    timers.push(
+      setTimeout(() => void playVictoryFanfare(), STAR_START + stars * STAR_STEP + 150),
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [stars]);
+
   return (
     <div className="flex flex-col items-center gap-6 text-center">
-      <h1 className="text-3xl font-black">Misja zakończona!</h1>
+      <Celebration big={outcome.newHeroes.length > 0} />
 
-      <HeroAvatar hero={hero} emblem={sound.grapheme} size={170} cheering />
+      <h1 className="animate-pop-in text-3xl font-black">Misja zakończona!</h1>
+
+      <div className="relative flex h-64 w-64 items-center justify-center">
+        <svg
+          viewBox="-100 -100 200 200"
+          className="animate-spin-slow absolute inset-0 h-full w-full opacity-25"
+          aria-hidden
+        >
+          {Array.from({ length: 12 }, (_, i) => {
+            const angle = (i * Math.PI) / 6;
+            const x1 = (Math.cos(angle - 0.13) * 100).toFixed(1);
+            const y1 = (Math.sin(angle - 0.13) * 100).toFixed(1);
+            const x2 = (Math.cos(angle + 0.13) * 100).toFixed(1);
+            const y2 = (Math.sin(angle + 0.13) * 100).toFixed(1);
+            return <path key={i} d={`M0 0 L${x1} ${y1} L${x2} ${y2} Z`} fill="#ffc93c" />;
+          })}
+        </svg>
+        <HeroAvatar hero={hero} emblem={sound.grapheme} size={170} cheering />
+      </div>
 
       <div className="text-5xl" aria-label={`${stars} z 3 gwiazdek`}>
-        {"⭐".repeat(stars)}
-        <span className="opacity-25">{"⭐".repeat(3 - stars)}</span>
+        {Array.from({ length: 3 }, (_, i) =>
+          i < stars ? (
+            <span
+              key={i}
+              className="animate-pop-in inline-block"
+              style={{ animationDelay: `${STAR_START + i * STAR_STEP}ms` }}
+            >
+              ⭐
+            </span>
+          ) : (
+            <span key={i} className="inline-block opacity-25">
+              ⭐
+            </span>
+          ),
+        )}
       </div>
 
       <Card className="w-full max-w-md">
