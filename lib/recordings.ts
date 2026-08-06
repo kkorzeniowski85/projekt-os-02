@@ -117,6 +117,58 @@ export async function getRecordingUrl(id: string): Promise<string | null> {
   return url;
 }
 
+/**
+ * Wgranie gotowych plików dźwiękowych jako nagrań głosek.
+ *
+ * Po co: dostarczanie dźwięków na urządzenie z pominięciem internetu i
+ * GitHuba. Rodzic wybiera pliki skądkolwiek — z Dysku Google, z pamięci
+ * tabletu, z pendrive'a — a one lądują w pamięci urządzenia i działają
+ * natychmiast, także offline.
+ *
+ * Dopasowanie po nazwie pliku: `sh.wav` → głoska `sh`. Pliki o nazwach spoza
+ * listy dozwolonych identyfikatorów są pomijane, żeby przypadkowe zaznaczenie
+ * całego folderu nie zaśmieciło bazy.
+ */
+export async function importRecordingFiles(
+  files: File[],
+  allowedIds: string[],
+): Promise<{ imported: string[]; skipped: string[] }> {
+  const allowed = new Set(allowedIds);
+  const imported: string[] = [];
+  const skipped: string[] = [];
+
+  for (const file of files) {
+    const id = file.name.replace(/\.[^.]+$/, "");
+    if (!allowed.has(id) || file.size === 0) {
+      skipped.push(file.name);
+      continue;
+    }
+    try {
+      // Typ MIME bywa pusty przy plikach z Dysku — zapisujemy go z rozszerzenia,
+      // inaczej odtwarzacz nie wiedziałby, co dostał.
+      const type = file.type || mimeFromName(file.name);
+      await saveRecording(id, new Blob([await file.arrayBuffer()], { type }));
+      imported.push(id);
+    } catch {
+      skipped.push(file.name);
+    }
+  }
+
+  return { imported, skipped };
+}
+
+function mimeFromName(name: string): string {
+  const extension = name.toLowerCase().split(".").pop() ?? "";
+  const types: Record<string, string> = {
+    wav: "audio/wav",
+    mp3: "audio/mpeg",
+    m4a: "audio/mp4",
+    webm: "audio/webm",
+    ogg: "audio/ogg",
+  };
+  return types[extension] ?? "audio/wav";
+}
+
 /** Rozszerzenie pliku pasujące do formatu, w którym nagrała przeglądarka. */
 export function extensionFor(mime: string): string {
   if (mime.includes("webm")) return "webm";

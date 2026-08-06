@@ -78,7 +78,23 @@ wprost, że to namiastka.
 
 ## Jak dorobić głoski
 
-### Droga 1 (najprostsza): nagraj sam w aplikacji
+### Droga 0: wczytaj gotowe pliki na urządzenie (z Dysku, offline)
+
+**Tryb rodzica → Studio głosek → „Wczytaj pliki głosek".** Wskazujesz pliki
+`sh.wav`, `ch.wav`… (można wszystkie naraz) — z Dysku Google, z pamięci
+tabletu, skądkolwiek. Lądują w pamięci urządzenia i działają natychmiast, także
+bez internetu.
+
+Po co, skoro pliki i tak jadą przez GitHub: to jedyna droga dostarczenia
+dźwięków, gdy publikacja nie działa (np. awaria GitHuba) albo gdy nie chcesz
+czekać. Dopasowanie idzie po nazwie pliku, więc nazw nie wolno zmieniać. Pliki
+o innych nazwach są pomijane, więc zaznaczenie całego folderu niczego nie
+zepsuje.
+
+Uwaga: wczytane pliki są **per urządzenie** (jak nagrania własne) i mają
+pierwszeństwo przed plikami z internetu.
+
+### Droga 1: nagraj sam w aplikacji
 
 **Tryb rodzica → Studio głosek.** Przy każdej głosce są trzy rzeczy w tej
 kolejności:

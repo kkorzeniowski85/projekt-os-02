@@ -26,7 +26,7 @@ import { PhonemeRecorder } from "@/components/PhonemeRecorder";
 import { lessonGraphemes, lessonWords } from "@/lib/curriculum/lessons";
 import { IPA_BY_GRAPHEME, trickyHint } from "@/lib/curriculum/ipa";
 import { getSound } from "@/lib/curriculum/sounds";
-import { listRecordings } from "@/lib/recordings";
+import { importRecordingFiles, listRecordings } from "@/lib/recordings";
 import {
   buildProgressExport,
   parseProgressFile,
@@ -49,6 +49,15 @@ function sessionsWord(count: number): string {
   const lastTwo = count % 100;
   if (lastDigit >= 2 && lastDigit <= 4 && !(lastTwo >= 12 && lastTwo <= 14)) return "sesje";
   return "sesji";
+}
+
+/** Polska odmiana: 1 głoskę, 2-4 głoski, 5+ głosek. */
+function soundsWord(count: number): string {
+  if (count === 1) return "głoskę";
+  const lastDigit = count % 10;
+  const lastTwo = count % 100;
+  if (lastDigit >= 2 && lastDigit <= 4 && !(lastTwo >= 12 && lastTwo <= 14)) return "głoski";
+  return "głosek";
 }
 
 const STATUS_LABEL: Record<SoundState["status"], string> = {
@@ -108,6 +117,8 @@ export default function ParentPage() {
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [canShareFile, setCanShareFile] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const audioImportRef = useRef<HTMLInputElement>(null);
+  const [audioImportMessage, setAudioImportMessage] = useState<string | null>(null);
   const [resolved, setResolved] = useState<Record<string, string | null> | null>(null);
   const [auditing, setAuditing] = useState(false);
   const [recordedIds, setRecordedIds] = useState<string[]>([]);
@@ -182,6 +193,26 @@ export default function ParentPage() {
     } catch {
       // Anulowanie arkusza udostępniania też tu trafia — nic nie robimy.
     }
+  }
+
+  async function onImportAudio(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = [...(event.target.files ?? [])];
+    event.target.value = "";
+    if (files.length === 0) return;
+
+    const { imported, skipped } = await importRecordingFiles(files, graphemes);
+    await refreshRecordings();
+
+    const parts: string[] = [];
+    if (imported.length > 0) {
+      parts.push(`Wczytano ${imported.length} ${soundsWord(imported.length)}: ${imported.join(", ")}.`);
+    }
+    if (skipped.length > 0) {
+      parts.push(
+        `Pominięto ${skipped.length}: nazwa pliku musi odpowiadać głosce (np. sh.wav, ch.wav).`,
+      );
+    }
+    setAudioImportMessage(parts.join(" ") || "Nic nie wczytano.");
   }
 
   async function onImportFile(event: React.ChangeEvent<HTMLInputElement>) {
@@ -478,8 +509,33 @@ export default function ParentPage() {
           </ul>
         </div>
 
+        <div className="mb-4 rounded-2xl border border-white/15 bg-black/20 p-4 text-sm">
+          <p className="font-bold text-paper">Wczytaj głoski z plików (np. z Dysku Google)</p>
+          <p className="mt-1 mb-3 text-paper/70">
+            Najkrótsza droga, żeby dźwięki znalazły się na tym urządzeniu bez czekania na
+            internet: wskaż pliki <code>sh.wav</code>, <code>ch.wav</code>… z folderu{" "}
+            <code>angielski/public/audio/phonemes/</code>. Można zaznaczyć wszystkie naraz.
+            Wczytane pliki zostają w pamięci urządzenia i działają też offline.
+          </p>
+          <BigButton tone="quiet" onClick={() => audioImportRef.current?.click()}>
+            Wczytaj pliki głosek
+          </BigButton>
+          {/* Bez filtra `accept` — Dysk Google potrafi podawać puste typy MIME
+              i filtr wyszarzałby poprawne pliki. Nazwy i tak są sprawdzane. */}
+          <input
+            ref={audioImportRef}
+            type="file"
+            multiple
+            onChange={(event) => void onImportAudio(event)}
+            className="hidden"
+          />
+          {audioImportMessage && (
+            <p className="mt-3 rounded-xl bg-black/30 p-3 text-paper/85">{audioImportMessage}</p>
+          )}
+        </div>
+
         <p className="mb-2 text-sm text-paper/60">
-          Nagrane własnym głosem: {recordedIds.length} z {graphemes.length}
+          Własne nagranie lub wczytany plik: {recordedIds.length} z {graphemes.length}
         </p>
 
         <div className="flex flex-col gap-2">
