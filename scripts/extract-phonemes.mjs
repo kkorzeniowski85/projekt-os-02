@@ -40,6 +40,7 @@ const dryRun = process.argv.includes("--dry");
  * `kind` mówi, czego oczekujemy — służy też do kontroli jakości na końcu.
  */
 const RECIPES = [
+  // --- pojedyncze litery ---
   { id: "sh", word: "ship", cut: "onset", kind: "fricative" },
   { id: "f", word: "fish", cut: "onset", kind: "fricative" },
   { id: "ch", word: "chip", cut: "onset", kind: "affricate" },
@@ -49,11 +50,72 @@ const RECIPES = [
   { id: "m", word: "much", cut: "onset", kind: "sonorant" },
   { id: "w", word: "wish", cut: "onset", kind: "sonorant" },
   { id: "r", word: "rich", cut: "onset", kind: "sonorant" },
+  { id: "b", word: "boy", cut: "onset", kind: "plosive" },
+  { id: "c", word: "corn", cut: "onset", kind: "plosive" },
+  { id: "k", word: "king", cut: "onset", kind: "plosive" },
+  { id: "g", word: "goat", cut: "onset", kind: "plosive" },
+  { id: "h", word: "horn", cut: "onset", kind: "plosive" },
+  { id: "j", word: "join", cut: "onset", kind: "affricate" },
+  { id: "l", word: "look", cut: "onset", kind: "sonorant" },
+  { id: "n", word: "night", cut: "onset", kind: "sonorant" },
+  { id: "s", word: "sing", cut: "onset", kind: "fricative" },
+  { id: "z", word: "zoo", cut: "onset", kind: "fricative" },
+  { id: "y", word: "year", cut: "onset", kind: "sonorant" },
+  { id: "v", word: "five", cut: "coda", kind: "plosive" },
   { id: "a", word: "cat", cut: "vowel", kind: "vowel" },
   { id: "e", word: "bed", cut: "vowel", kind: "vowel" },
   { id: "i", word: "dish", cut: "vowel", kind: "vowel" },
   { id: "o", word: "top", cut: "vowel", kind: "vowel" },
   { id: "u", word: "sun", cut: "vowel", kind: "vowel" },
+
+  // --- "special friends" Set 1 ---
+  { id: "th", word: "this", cut: "onset", kind: "plosive" },
+  { id: "qu", word: "quit", cut: "onset", kind: "plosive" },
+  { id: "ng", word: "ring", cut: "coda", kind: "sonorant" },
+  { id: "nk", word: "pink", cut: "coda", kind: "plosive" },
+
+  // --- Set 2: zespoły samogłoskowe ---
+  { id: "ay", word: "day", cut: "vowel", kind: "vowel" },
+  { id: "ee", word: "see", cut: "vowel", kind: "vowel" },
+  { id: "igh", word: "high", cut: "vowel", kind: "vowel" },
+  { id: "ow-blow", word: "snow", cut: "vowel", kind: "vowel" },
+  { id: "oo-zoo", word: "zoo", cut: "vowel", kind: "vowel" },
+  { id: "oo-look", word: "look", cut: "vowel", kind: "vowel" },
+  { id: "ar", word: "car", cut: "vowel", kind: "vowel" },
+  { id: "or", word: "fork", cut: "vowel", kind: "vowel" },
+  { id: "air", word: "hair", cut: "vowel", kind: "vowel" },
+  { id: "ir", word: "bird", cut: "vowel", kind: "vowel" },
+  { id: "ou", word: "out", cut: "vowel", kind: "vowel" },
+  { id: "oy", word: "boy", cut: "vowel", kind: "vowel" },
+
+  // --- Set 3 ---
+  { id: "ea", word: "tea", cut: "vowel", kind: "vowel" },
+  { id: "oi", word: "oil", cut: "vowel", kind: "vowel" },
+  { id: "a-e", word: "lake", cut: "vowel", kind: "vowel" },
+  { id: "i-e", word: "time", cut: "vowel", kind: "vowel" },
+  { id: "o-e", word: "home", cut: "vowel", kind: "vowel" },
+  { id: "u-e", word: "cube", cut: "vowel", kind: "vowel" },
+  { id: "aw", word: "saw", cut: "vowel", kind: "vowel" },
+  { id: "are", word: "hare", cut: "vowel", kind: "vowel" },
+  { id: "ur", word: "burn", cut: "vowel", kind: "vowel" },
+  { id: "er", word: "letter", cut: "coda", kind: "vowel" },
+  { id: "ow-brown", word: "cow", cut: "vowel", kind: "vowel" },
+  { id: "ai", word: "rain", cut: "vowel", kind: "vowel" },
+  { id: "oa", word: "boat", cut: "vowel", kind: "vowel" },
+  { id: "ew", word: "chew", cut: "vowel", kind: "vowel" },
+  { id: "ire", word: "fire", cut: "vowel", kind: "vowel" },
+  { id: "ear", word: "hear", cut: "vowel", kind: "vowel" },
+  { id: "ure", word: "pure", cut: "vowel", kind: "vowel" },
+];
+
+/**
+ * Podwójne litery w słowach dwusylabowych (le-tt-er) brzmią jak pojedyncza —
+ * kopiujemy gotowy plik zamiast wycinać drugi raz to samo.
+ */
+const ALIASES = [
+  { id: "tt", from: "t" },
+  { id: "nn", from: "n" },
+  { id: "mm", from: "m" },
 ];
 
 // --- dekodowanie ------------------------------------------------------------
@@ -163,6 +225,26 @@ function findSegment(frames, cut, frameMs) {
     if (to - first < ms(60)) to = Math.min(nucleus, first + ms(60));
     if (to - first > ms(200)) to = first + ms(200);
     return { fromFrame: first, toFrame: Math.max(first + 1, to) };
+  }
+
+  if (cut === "coda") {
+    // Spółgłoska wygłosowa: od najgwałtowniejszej zmiany cech PO jądrze
+    // samogłoski do końca mowy — lustrzane odbicie cięcia nagłosowego.
+    let boundary = Math.min(nucleus + 1, last);
+    let best = -1;
+    for (let i = nucleus + 1; i <= last; i++) {
+      const change =
+        Math.abs(frames[i].loud - frames[i - 1].loud) * 2 +
+        Math.abs(frames[i].lowRatio - frames[i - 1].lowRatio);
+      if (change > best) {
+        best = change;
+        boundary = i;
+      }
+    }
+    let from = boundary;
+    if (last + 1 - from < ms(50)) from = Math.max(nucleus + 1, last + 1 - ms(60));
+    if (last + 1 - from > ms(220)) from = last + 1 - ms(220);
+    return { fromFrame: from, toFrame: last + 1 };
   }
 
   // Samogłoska: spójny obszar wokół jądra. Próg 0.4 zamiast 0.5 — przy krótkich
@@ -280,6 +362,25 @@ for (const recipe of RECIPES) {
   });
 }
 
+// Aliasy: kopia gotowego pliku pod drugą nazwą.
+for (const alias of ALIASES) {
+  const source = path.join(outDir, `${alias.from}.wav`);
+  if (!existsSync(source)) {
+    report.push({ id: alias.id, word: `(kopia ${alias.from})`, status: "BRAK ŹRÓDŁA ALIASU" });
+    continue;
+  }
+  if (!dryRun) writeFileSync(path.join(outDir, `${alias.id}.wav`), readFileSync(source));
+  report.push({
+    id: alias.id,
+    word: `= ${alias.from}`,
+    cut: "alias",
+    kind: "alias",
+    status: "OK",
+    durationMs: 0,
+    lowRatio: 0,
+  });
+}
+
 // --- kontrola jakości (na liczbach, nie na uchu) ----------------------------
 
 /*
@@ -305,6 +406,10 @@ for (const row of report) {
   if (row.status !== "OK") {
     console.log(`${row.id.padEnd(7)} ${row.word.padEnd(8)} ${row.status}`);
     warnings++;
+    continue;
+  }
+  if (row.kind === "alias") {
+    console.log(`${row.id.padEnd(7)} ${row.word.padEnd(8)} alias    ✓`);
     continue;
   }
   const rules = EXPECT[row.kind];

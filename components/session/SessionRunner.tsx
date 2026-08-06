@@ -25,7 +25,13 @@ import {
   stopVictoryFanfare,
   unlockAudio,
 } from "@/lib/audio";
-import type { ChoiceRound, Lesson, ListenItem, WordCard } from "@/lib/curriculum/lessons";
+import {
+  chipSoundId,
+  type ChoiceRound,
+  type Lesson,
+  type ListenItem,
+  type WordCard,
+} from "@/lib/curriculum/lessons";
 import type { Sound } from "@/lib/curriculum/sounds";
 import { getHero, HEROES_BY_ID } from "@/lib/heroes";
 import { useProgress, type PendingAttempt, type SessionOutcome } from "@/lib/progress/store";
@@ -436,7 +442,8 @@ function BlendScreen({
                 setTapped((previous) =>
                   previous.includes(position) ? previous : [...previous, position],
                 );
-                const result = await playPhonemeStrict(grapheme);
+                // chipSoundId: kafelek "oo" gra wariant tej lekcji (zoo vs look).
+                const result = await playPhonemeStrict(chipSoundId(grapheme, sound.id));
                 if (result.source === "unavailable") setMissingClip(true);
               }}
               className={`font-reading min-w-20 rounded-2xl px-5 py-4 text-4xl font-black transition active:translate-y-1 ${

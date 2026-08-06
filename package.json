@@ -6,8 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "audio": "node scripts/generate-audio.mjs",
-    "audio:phonemes": "node scripts/extract-phonemes.mjs"
+    "audio": "tsx scripts/generate-audio.mjs",
+    "audio:phonemes": "tsx scripts/extract-phonemes.mjs"
   },
   "dependencies": {
     "next": "16.2.12",
@@ -22,6 +22,7 @@
     "mpg123-decoder": "^1.0.3",
     "msedge-tts": "^2.0.7",
     "tailwindcss": "^4",
+    "tsx": "^4.23.9",
     "typescript": "^5"
   }
 }

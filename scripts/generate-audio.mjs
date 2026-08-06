@@ -89,7 +89,7 @@ let failed = 0;
 
 // Słowa — nieco wolniej niż normalna mowa, dziecko dopiero łapie dźwięki.
 for (const word of words) {
-  const target = path.join(wordsDir, `${word}.mp3`);
+  const target = path.join(wordsDir, `${word.toLowerCase()}.mp3`); // małe litery: GitHub Pages rozróżnia wielkość
   if (!force && existsSync(target)) {
     skipped++;
     continue;

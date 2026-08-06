@@ -4,8 +4,8 @@
 
 | Co | Stan | Czym zrobione |
 | --- | --- | --- |
-| **Słowa** (32 pliki) | ✅ gotowe | synteza, brytyjski głos neuronowy `en-GB-SoniaNeural`, tempo −15% |
-| **Czyste głoski** (14 plików) | ✅ gotowe, do odsłuchania | wycięte z nagrań słów (`npm run audio:phonemes`) |
+| **Słowa** (395 plików) | ✅ gotowe | synteza, brytyjski głos neuronowy `en-GB-SoniaNeural`, tempo −15% |
+| **Czyste głoski** (62 pliki) | ✅ gotowe, do odsłuchania | wycięte z nagrań słów (`npm run audio:phonemes`) |
 
 Nagrania słów leżą w `public/audio/words/`. Aplikacja używa ich automatycznie
 zamiast głosu z urządzenia.

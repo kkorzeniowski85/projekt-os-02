@@ -51,7 +51,7 @@ Wynik ląduje w `angielski/out/` jako czysta statyka.
 
 ## Co już działa
 
-- **Dwie kompletne sesje**: `sh` i `ch` (`/sesja/sh`, `/sesja/ch`).
+- **35 kompletnych sesji** — wszystkie „special friends” Set 1 (sh, ch, th, qu, ng, nk), cały Set 2 i cały Set 3 (`/sesja/<dźwięk>`).
   Przebieg: wprowadzenie dźwięku → „słyszysz ten dźwięk?" → sklejanie dźwięków
   w słowo (Fred Talk) → „które słowo słyszysz?" → podsumowanie z nagrodą.
 - **Tryb „z rodzicem" i „sam"** — w trybie wspólnym rodzic widzi wskazówki i to

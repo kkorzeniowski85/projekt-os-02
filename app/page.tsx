@@ -98,10 +98,10 @@ export default function HomePage() {
               compact={role === "phone"}
             />
           ))}
-          <p className="text-xs text-paper/50">
-            Ćwiczenia są na razie gotowe dla dźwięków podświetlonych. Reszta sekwencji jest
-            widoczna celowo — pokazuje całą drogę, ale czeka na testy pierwszych sesji z
-            dzieckiem.
+          <p className="text-xs text-paper/60">
+            Wszystkie dwuznaki i dźwięki Set 1-3 mają gotowe sesje — można grać w dowolnej
+            kolejności, choć kolejność RWI (od lewej do prawej) ma sens. Pojedyncze litery
+            celowo nie mają lekcji: proste słowa CVC są już opanowane.
           </p>
         </section>
 
