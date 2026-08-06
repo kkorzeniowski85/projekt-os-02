@@ -72,7 +72,7 @@ Wynik ląduje w `angielski/out/` jako czysta statyka.
   dodatkową kolumnę dla rodzica.
 - **PWA**: manifest, ikony, service worker (offline dla powłoki aplikacji).
 
-- **Nagrania 32 słów** brytyjskim głosem neuronowym (`npm run audio`) —
+- **Nagrania 395 słów** brytyjskim głosem neuronowym (`npm run audio`) —
   aplikacja używa ich zamiast głosu z urządzenia. Przed pierwszą sesją
   przesłuchaj je w trybie rodzica: powstały maszynowo i nikt ich jeszcze nie
   sprawdził.
@@ -81,7 +81,7 @@ Wynik ląduje w `angielski/out/` jako czysta statyka.
   po odsłuchaniu wzorca. Nagrania trafiają do sesji od razu, zostają na
   urządzeniu i można je pobrać, żeby wgrać na stałe.
 
-- **Nagrania 14 czystych głosek** wycięte automatycznie z nagrań słów
+- **Nagrania 62 czystych głosek** wycięte automatycznie z nagrań słów
   (`npm run audio:phonemes`) — prawdziwy brytyjski głos, nie synteza. Do
   odsłuchania przez rodzica; własne nagranie zawsze ma pierwszeństwo.
 
