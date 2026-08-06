@@ -22,6 +22,7 @@ import {
   playVictoryFanfare,
   playWord,
   primeSpeech,
+  stopVictoryFanfare,
   unlockAudio,
 } from "@/lib/audio";
 import type { ChoiceRound, Lesson, ListenItem, WordCard } from "@/lib/curriculum/lessons";
@@ -647,7 +648,12 @@ function RewardScreen({
     timers.push(
       setTimeout(() => void playVictoryFanfare(), STAR_START + stars * STAR_STEP + 150),
     );
-    return () => timers.forEach(clearTimeout);
+    // Wyjście z ekranu nagrody ucisza muzykę — hymn nie ma grać nad kolejną
+    // sesją ani nad ekranem głównym.
+    return () => {
+      timers.forEach(clearTimeout);
+      stopVictoryFanfare();
+    };
   }, [stars]);
 
   return (
@@ -739,13 +745,26 @@ function RewardScreen({
       )}
 
       <div className="flex w-full max-w-md flex-col gap-3 sm:flex-row">
-        <BigButton onClick={onAgain} full>
+        <BigButton
+          onClick={() => {
+            stopVictoryFanfare();
+            onAgain();
+          }}
+          full
+        >
           Jeszcze raz
         </BigButton>
         <BigButton href="/" tone="quiet" full>
           Koniec
         </BigButton>
       </div>
+      <button
+        type="button"
+        onClick={() => stopVictoryFanfare()}
+        className="text-xs text-paper/40 underline"
+      >
+        wycisz muzykę
+      </button>
     </div>
   );
 }

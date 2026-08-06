@@ -336,7 +336,11 @@ type NoteSpec = {
   type?: OscillatorType;
 };
 
-function scheduleNote(context: AudioContext, destination: AudioNode, note: NoteSpec): void {
+function scheduleNote(
+  context: AudioContext,
+  destination: AudioNode,
+  note: NoteSpec,
+): OscillatorNode {
   const oscillator = context.createOscillator();
   const gain = context.createGain();
   oscillator.type = note.type ?? "triangle";
@@ -351,6 +355,7 @@ function scheduleNote(context: AudioContext, destination: AudioNode, note: NoteS
   oscillator.connect(gain).connect(destination);
   oscillator.start(start);
   oscillator.stop(start + note.dur + 0.05);
+  return oscillator;
 }
 
 /** Dzwoneczek pojawiającej się gwiazdki — kolejne gwiazdki brzmią coraz wyżej. */
@@ -371,17 +376,63 @@ export function playStarDing(index: number): void {
   });
 }
 
+/** Uderzenie kotłów — niskie, szybko gasnące, daje "orkiestrowy" ciężar. */
+function scheduleTimpani(
+  context: AudioContext,
+  destination: AudioNode,
+  at: number,
+  freq = 73.42,
+  vol = 0.5,
+): OscillatorNode {
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  const start = context.currentTime + at;
+
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(freq * 1.6, start);
+  oscillator.frequency.exponentialRampToValueAtTime(freq, start + 0.08);
+
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(vol, start + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.55);
+
+  oscillator.connect(gain).connect(destination);
+  oscillator.start(start);
+  oscillator.stop(start + 0.6);
+  return oscillator;
+}
+
+/** Zatrzymanie muzyki — gdy dziecko klika dalej, nie ma grać w tle. */
+let stopVictory: (() => void) | null = null;
+
+export function stopVictoryFanfare(): void {
+  stopVictory?.();
+  stopVictory = null;
+}
+
 /**
- * Fanfara zwycięzcy na koniec sesji.
+ * Hymn zwycięzcy na koniec sesji — około 10 sekund.
+ *
+ * Melodia jest w CAŁOŚCI ORYGINALNA, skomponowana na potrzeby tej aplikacji.
+ * Utrzymana w stylistyce kina superbohaterskiego (fanfara instrumentów dętych,
+ * kotły, wznoszący temat, wielki akord finałowy), ale nie zawiera ani jednej
+ * frazy z istniejących ścieżek filmowych — te są chronione prawem autorskim.
  *
  * Rodzic może podłożyć własną muzykę: plik public/audio/celebration.mp3
- * (albo .webm/.m4a/.wav) wygrywa z syntezą. Bez pliku gra krótka, ORYGINALNA
- * fanfara (do-mi-sol-DO… ti-DO z akordem) — celowo nie cytat z żadnej gry
- * ani filmu, żeby nie wnosić cudzych melodii.
+ * (albo .webm/.m4a/.wav) wygrywa z syntezą.
  */
 export async function playVictoryFanfare(): Promise<void> {
+  stopVictoryFanfare();
+
   const clip = await findClip(`${CLIP_BASE}/celebration`);
-  if (clip && (await playUrl(clip)) === "ok") return;
+  if (clip && (await playUrl(clip)) === "ok") {
+    stopVictory = () => {
+      const audio = getSharedAudio();
+      audio.pause();
+      audio.currentTime = 0;
+    };
+    return;
+  }
 
   const context = getToneContext();
   if (!context) return;
@@ -393,41 +444,124 @@ export async function playVictoryFanfare(): Promise<void> {
     }
   }
 
+  // Filtr dolnoprzepustowy zamienia ostrą piłę w miękki, "dęty" ton.
+  // Poziom dobrany pomiarem: szczyt sygnału ma być porównywalny z nagraniami
+  // słów, żeby finał brzmiał donośnie, ale bez przesterowania (pilnuje limiter).
   const master = context.createGain();
-  master.gain.value = 0.9;
-  master.connect(context.destination);
+  master.gain.value = 1.15;
+  const brass = context.createBiquadFilter();
+  brass.type = "lowpass";
+  brass.frequency.value = 2600;
+  brass.Q.value = 0.7;
 
-  const C4 = 261.63, G4 = 392.0, C5 = 523.25, E5 = 659.25, G5 = 783.99, B5 = 987.77, C6 = 1046.5;
+  // Limiter: przy 9 głosach naraz suma obwiedni potrafi przekroczyć 1.0, a
+  // wtedy WebAudio obcina falę i słychać trzask. Kompresor pilnuje szczytów
+  // niezależnie od tego, jak nuty się na siebie nałożą.
+  const limiter = context.createDynamicsCompressor();
+  limiter.threshold.value = -5;
+  limiter.knee.value = 6;
+  limiter.ratio.value = 12;
+  limiter.attack.value = 0.003;
+  limiter.release.value = 0.25;
 
+  brass.connect(master);
+  master.connect(limiter);
+  limiter.connect(context.destination);
+
+  const C3 = 130.81, F3 = 174.61, G3 = 196.0, C4 = 261.63;
+  const G4 = 392.0, A4 = 440.0, B4 = 493.88;
+  const C5 = 523.25, D5 = 587.33, E5 = 659.25, F5 = 698.46, G5 = 783.99;
+  const A5 = 880.0, B5 = 987.77, C6 = 1046.5, D6 = 1174.66, E6 = 1318.51;
+
+  const T = "sawtooth" as const;
+
+  // Melodia w czterech frazach: wezwanie → temat → wznoszenie → finał.
   const melody: NoteSpec[] = [
-    { freq: C5, at: 0.0, dur: 0.14 },
-    { freq: E5, at: 0.13, dur: 0.14 },
-    { freq: G5, at: 0.26, dur: 0.14 },
-    { freq: C6, at: 0.4, dur: 0.5, vol: 0.18 },
-    { freq: B5, at: 0.95, dur: 0.13, vol: 0.13 },
-    { freq: C6, at: 1.1, dur: 0.75, vol: 0.18 },
+    // Wezwanie (fanfara powtarzanych dźwięków, jak sygnał do zbiórki)
+    { freq: G4, at: 0.0, dur: 0.16, vol: 0.15, type: T },
+    { freq: G4, at: 0.18, dur: 0.16, vol: 0.15, type: T },
+    { freq: G4, at: 0.36, dur: 0.16, vol: 0.15, type: T },
+    { freq: C5, at: 0.56, dur: 0.55, vol: 0.19, type: T },
+    { freq: E5, at: 1.2, dur: 0.3, vol: 0.16, type: T },
+    { freq: G5, at: 1.52, dur: 0.5, vol: 0.19, type: T },
+    // Temat główny
+    { freq: C6, at: 2.1, dur: 0.6, vol: 0.2, type: T },
+    { freq: B5, at: 2.74, dur: 0.2, vol: 0.15, type: T },
+    { freq: A5, at: 2.95, dur: 0.2, vol: 0.15, type: T },
+    { freq: G5, at: 3.16, dur: 0.62, vol: 0.19, type: T },
+    { freq: E5, at: 3.82, dur: 0.26, vol: 0.15, type: T },
+    { freq: F5, at: 4.1, dur: 0.26, vol: 0.15, type: T },
+    { freq: G5, at: 4.38, dur: 0.66, vol: 0.19, type: T },
+    // Wznoszenie ku szczytowi
+    { freq: A5, at: 5.1, dur: 0.26, vol: 0.16, type: T },
+    { freq: B5, at: 5.38, dur: 0.26, vol: 0.16, type: T },
+    { freq: C6, at: 5.66, dur: 0.5, vol: 0.19, type: T },
+    { freq: D6, at: 6.2, dur: 0.28, vol: 0.17, type: T },
+    { freq: E6, at: 6.5, dur: 0.72, vol: 0.21, type: T },
+    { freq: D6, at: 7.26, dur: 0.22, vol: 0.16, type: T },
+    { freq: C6, at: 7.5, dur: 0.34, vol: 0.18, type: T },
+    // Rozbieg i akord finałowy
+    { freq: G5, at: 7.88, dur: 0.2, vol: 0.16, type: T },
+    { freq: A5, at: 8.1, dur: 0.2, vol: 0.16, type: T },
+    { freq: B5, at: 8.32, dur: 0.2, vol: 0.17, type: T },
+    { freq: C6, at: 8.54, dur: 1.5, vol: 0.22, type: T },
   ];
-  // Cichy błysk oktawę wyżej + bas i akord finałowy — brzmi jak "orkiestra",
-  // a to wciąż tylko kilka oscylatorów.
+
+  // Cichy błysk oktawę wyżej — dodaje blasku bez podbijania głośności.
   const shimmer: NoteSpec[] = melody.map((note) => ({
     ...note,
     freq: note.freq * 2,
-    vol: (note.vol ?? 0.16) * 0.25,
+    vol: (note.vol ?? 0.16) * 0.16,
     type: "sine" as const,
   }));
+
   const bass: NoteSpec[] = [
-    { freq: C4, at: 0.0, dur: 0.35, vol: 0.1 },
-    { freq: G4, at: 0.4, dur: 0.45, vol: 0.09 },
-    { freq: C4, at: 1.1, dur: 0.75, vol: 0.1 },
-  ];
-  const finalChord: NoteSpec[] = [
-    { freq: E5, at: 1.1, dur: 0.75, vol: 0.07, type: "sine" },
-    { freq: G5, at: 1.1, dur: 0.75, vol: 0.07, type: "sine" },
+    { freq: C3, at: 0.0, dur: 0.5, vol: 0.13, type: T },
+    { freq: C3, at: 0.56, dur: 0.9, vol: 0.13, type: T },
+    { freq: C3, at: 2.1, dur: 0.95, vol: 0.13, type: T },
+    { freq: G3, at: 3.16, dur: 0.95, vol: 0.12, type: T },
+    { freq: C3, at: 4.38, dur: 0.9, vol: 0.13, type: T },
+    { freq: F3, at: 5.1, dur: 1.2, vol: 0.12, type: T },
+    { freq: G3, at: 6.5, dur: 1.2, vol: 0.13, type: T },
+    { freq: C3, at: 8.54, dur: 1.6, vol: 0.14, type: T },
   ];
 
+  // Akord C-dur pod ostatnią nutą — "wielkie zakończenie".
+  const finalChord: NoteSpec[] = [
+    { freq: C4, at: 8.54, dur: 1.5, vol: 0.09, type: T },
+    { freq: E5, at: 8.54, dur: 1.5, vol: 0.08, type: T },
+    { freq: G5, at: 8.54, dur: 1.5, vol: 0.08, type: T },
+  ];
+
+  const oscillators: OscillatorNode[] = [];
   for (const note of [...melody, ...shimmer, ...bass, ...finalChord]) {
-    scheduleNote(context, master, note);
+    oscillators.push(scheduleNote(context, brass, note));
   }
+  for (const [at, vol] of [
+    [0.0, 0.26],
+    [0.56, 0.3],
+    [2.1, 0.3],
+    [4.38, 0.26],
+    [6.5, 0.32],
+    [8.54, 0.36],
+  ] as const) {
+    oscillators.push(scheduleTimpani(context, master, at, 73.42, vol));
+  }
+
+  stopVictory = () => {
+    // Krótkie wyciszenie zamiast twardego cięcia — inaczej słychać trzask.
+    const now = context.currentTime;
+    master.gain.cancelScheduledValues(now);
+    master.gain.setValueAtTime(master.gain.value, now);
+    master.gain.linearRampToValueAtTime(0.0001, now + 0.12);
+    oscillators.forEach((oscillator) => {
+      try {
+        oscillator.stop(now + 0.15);
+      } catch {
+        // już zatrzymany
+      }
+    });
+  };
 }
 
 /** Krótki sygnał zwrotny — bez plików, generowany w przeglądarce. */
