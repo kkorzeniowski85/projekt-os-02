@@ -449,6 +449,17 @@ export default function ParentPage() {
           słów przy sklejaniu, które bez nagrania milczą.
         </p>
 
+        <div className="mb-4 rounded-2xl border border-hero-gold/40 bg-hero-gold/10 p-4 text-sm">
+          <p className="font-bold text-hero-gold">Głoski są już wstępnie przygotowane</p>
+          <p className="mt-1 text-paper/80">
+            Każda głoska została automatycznie <strong>wycięta z brytyjskiego nagrania
+            słowa</strong> (np. „sh” z początku słowa <em>ship</em>) — to prawdziwy głos i
+            prawdziwa wymowa, nie synteza. Nikt ich jednak nie odsłuchał: kliknij ▶ przy
+            każdej. Jeśli któraś brzmi źle, nagraj ją swoim głosem — nagranie własne ma
+            pierwszeństwo przed plikiem.
+          </p>
+        </div>
+
         <div className="mb-4 rounded-2xl border border-hero-cyan/40 bg-hero-cyan/10 p-4 text-sm">
           <p className="font-bold text-hero-cyan">Zanim nagrasz</p>
           <ul className="mt-1 list-disc space-y-1 pl-5 text-paper/80">

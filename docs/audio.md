@@ -5,7 +5,7 @@
 | Co | Stan | Czym zrobione |
 | --- | --- | --- |
 | **Słowa** (32 pliki) | ✅ gotowe | synteza, brytyjski głos neuronowy `en-GB-SoniaNeural`, tempo −15% |
-| **Czyste głoski** (14 plików) | ⚪ do nagrania przez rodzica | studio głosek w trybie rodzica (albo klucz Azure) |
+| **Czyste głoski** (14 plików) | ✅ gotowe, do odsłuchania | wycięte z nagrań słów (`npm run audio:phonemes`) |
 
 Nagrania słów leżą w `public/audio/words/`. Aplikacja używa ich automatycznie
 zamiast głosu z urządzenia.
@@ -15,7 +15,47 @@ z dzieckiem, przejdź przez listę w **Tryb rodzica → Audio** i kliknij ▶ pr
 każdym słowie. Plik, który brzmi źle, po prostu skasuj: aplikacja wróci wtedy do
 głosu z urządzenia, bez żadnej konfiguracji.
 
-## Dlaczego głosek nie ma
+## Skąd wzięły się głoski
+
+Nie z syntezatora — z **wycięcia fragmentów prawdziwych nagrań słów**. Głoska
+/ʃ/ jest fizycznie obecna na początku nagrania słowa „ship", więc zamiast prosić
+syntezator o coś, czego nie umie, bierzemy ją stamtąd. To ten sam brytyjski
+głos i autentyczna wymowa.
+
+Granice wyznacza analiza sygnału (`scripts/extract-phonemes.mjs`), bez ręcznego
+zaznaczania: dla każdej ramki ~10 ms liczona jest energia w paśmie niskim i
+wysokim, a z nich „samogłoskowość". Spółgłoska nagłosowa to odcinek od początku
+mowy do granicy o największej zmianie cech; samogłoska to otoczenie
+najsilniejszego wierzchołka. Skrypt sam kontroluje wynik (długość, pasmo) i
+oznacza podejrzane wycinki.
+
+Wyniki dla obecnego zestawu — wyraźny rozdział między szczelinowymi (energia w
+wysokich) a samogłoskami (energia w niskich), czyli cięcia trafiły tam, gdzie
+powinny:
+
+| głoska | źródło | długość | niskie/całość |
+| --- | --- | --- | --- |
+| sh | ship | 160 ms | 0.10 |
+| ch | chip | 120 ms | 0.16 |
+| f | fish | 80 ms | 0.25 |
+| t | top | 90 ms | 0.27 |
+| p | pen | 70 ms | 0.39 |
+| d | dish | 40 ms | 0.53 |
+| m / w / r | much / wish / rich | 50-60 ms | 0.70-0.72 |
+| a / e / i / o / u | cat / bed / dish / top / sun | 80-200 ms | 0.54-0.70 |
+
+**Czego ta kontrola nie zastąpi:** liczby mówią, że wycięto właściwy *rodzaj*
+dźwięku, ale nie że brzmi on dobrze. Przesłuchaj głoski w trybie rodzica przed
+pierwszą sesją. Zła głoska = nagraj ją swoim głosem (nagranie własne ma
+pierwszeństwo) albo skasuj plik — wtedy aplikacja wraca do „wymawia rodzic".
+
+Ponowne wycięcie (np. po dodaniu nowych słów):
+
+```bash
+npm run audio:phonemes
+```
+
+## Dlaczego nie da się ich zsyntezować wprost
 
 Żeby syntezator wymówił *dźwięk* `p`, a nie *nazwę litery* („pi”), trzeba podać
 mu zapis fonetyczny:
@@ -30,10 +70,11 @@ SAPI. Zostaje więc wybór: albo nagrania z prawdziwym zapisem fonetycznym, albo
 zgadywanie. Zgadywania nie robimy — wzorzec „py” zamiast `p` utrwala dokładnie
 ten błąd, którego uczy się unikać w phonics.
 
-Dopóki nagrań nie ma, aplikacja zachowuje się uczciwie: kawałki słowa przy
-sklejaniu **milczą** i pokazują „🎤 wypowiada rodzic”. Ekran wprowadzenia
-dźwięku odtwarza za to przykładowe słowo (już w dobrej jakości) i wprost mówi,
-że to namiastka.
+Dlatego głoski powstają przez wycinanie (wyżej), a nie przez syntezę. Gdyby
+kiedyś zabrakło pliku dla jakiejś głoski, aplikacja zachowa się uczciwie:
+kawałek słowa przy sklejaniu **zamilknie** i pokaże „🎤 wypowiada rodzic”, a
+ekran wprowadzenia odtworzy brytyjskie nagranie przykładowego słowa, mówiąc
+wprost, że to namiastka.
 
 ## Jak dorobić głoski
 

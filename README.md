@@ -81,12 +81,11 @@ Wynik ląduje w `angielski/out/` jako czysta statyka.
   po odsłuchaniu wzorca. Nagrania trafiają do sesji od razu, zostają na
   urządzeniu i można je pobrać, żeby wgrać na stałe.
 
-## Czego jeszcze nie ma (świadomie)
+- **Nagrania 14 czystych głosek** wycięte automatycznie z nagrań słów
+  (`npm run audio:phonemes`) — prawdziwy brytyjski głos, nie synteza. Do
+  odsłuchania przez rodzica; własne nagranie zawsze ma pierwszeństwo.
 
-- **Gotowych nagrań czystych głosek** — usługa użyta do słów nie obsługuje
-  zapisu fonetycznego, a zgadywanie utrwaliłoby błędną wymowę. Dopóki rodzic
-  ich nie nagra, kawałki słów przy sklejaniu milczą i dźwięk wymawia rodzic.
-  Trzy drogi do uzupełnienia: [docs/audio.md](docs/audio.md).
+## Czego jeszcze nie ma (świadomie)
 - **Toru 2 (słuchanie i słownictwo)** — najpierw test toru czytania z dzieckiem.
 - **Backendu i synchronizacji** między urządzeniami — postęp żyje w jednej
   przeglądarce. Model danych jest już pod to przygotowany (zamknięte paczki

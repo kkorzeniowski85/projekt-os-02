@@ -42,7 +42,10 @@ const CLIP_BASE = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/audio`;
  * Nagrania z generatora są w MP3, ale nagranie zrobione w przeglądarce i wgrane
  * do folderu będzie webm (Chrome/Android) albo m4a (Safari). Szukamy po kolei.
  */
-const CLIP_EXTENSIONS = ["mp3", "webm", "m4a", "wav"];
+// Kolejność ma znaczenie dla liczby nietrafionych zapytań: mp3 mają słowa
+// z generatora, wav — głoski wycięte z nagrań. Reszta to formaty, w których
+// nagrywa przeglądarka (rodzic wgrywający własne nagranie).
+const CLIP_EXTENSIONS = ["mp3", "wav", "webm", "m4a"];
 
 export function wordClipBase(word: string): string {
   return `${CLIP_BASE}/words/${word.toLowerCase()}`;
