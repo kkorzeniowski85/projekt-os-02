@@ -380,8 +380,8 @@ function ListenScreen({
           </p>
           <p className="text-sm text-paper/70">
             {item.hasTarget
-              ? `W tym słowie JEST „${sound.grapheme}”.`
-              : `W tym słowie NIE MA „${sound.grapheme}”.`}
+              ? `W tym słowie SŁYCHAĆ „${sound.grapheme}”.`
+              : `W tym słowie NIE SŁYCHAĆ „${sound.grapheme}”.`}
           </p>
         </div>
       )}

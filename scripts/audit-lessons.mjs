@@ -88,13 +88,40 @@ for (const [id, lesson] of Object.entries(LESSONS)) {
   // hasTarget opisuje DŹWIĘK, potwierdzone przeglądem fonetycznym):
   const SPELLING_EXCEPTIONS = new Set([
     "ure:picture", // -ture brzmi "czə", nie "juə" — celowy dystraktor
+    // Lekcje pojedynczych liter uczą wprost, że LITERA to nie DŹWIĘK. Poniższe
+    // słowa są w nich rdzeniem ćwiczenia, a nie pomyłką:
+    "h:cheese", "h:bath", // "ch" i "th" to osobne dźwięki, "h" w nich nie brzmi
+    "r:car", "r:star", "r:dinner", // brytyjskie (nierotyczne) — końcowe "r" nie brzmi
+    "y:happy", "y:baby", // "y" na końcu to samogłoska, nie /j/
+    "y:toy", // "oy" to jeden dźwięk
+    "w:two", // nieme "w"
+    "w:snow", "w:yellow", "w:cow", // "ow" to jeden dźwięk, nie /w/
+    "z:nose", // dźwięk /z/ zapisany literą "s"
+    "x:socks", // dźwięk /ks/ zapisany jako "cks"
+    "b:thumb", // nieme "b"
+    "l:walk", "l:talk", // nieme "l"
+    "f:phone", // dźwięk /f/ zapisany jako "ph"
+    "h:fish", // "sh" to jeden dźwięk
+    "e:tree", "e:cake", "e:summer", // "ee", nieme "e", oraz "er" na końcu
+    "a:car", "a:water", "a:cake", // "ar", "wa" i nieme "e" zmieniają dźwięk
+    "s:nose", "s:shop", // końcowe "s" brzmi /z/; "sh" to jeden dźwięk
+    "s:pencil", // w drugą stronę: /s/ zapisane literą "c"
+    "d:walked", // końcówka "-ed" po bezdźwięcznej brzmi /t/
+    "t:listen", "t:castle", // nieme "t"
+    "i:night", // "igh" to jeden dźwięk
+    "p:elephant", // "ph" to /f/
+    "g:giraffe", // "g" przed "i" brzmi /dʒ/
+    "o:boat", "o:rainbow", "o:book", // "oa", "ow", "oo" to osobne dźwięki
+    "c:city", // "c" przed "i" brzmi /s/
+    "k:knife", // nieme "k"
+    "u:blue", // "ue" to długie /uː/
   ]);
   const plain = grapheme.replace("-", "");
   for (const item of lesson.listen) {
     const looksLikeTarget = grapheme.includes("-")
       ? new RegExp(`${grapheme[0]}[a-z]${grapheme[2]}`).test(item.word)
       : item.word.includes(plain);
-    if (item.hasTarget && !looksLikeTarget) {
+    if (item.hasTarget && !looksLikeTarget && !SPELLING_EXCEPTIONS.has(`${id}:${item.word}`)) {
       note("UWAGA", "słuchanie", `"${id}": "${item.word}" oznaczone TAK, ale nie widać "${grapheme}"`);
     }
     if (!item.hasTarget && looksLikeTarget && !SPELLING_EXCEPTIONS.has(`${id}:${item.word}`)) {
@@ -118,15 +145,22 @@ for (const [id, lesson] of Object.entries(LESSONS)) {
     }
     if (card.targetIndex < 0 || card.targetIndex >= card.graphemes.length) {
       note("BŁĄD", "sklejanie", `"${id}": "${card.word}" ma targetIndex poza zakresem`);
-    } else if (card.graphemes[card.targetIndex] !== grapheme) {
-      note(
-        "BŁĄD",
-        "sklejanie",
-        `"${id}": "${card.word}" podświetla "${card.graphemes[card.targetIndex]}" zamiast "${grapheme}"`,
-      );
-    }
-    if (!card.graphemes.includes(grapheme)) {
-      note("BŁĄD", "sklejanie", `"${id}": "${card.word}" w ogóle nie zawiera ćwiczonego "${grapheme}"`);
+    } else {
+      // Podwojona litera to w RWI wciąż ta sama głoska ("ll" w bell to /l/,
+      // "zz" w buzz to /z/), więc jej podświetlenie jest poprawne.
+      const wskazany = card.graphemes[card.targetIndex];
+      const dopuszczalne = [grapheme, grapheme + grapheme];
+      if (grapheme === "k" || grapheme === "c") dopuszczalne.push("ck");
+      if (!dopuszczalne.includes(wskazany)) {
+        note(
+          "BŁĄD",
+          "sklejanie",
+          `"${id}": "${card.word}" podświetla "${wskazany}" zamiast "${grapheme}"`,
+        );
+      }
+      if (!card.graphemes.some((g) => dopuszczalne.includes(g))) {
+        note("BŁĄD", "sklejanie", `"${id}": "${card.word}" w ogóle nie zawiera ćwiczonego "${grapheme}"`);
+      }
     }
     allWords.add(card.word);
     card.graphemes.forEach((g) => allChips.add(chipSoundId(g, id)));

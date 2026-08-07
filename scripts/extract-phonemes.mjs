@@ -67,6 +67,8 @@ const RECIPES = [
   { id: "i", word: "dish", cut: "vowel", kind: "vowel" },
   { id: "o", word: "top", cut: "vowel", kind: "vowel" },
   { id: "u", word: "sun", cut: "vowel", kind: "vowel" },
+  // "x" to zbitka /ks/ na koncu slowa — wycinamy z wyglosu "box".
+  { id: "x", word: "box", cut: "coda", kind: "plosive" },
 
   // --- "special friends" Set 1 ---
   { id: "th", word: "this", cut: "onset", kind: "plosive" },
