@@ -18,6 +18,20 @@ export function ServiceWorkerRegistrar() {
     if (process.env.NODE_ENV !== "production") return;
     if (!("serviceWorker" in navigator)) return;
 
+    // Bez tego: nowa wersja aplikacji instaluje się w tle (skipWaiting w sw.js),
+    // ale karta/PWA otwarta wcześniej i tylko wznowiona z tła (typowe na
+    // tablecie — ikonka nie zawsze robi pełne przeładowanie) dalej pokazuje
+    // STARY kod, mimo że serwer i service worker już mają nową wersję.
+    // "controllerchange" mówi nam dokładnie, kiedy nowa wersja przejmuje
+    // kontrolę, i wtedy przeładowujemy raz — dziecko/rodzic widzą aktualną
+    // treść zamiast starej, wciąż działającej w pamięci.
+    let odswiezono = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (odswiezono) return;
+      odswiezono = true;
+      window.location.reload();
+    });
+
     const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
     navigator.serviceWorker
       .register(`${base}/sw.js`, { scope: `${base}/` })
