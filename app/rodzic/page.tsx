@@ -567,7 +567,19 @@ export default function ParentPage() {
           <BigButton
             tone="no"
             onClick={() => {
-              if (window.confirm("Skasować cały postęp dziecka? Tego nie da się cofnąć.")) {
+              // Dwa osobne potwierdzenia celowo: to działanie nieodwracalne,
+              // a jedno okno łatwo zamknąć odruchowo. Drugie pokazuje, ile
+              // konkretnie zostanie utracone, żeby nie było to tylko formalnością.
+              if (!window.confirm("Skasować cały postęp dziecka? Tego nie da się cofnąć.")) {
+                return;
+              }
+              const masteredCount = Object.values(state.sounds).filter(
+                (sound) => sound.status === "mastered",
+              ).length;
+              const potwierdzenie =
+                `Na pewno? Znikną wszystkie ${state.sessions.length} zapisanych sesji i ` +
+                `${masteredCount} opanowanych dźwięków. Tej operacji nie da się cofnąć.`;
+              if (window.confirm(potwierdzenie)) {
                 resetAll();
               }
             }}
