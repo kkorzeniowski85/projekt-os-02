@@ -99,9 +99,10 @@ export default function HomePage() {
             />
           ))}
           <p className="text-xs text-paper/60">
-            Wszystkie dwuznaki i dźwięki Set 1-3 mają gotowe sesje — można grać w dowolnej
-            kolejności, choć kolejność RWI (od lewej do prawej) ma sens. Pojedyncze litery
-            celowo nie mają lekcji: proste słowa CVC są już opanowane.
+            Wszystkie 60 dźwięków ma gotowe sesje — można grać w dowolnej kolejności, choć
+            kolejność RWI (od lewej do prawej) ma sens. Lekcje pojedynczych liter nie uczą
+            kształtu litery (to dziecko zna z polskiego), tylko tego, JAK BRZMI PO ANGIELSKU
+            — przy 11 z 25 polski nawyk myli, np. „w”, „y”, „j” i „c” to zupełnie inne dźwięki.
           </p>
         </section>
 
