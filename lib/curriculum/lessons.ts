@@ -114,7 +114,9 @@ export const LESSONS: Record<string, Lesson> = {
     ],
     choice: [
       { answer: "chip", options: ["chip", "chop", "ship"], pl: "frytka", emoji: "🍟" },
-      { answer: "chair", options: ["chair", "hair", "chain"], pl: "krzesło", emoji: "💺" },
+      // Było "chair/hair/chain" — wszystkie trzy opierały się na "air" i "ai",
+      // czyli dźwiękach z dalszych Setów, których dziecko na etapie "ch" nie zna.
+      { answer: "chin", options: ["chin", "shin", "chip"], pl: "broda", emoji: "🧒" },
       { answer: "chop", options: ["chip", "chop", "shop"], pl: "siekać", emoji: "🔪" },
       { answer: "much", options: ["much", "mush", "match"], pl: "dużo", emoji: "📦" },
     ],
@@ -128,8 +130,11 @@ export const LESSONS: Record<string, Lesson> = {
     heroId: "chomp",
     chant: "th — th — th!",
     parentIntro:
-      "Czubek języka MIĘDZY zębami i lekko dmuchnij. Pokaż dziecku swoje usta — tej głoski " +
-      "nie ma w polskim, więc trzeba ją zobaczyć, nie tylko usłyszeć. Nie zastępuj jej „f” ani „s”.",
+      "Czubek języka MIĘDZY zębami. Są DWA warianty: przy „thin”, „moth”, „cloth” tylko " +
+      "lekko dmuchnij, bez głosu; przy „this”, „that”, „the” język zostaje w tym samym " +
+      "miejscu, ale włączasz głos — sprawdźcie palcami na gardle, przy „this” brzęczy, " +
+      "przy „thin” nie. Pokaż dziecku swoje usta — tej głoski nie ma w polskim, więc " +
+      "trzeba ją zobaczyć, nie tylko usłyszeć. Nie zastępuj jej „f”, „s” ani „d”.",
     listen: [
       { word: "this", hasTarget: true, pl: "to", emoji: "👇" },
       { word: "sun", hasTarget: false, pl: "słońce", emoji: "☀️" },
@@ -143,11 +148,15 @@ export const LESSONS: Record<string, Lesson> = {
     blend: [
       // Tylko bezdźwięczne /θ/: kafelek "th" ma jedno nagranie (thin), a "this"
       // i "that" mają th DŹWIĘCZNE — sklejanie kłamałoby dziecku w uszy.
+      // Wyłącznie słowa, w których KAŻDY kafelek gra ten dźwięk co w nagraniu.
+      // Odpadły: "bath" i "path" (brytyjskie "a" brzmi tam długo /ɑː/, kafelek
+      // gra krótkie /a/) oraz "with" (ma th dźwięczne). Wszystkie trzy zostają
+      // w słuchaniu i wyborze słowa, gdzie gra całe nagranie — tam problemu nie ma.
       { word: "thin", graphemes: ["th", "i", "n"], targetIndex: 0, pl: "chudy", emoji: "📏" },
-      { word: "path", graphemes: ["p", "a", "th"], targetIndex: 2, pl: "ścieżka", emoji: "🛤️" },
-      { word: "bath", graphemes: ["b", "a", "th"], targetIndex: 2, pl: "kąpiel", emoji: "🛁" },
-      { word: "with", graphemes: ["w", "i", "th"], targetIndex: 2, pl: "z", emoji: "🤝" },
       { word: "moth", graphemes: ["m", "o", "th"], targetIndex: 2, pl: "ćma", emoji: "🦋" },
+      { word: "cloth", graphemes: ["c", "l", "o", "th"], targetIndex: 3, pl: "ścierka", emoji: "🧵" },
+      { word: "tenth", graphemes: ["t", "e", "n", "th"], targetIndex: 3, pl: "dziesiąty", emoji: "🔟" },
+      { word: "thud", graphemes: ["th", "u", "d"], targetIndex: 0, pl: "łomot", emoji: "💥" },
     ],
     choice: [
       { answer: "this", options: ["this", "that", "thin"], pl: "to", emoji: "👇" },
@@ -296,8 +305,10 @@ export const LESSONS: Record<string, Lesson> = {
     heroId: "thunder",
     chant: "ee — ee — ee!",
     parentIntro:
-      'Długie „iii”, usta szeroko jak w uśmiechu. Warto porównać z krótkim „i” z „ship”: ' +
-      '„sheep” (owca) i „ship” (statek) różnią się tylko długością tego dźwięku.',
+      'Długie, napięte „iii”, usta szeroko jak w uśmiechu. Porównaj z „ship”: „sheep” ' +
+      '(owca) ma długie napięte „ii”, a „ship” (statek) dźwięk krótki i LUŹNY, pomiędzy ' +
+      'polskim „i” a „y”. To dwa różne dźwięki, nie ten sam skrócony — dziecko musi ' +
+      'usłyszeć różnicę barwy, nie tylko długości.',
     listen: [
       { word: "tree", hasTarget: true, pl: "drzewo", emoji: "🌳" },
       { word: "cat", hasTarget: false, pl: "kot", emoji: "🐱" },
@@ -540,7 +551,8 @@ export const LESSONS: Record<string, Lesson> = {
       { word: "chair", graphemes: ["ch", "air"], targetIndex: 1, pl: "krzesło", emoji: "💺" },
       { word: "pair", graphemes: ["p", "air"], targetIndex: 1, pl: "para", emoji: "👯" },
       { word: "fair", graphemes: ["f", "air"], targetIndex: 1, pl: "uczciwy", emoji: "⚖️" },
-      { word: "stairs", graphemes: ["s", "t", "air", "s"], targetIndex: 2, pl: "schody", emoji: "⬆️" },
+      // Liczba pojedyncza: w "stairs" końcowe "s" brzmi /z/, a kafelek gra /s/.
+      { word: "stair", graphemes: ["s", "t", "air"], targetIndex: 2, pl: "schodek", emoji: "⬆️" },
     ],
     choice: [
       { answer: "hair", options: ["hair", "chair", "pair"], pl: "włosy", emoji: "💇" },
@@ -822,7 +834,7 @@ export const LESSONS: Record<string, Lesson> = {
     listen: [
       { word: "huge", hasTarget: true, pl: "ogromny", emoji: "🐘" },
       { word: "cat", hasTarget: false, pl: "kot", emoji: "🐱" },
-      { word: "cube", hasTarget: true, pl: "sześcian", emoji: "🎲" },
+      { word: "cube", hasTarget: true, pl: "kostka", emoji: "🎲" },
       { word: "dog", hasTarget: false, pl: "pies", emoji: "🐶" },
       { word: "tube", hasTarget: true, pl: "rurka", emoji: "🧪" },
       { word: "sun", hasTarget: false, pl: "słońce", emoji: "☀️" },
@@ -830,13 +842,13 @@ export const LESSONS: Record<string, Lesson> = {
       { word: "pen", hasTarget: false, pl: "długopis", emoji: "🖊️" },
     ],
     blend: [
-      { word: "cube", graphemes: ["c", "u-e", "b"], targetIndex: 1, pl: "sześcian", emoji: "🎲" },
+      { word: "cube", graphemes: ["c", "u-e", "b"], targetIndex: 1, pl: "kostka", emoji: "🎲" },
       { word: "tube", graphemes: ["t", "u-e", "b"], targetIndex: 1, pl: "rurka", emoji: "🧪" },
       { word: "cute", graphemes: ["c", "u-e", "t"], targetIndex: 1, pl: "słodki", emoji: "🐰" },
       { word: "tune", graphemes: ["t", "u-e", "n"], targetIndex: 1, pl: "melodia", emoji: "🎵" },
     ],
     choice: [
-      { answer: "cube", options: ["cube", "cub", "cab"], pl: "sześcian", emoji: "🎲" },
+      { answer: "cube", options: ["cube", "cub", "cab"], pl: "kostka", emoji: "🎲" },
       { answer: "cute", options: ["cute", "cut", "cat"], pl: "słodki", emoji: "🐰" },
       { answer: "huge", options: ["huge", "hug", "hedge"], pl: "ogromny", emoji: "🐘" },
       { answer: "tube", options: ["tube", "tub", "tab"], pl: "rurka", emoji: "🧪" },
@@ -1079,7 +1091,10 @@ export const LESSONS: Record<string, Lesson> = {
     soundId: "ew",
     heroId: "burn",
     chant: "ew — ew — ew!",
-    parentIntro: 'Długie „uu” jak w „oo” z „zoo”, zapis „ew”: „new”, „chew”. Czasem z „j”: „few” = „fju”.',
+    parentIntro:
+      'Długie „uu” jak „oo” z „zoo”, zapis „ew”: „chew”, „flew”, „grew”. Uwaga: po „n”, ' +
+      '„st” i „f” Brytyjczycy dodają „j” — „new” = „nju”, „stew” = „stju”, „few” = „fju”. ' +
+      'Samo „nu” to wymowa amerykańska.',
     listen: [
       { word: "new", hasTarget: true, pl: "nowy", emoji: "✨" },
       { word: "cat", hasTarget: false, pl: "kot", emoji: "🐱" },
