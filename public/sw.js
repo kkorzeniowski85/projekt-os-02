@@ -63,8 +63,12 @@ self.addEventListener("fetch", (event) => {
   }
 
   // Nawigacja: najpierw sieć (świeża wersja aplikacji), offline — z cache.
+  // cache: "no-store" jest kluczowe: GitHub Pages wysyła Cache-Control:
+  // max-age=600, więc zwykłe fetch() potrafi po cichu oddać 10-minutową
+  // kopię z pamięci przeglądarki, mimo że kod tu wygląda na "sieć najpierw" —
+  // no-store wymusza realne zapytanie do serwera przy każdym otwarciu.
   event.respondWith(
-    fetch(request)
+    fetch(request, { cache: "no-store" })
       .then((response) => {
         const copy = response.clone();
         caches.open(CACHE).then((cache) => cache.put(request, copy));
