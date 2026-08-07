@@ -28,6 +28,14 @@ import { IPA_BY_GRAPHEME, trickyHint } from "@/lib/curriculum/ipa";
 import { getSound } from "@/lib/curriculum/sounds";
 import { importRecordingFiles, listRecordings } from "@/lib/recordings";
 import {
+  isSupported as folderIsSupported,
+  stanFolderu,
+  wybierzFolder,
+  zapiszPostep,
+  zapomnijFolder,
+  type StanFolderu,
+} from "@/lib/progress/driveFolder";
+import {
   buildProgressExport,
   parseProgressFile,
   progressFileName,
@@ -116,6 +124,8 @@ export default function ParentPage() {
   const [copied, setCopied] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [kodDoSkopiowania, setKodDoSkopiowania] = useState("");
+  const [folder, setFolder] = useState<StanFolderu | null>(null);
+  const [folderSupported, setFolderSupported] = useState(false);
   const [wklejonyKod, setWklejonyKod] = useState("");
   const [canShareFile, setCanShareFile] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -166,6 +176,13 @@ export default function ParentPage() {
     void runAudit();
     void refreshRecordings();
   }, [runAudit, refreshRecordings]);
+
+  // Stan połączenia z folderem sprawdzamy po zamontowaniu — API jest dostępne
+  // tylko w przeglądarce na komputerze, więc na tablecie ta sekcja się nie pokaże.
+  useEffect(() => {
+    setFolderSupported(folderIsSupported());
+    if (folderIsSupported()) void stanFolderu().then(setFolder);
+  }, []);
 
   const missingWords = resolved
     ? words.filter((word) => !resolved[wordClipBase(word)]).length
@@ -400,6 +417,82 @@ export default function ParentPage() {
             z najnowszą datą w nazwie.
           </li>
         </ol>
+        {/* Najwygodniejsza droga na komputerze: aplikacja sama pisze plik do
+            wskazanego folderu (np. folderu Dysku Google), a synchronizacja
+            Dysku roznosi go na pozostałe urządzenia. Zero klikania po sesji. */}
+        {folderSupported && (
+          <div className="mb-4 rounded-2xl border border-hero-cyan/40 bg-hero-cyan/10 p-4">
+            <p className="mb-1 font-bold text-hero-cyan">
+              Automatycznie: zapis prosto do folderu na Dysku
+            </p>
+            {folder?.polaczony ? (
+              <>
+                <p className="mb-3 text-sm text-paper/80">
+                  Połączono z folderem <strong>{folder.nazwaFolderu}</strong>. Po każdej sesji
+                  aplikacja sama nadpisuje tam plik{" "}
+                  <code>liga-dzwiekow-postep.json</code>
+                  {folder.wymagaPotwierdzenia && (
+                    <> — ale przeglądarka czeka na potwierdzenie dostępu (przycisk niżej).</>
+                  )}
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <BigButton
+                    onClick={async () => {
+                      const wynik = await zapiszPostep(buildProgressExport(state), true);
+                      setFolder(await stanFolderu());
+                      setSyncMessage(
+                        wynik === "zapisano"
+                          ? `Zapisano do folderu ${folder.nazwaFolderu}. Dysk Google prześle plik na pozostałe urządzenia.`
+                          : wynik === "brak-uprawnien"
+                            ? "Przeglądarka nie dała dostępu do folderu — spróbuj wskazać go ponownie."
+                            : "Nie udało się zapisać do folderu.",
+                      );
+                    }}
+                  >
+                    Zapisz teraz
+                  </BigButton>
+                  <BigButton
+                    tone="quiet"
+                    onClick={async () => {
+                      await zapomnijFolder();
+                      setFolder(await stanFolderu());
+                      setSyncMessage("Odłączono folder — automatyczny zapis wyłączony.");
+                    }}
+                  >
+                    Odłącz folder
+                  </BigButton>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="mb-3 text-sm text-paper/80">
+                  Wskaż raz folder na Dysku Google (np. <code>aplikacja fiszki Jurek</code>) —
+                  od tej pory aplikacja będzie sama zapisywać tam postęp po każdej sesji.
+                  Na tablecie wystarczy wtedy raz na jakiś czas wczytać ten plik.
+                </p>
+                <BigButton
+                  onClick={async () => {
+                    try {
+                      const stan = await wybierzFolder();
+                      setFolder(stan);
+                      const wynik = await zapiszPostep(buildProgressExport(state), true);
+                      setSyncMessage(
+                        wynik === "zapisano"
+                          ? `Połączono z folderem ${stan.nazwaFolderu} i zapisano pierwszy plik.`
+                          : "Folder połączony, ale zapis się nie powiódł — kliknij „Zapisz teraz”.",
+                      );
+                    } catch {
+                      // Anulowanie okna wyboru też tu trafia — nic nie robimy.
+                    }
+                  }}
+                >
+                  Wskaż folder na Dysku
+                </BigButton>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Przenoszenie tekstem — najpewniejsza droga. Pobieranie plików bywa
             zawodne w zainstalowanej aplikacji (PWA), a okno wyboru plików na
             Androidzie potrafi nie wpuścić pliku z Dysku. Skopiowany tekst
