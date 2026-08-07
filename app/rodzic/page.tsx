@@ -115,6 +115,8 @@ export default function ParentPage() {
   const { state, importProgress, setChildName, resetAll, ready } = useProgress();
   const [copied, setCopied] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [kodDoSkopiowania, setKodDoSkopiowania] = useState("");
+  const [wklejonyKod, setWklejonyKod] = useState("");
   const [canShareFile, setCanShareFile] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
   const audioImportRef = useRef<HTMLInputElement>(null);
@@ -398,6 +400,84 @@ export default function ParentPage() {
             z najnowszą datą w nazwie.
           </li>
         </ol>
+        {/* Przenoszenie tekstem — najpewniejsza droga. Pobieranie plików bywa
+            zawodne w zainstalowanej aplikacji (PWA), a okno wyboru plików na
+            Androidzie potrafi nie wpuścić pliku z Dysku. Skopiowany tekst
+            przejdzie każdym kanałem: mailem, komunikatorem, notatką. */}
+        <div className="mb-4 rounded-2xl border border-hero-lime/40 bg-hero-lime/10 p-4">
+          <p className="mb-1 font-bold text-hero-lime">Najprościej: przez skopiowany tekst</p>
+          <p className="mb-3 text-sm text-paper/80">
+            Tu kliknij „Kopiuj kod postępu”, wyślij go sobie na drugie urządzenie (mailem,
+            Messengerem, w notatce) i tam wklej w pole poniżej. Bez plików i bez Dysku.
+          </p>
+          <div className="mb-3 flex flex-wrap gap-3">
+            <BigButton
+              onClick={async () => {
+                const kod = buildProgressExport(state);
+                try {
+                  await navigator.clipboard.writeText(kod);
+                  setSyncMessage(`Skopiowano kod postępu (${kod.length} znaków). Wklej go na drugim urządzeniu.`);
+                } catch {
+                  // Schowek bywa zablokowany — wtedy pokazujemy kod do ręcznego zaznaczenia.
+                  setKodDoSkopiowania(kod);
+                  setSyncMessage("Nie udało się użyć schowka — zaznacz i skopiuj kod z pola poniżej.");
+                }
+              }}
+            >
+              Kopiuj kod postępu
+            </BigButton>
+            <BigButton
+              tone="quiet"
+              onClick={() => setKodDoSkopiowania(kodDoSkopiowania ? "" : buildProgressExport(state))}
+            >
+              {kodDoSkopiowania ? "Ukryj kod" : "Pokaż kod"}
+            </BigButton>
+          </div>
+
+          {kodDoSkopiowania && (
+            <textarea
+              readOnly
+              value={kodDoSkopiowania}
+              onFocus={(event) => event.target.select()}
+              className="mb-3 h-28 w-full rounded-xl bg-black/40 p-3 font-mono text-xs"
+            />
+          )}
+
+          <label className="flex flex-col gap-2 text-sm text-paper/80">
+            Wklej tu kod z drugiego urządzenia:
+            <textarea
+              value={wklejonyKod}
+              onChange={(event) => setWklejonyKod(event.target.value)}
+              placeholder='{ "version": 1, ... }'
+              className="h-24 w-full rounded-xl bg-black/30 p-3 font-mono text-xs"
+            />
+          </label>
+          <div className="mt-3">
+            <BigButton
+              tone="yes"
+              onClick={() => {
+                const incoming = parseProgressFile(wklejonyKod);
+                if (!incoming) {
+                  setSyncMessage(
+                    "Ten tekst nie wygląda na kod postępu. Skopiuj go w całości — od pierwszego znaku { do ostatniego }.",
+                  );
+                  return;
+                }
+                const added = importProgress(incoming);
+                setWklejonyKod("");
+                setSyncMessage(
+                  added > 0
+                    ? `Scalono postęp: dodano ${added} ${sessionsWord(added)}. Nic nie zostało nadpisane.`
+                    : "Kod wczytany — wszystkie sesje z niego już tu były. Nic się nie zmieniło.",
+                );
+              }}
+            >
+              Wczytaj z kodu
+            </BigButton>
+          </div>
+        </div>
+
+        <p className="mb-2 text-sm font-bold text-paper/70">Albo przez plik:</p>
         <div className="flex flex-wrap gap-3">
           {canShareFile && <BigButton onClick={() => void shareProgressFile()}>Wyślij na Dysk</BigButton>}
           <BigButton tone={canShareFile ? "quiet" : "primary"} onClick={exportProgressFile}>
