@@ -111,6 +111,24 @@ export const HEROES: Hero[] = [
     colors: { suit: "#e33d5a", cape: "#a06bff", accent: "#7bed6b" },
     emblem: "ur",
   },
+  // Dwie ostatnie postacie istnieją po to, żeby końcówka programu też miała
+  // nagrodę: po "ur" zostawało jeszcze osiem lekcji bez ani jednej nowej postaci.
+  {
+    id: "float",
+    codename: "FLOAT",
+    power: "Unosi się nad najdłuższymi słowami i czyta je bez zatrzymania.",
+    unlockedBy: { soundId: "oa" },
+    colors: { suit: "#21d4fd", cape: "#7bed6b", accent: "#ffc93c" },
+    emblem: "oa",
+  },
+  {
+    id: "cure",
+    codename: "CURE",
+    power: "Zna już wszystkie dźwięki — naprawia każde słowo, które się zacięło.",
+    unlockedBy: { soundId: "ure" },
+    colors: { suit: "#ffc93c", cape: "#a06bff", accent: "#e33d5a" },
+    emblem: "ure",
+  },
 ];
 
 export const HEROES_BY_ID: Record<string, Hero> = Object.fromEntries(

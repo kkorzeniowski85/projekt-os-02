@@ -85,7 +85,7 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "shop", options: ["shed", "shop", "ship"], pl: "sklep", emoji: "🏪" },
       { answer: "brush", options: ["brush", "bush", "blush"], pl: "pędzel", emoji: "🖌️" },
     ],
-    redWords: ["the", "said"],
+    redWords: ["the", "I"],
   },
 
   ch: {
@@ -120,7 +120,7 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "chop", options: ["chip", "chop", "shop"], pl: "siekać", emoji: "🔪" },
       { answer: "much", options: ["much", "mush", "match"], pl: "dużo", emoji: "📦" },
     ],
-    redWords: ["the", "was"],
+    redWords: ["the", "to"],
   },
 
   // --- reszta "special friends" z Set 1 ------------------------------------
@@ -164,7 +164,7 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "moth", options: ["moth", "math", "mash"], pl: "ćma", emoji: "🦋" },
       { answer: "thin", options: ["thin", "shin", "chin"], pl: "chudy", emoji: "📏" },
     ],
-    redWords: ["the", "they"],
+    redWords: ["the", "of"],
   },
 
   qu: {
@@ -196,7 +196,7 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "squid", options: ["squid", "quid", "skid"], pl: "kalmar", emoji: "🦑" },
       { answer: "quilt", options: ["quilt", "quit", "quill"], pl: "kołdra", emoji: "🛏️" },
     ],
-    redWords: ["the", "said"],
+    redWords: ["to", "was"],
   },
 
   ng: {
@@ -229,7 +229,7 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "song", options: ["song", "sing", "sung"], pl: "piosenka", emoji: "🎶" },
       { answer: "long", options: ["long", "song", "lung"], pl: "długi", emoji: "📏" },
     ],
-    redWords: ["the", "you"],
+    redWords: ["of", "said"],
   },
 
   nk: {
@@ -262,7 +262,7 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "bank", options: ["bank", "back", "band"], pl: "bank", emoji: "🏦" },
       { answer: "junk", options: ["junk", "jump", "jug"], pl: "rupiecie", emoji: "🗑️" },
     ],
-    redWords: ["the", "are"],
+    redWords: ["was", "you"],
   },
 
   // --- Set 2: 12 "speed sounds" -------------------------------------------
@@ -270,7 +270,7 @@ export const LESSONS: Record<string, Lesson> = {
   ay: {
     soundId: "ay",
     heroId: "thunder",
-    chant: "ay — ay — ay!",
+    chant: "may I play?",
     parentIntro:
       'Długie „ej”. To pierwszy dźwięk z Set 2 — powiedz dziecku, że teraz dwie litery ' +
       "często robią jeden długi dźwięk, tak jak wcześniej „sh” i „ch”.",
@@ -297,13 +297,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "stay", options: ["stay", "say", "star"], pl: "zostać", emoji: "🏠" },
       { answer: "way", options: ["way", "day", "wag"], pl: "droga", emoji: "🛣️" },
     ],
-    redWords: ["the", "come"],
+    redWords: ["said", "are"],
   },
 
   ee: {
     soundId: "ee",
     heroId: "thunder",
-    chant: "ee — ee — ee!",
+    chant: "what can you see?",
     parentIntro:
       'Długie, napięte „iii”, usta szeroko jak w uśmiechu. Porównaj z „ship”: „sheep” ' +
       '(owca) ma długie napięte „ii”, a „ship” (statek) dźwięk krótki i LUŹNY, pomiędzy ' +
@@ -332,13 +332,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "feet", options: ["feet", "fit", "felt"], pl: "stopy", emoji: "👣" },
       { answer: "week", options: ["week", "wick", "weep"], pl: "tydzień", emoji: "📅" },
     ],
-    redWords: ["the", "he"],
+    redWords: ["you", "his"],
   },
 
   igh: {
     soundId: "igh",
     heroId: "speed",
-    chant: "igh — igh — igh!",
+    chant: "fly high!",
     parentIntro:
       'TRZY litery, jeden dźwięk „aj”. Podkreśl to dziecku — „gh” tutaj w ogóle nie brzmi, ' +
       "trzyma się „i” jak dwaj cisi ochroniarze.",
@@ -365,13 +365,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "high", options: ["high", "hit", "hill"], pl: "wysoki", emoji: "🏔️" },
       { answer: "right", options: ["right", "rich", "ring"], pl: "w prawo", emoji: "➡️" },
     ],
-    redWords: ["the", "my"],
+    redWords: ["are", "they"],
   },
 
   "ow-blow": {
     soundId: "ow-blow",
     heroId: "speed",
-    chant: "ow — ow — ow!",
+    chant: "blow the snow!",
     parentIntro:
       'To „oł” jak w „blow”. UWAGA: te same litery „ow” czytamy inaczej w „brown” (Set 3) — ' +
       "na razie ćwiczymy tylko tę pierwszą wersję, żeby nie mieszać.",
@@ -398,13 +398,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "show", options: ["show", "shop", "snow"], pl: "pokaz", emoji: "🎬" },
       { answer: "grow", options: ["grow", "glow", "grab"], pl: "rosnąć", emoji: "🌱" },
     ],
-    redWords: ["the", "so"],
+    redWords: ["his", "be"],
   },
 
   "oo-zoo": {
     soundId: "oo-zoo",
     heroId: "speed",
-    chant: "oo — oo — oo!",
+    chant: "poo at the zoo!",
     parentIntro:
       'Długie „uuu”, usta w dziobek. To ta głośniejsza wersja „oo” — jak w „zoo”. ' +
       'Druga wersja („look”) będzie zaraz potem, więc warto je zestawić.',
@@ -431,13 +431,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "boot", options: ["boot", "book", "boat"], pl: "but", emoji: "👢" },
       { answer: "room", options: ["room", "root", "ram"], pl: "pokój", emoji: "🚪" },
     ],
-    redWords: ["the", "do"],
+    redWords: ["they", "have"],
   },
 
   "oo-look": {
     soundId: "oo-look",
     heroId: "moon",
-    chant: "oo — oo — oo!",
+    chant: "look at a book!",
     parentIntro:
       'Te same dwie litery, ale dźwięk KRÓTKI — jak w „look”. Zestaw z poprzednią lekcją: ' +
       '„food” (długie) kontra „foot” (krótkie). To jedna z pierwszych pułapek angielskiej pisowni.',
@@ -464,13 +464,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "look", options: ["look", "lock", "lick"], pl: "patrzeć", emoji: "👀" },
       { answer: "good", options: ["good", "goat", "gold"], pl: "dobry", emoji: "👍" },
     ],
-    redWords: ["the", "could"],
+    redWords: ["be", "one"],
   },
 
   ar: {
     soundId: "ar",
     heroId: "moon",
-    chant: "ar — ar — ar!",
+    chant: "start the car!",
     parentIntro:
       'Długie „aaar” — jak pirat. W brytyjskim angielskim „r” na końcu prawie nie słychać, ' +
       "liczy się długie „a”.",
@@ -497,13 +497,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "farm", options: ["farm", "form", "far"], pl: "gospodarstwo", emoji: "🚜" },
       { answer: "park", options: ["park", "pack", "part"], pl: "park", emoji: "🌳" },
     ],
-    redWords: ["the", "are"],
+    redWords: ["have", "the"],
   },
 
   or: {
     soundId: "or",
     heroId: "spark",
-    chant: "or — or — or!",
+    chant: "shut the door!",
     parentIntro: 'Długie „ooor”, usta zaokrąglone. Jak zdziwione „oo!”, tylko dłuższe.',
     listen: [
       { word: "fork", hasTarget: true, pl: "widelec", emoji: "🍴" },
@@ -528,13 +528,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "horn", options: ["horn", "harm", "hood"], pl: "róg", emoji: "📯" },
       { answer: "storm", options: ["storm", "stork", "star"], pl: "burza", emoji: "⛈️" },
     ],
-    redWords: ["the", "your"],
+    redWords: ["one", "we"],
   },
 
   air: {
     soundId: "air",
     heroId: "spark",
-    chant: "air — air — air!",
+    chant: "that's not fair!",
     parentIntro: 'Jak polskie „e” przechodzące w krótkie „a” — „ea”. Trzy litery, jeden dźwięk.',
     listen: [
       { word: "hair", hasTarget: true, pl: "włosy", emoji: "💇" },
@@ -561,13 +561,13 @@ export const LESSONS: Record<string, Lesson> = {
       // "stares" odpadło: w brytyjskiej wymowie to dokładny homofon "stairs".
       { answer: "stairs", options: ["stairs", "stars", "starts"], pl: "schody", emoji: "⬆️" },
     ],
-    redWords: ["the", "there"],
+    redWords: ["we", "there"],
   },
 
   ir: {
     soundId: "ir",
     heroId: "spark",
-    chant: "ir — ir — ir!",
+    chant: "whirl and twirl!",
     parentIntro:
       'Coś pomiędzy polskim „e” a „y”, długie — jak zamyślone „yyy”. W brytyjskim „r” tu nie brzmi.',
     listen: [
@@ -593,13 +593,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "shirt", options: ["shirt", "short", "shot"], pl: "koszula", emoji: "👕" },
       { answer: "first", options: ["first", "fist", "fast"], pl: "pierwszy", emoji: "🥇" },
     ],
-    redWords: ["the", "her"],
+    redWords: ["there", "her"],
   },
 
   ou: {
     soundId: "ou",
     heroId: "spark",
-    chant: "ou — ou — ou!",
+    chant: "shout it out!",
     parentIntro: 'Jak „ał” — dźwięk, który robisz, gdy się uderzysz. „Ouch!”',
     listen: [
       { word: "out", hasTarget: true, pl: "na zewnątrz", emoji: "🚪" },
@@ -624,13 +624,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "shout", options: ["shout", "short", "shot"], pl: "krzyczeć", emoji: "📢" },
       { answer: "round", options: ["round", "rod", "rind"], pl: "okrągły", emoji: "⭕" },
     ],
-    redWords: ["the", "our"],
+    redWords: ["her", "all"],
   },
 
   oy: {
     soundId: "oy",
     heroId: "spark",
-    chant: "oy — oy — oy!",
+    chant: "toy for a boy!",
     parentIntro: 'Jak polskie „oj”. Ostatni dźwięk z Set 2 — po nim cała dwunastka jest przerobiona!',
     listen: [
       { word: "boy", hasTarget: true, pl: "chłopiec", emoji: "👦" },
@@ -654,7 +654,7 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "joy", options: ["joy", "jog", "jaw"], pl: "radość", emoji: "😄" },
       { answer: "enjoy", options: ["enjoy", "employ", "enjoys"], pl: "cieszyć się", emoji: "🎉" },
     ],
-    redWords: ["the", "one"],
+    redWords: ["all", "were"],
   },
 
   // --- Set 3 ---------------------------------------------------------------
@@ -662,7 +662,7 @@ export const LESSONS: Record<string, Lesson> = {
   ea: {
     soundId: "ea",
     heroId: "spark",
-    chant: "ea — ea — ea!",
+    chant: "cup of tea!",
     parentIntro:
       'Długie „iii” — brzmi tak samo jak „ee” z Set 2, ale pisze się „ea”. To pierwszy raz, ' +
       "gdy dziecko widzi DWA zapisy tego samego dźwięku — powiedz to wprost, to nie pomyłka.",
@@ -690,13 +690,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "read", options: ["read", "red", "road"], pl: "czytać", emoji: "📖" },
       { answer: "leaf", options: ["leaf", "loaf", "left"], pl: "liść", emoji: "🍃" },
     ],
-    redWords: ["the", "she"],
+    redWords: ["were", "do"],
   },
 
   oi: {
     soundId: "oi",
     heroId: "spark",
-    chant: "oi — oi — oi!",
+    chant: "spoil the boy!",
     parentIntro:
       'Jak polskie „oj” — ten sam dźwięk co „oy” z Set 2, ale w środku słowa pisze się „oi”. ' +
       "Zasada: „oi” w środku, „oy” na końcu.",
@@ -723,13 +723,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "boil", options: ["boil", "ball", "bowl"], pl: "gotować się", emoji: "♨️" },
       { answer: "join", options: ["join", "jam", "jog"], pl: "dołączyć", emoji: "🤝" },
     ],
-    redWords: ["the", "want"],
+    redWords: ["do", "what"],
   },
 
   "a-e": {
     soundId: "a-e",
     heroId: "gleam",
-    chant: "a-e — a-e — a-e!",
+    chant: "make a cake!",
     parentIntro:
       'Czarodziejskie „e”! Stoi na końcu słowa, samo nie brzmi, ale zmienia „a” w środku na ' +
       '„ej”: „cak” → „cake”. Pokaż na parze słów: „can” vs „cane”. To wielki moment w nauce.',
@@ -756,13 +756,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "gate", options: ["gate", "get", "goat"], pl: "brama", emoji: "🚪" },
       { answer: "name", options: ["name", "game", "nine"], pl: "imię", emoji: "📛" },
     ],
-    redWords: ["the", "some"],
+    redWords: ["what", "come"],
   },
 
   "i-e": {
     soundId: "i-e",
     heroId: "gleam",
-    chant: "i-e — i-e — i-e!",
+    chant: "nice smile!",
     parentIntro:
       'Znowu czarodziejskie „e” — tym razem zmienia „i” na „aj”: „bit” → „bite”. ' +
       'Ten sam dźwięk co „igh”, trzeci zapis „aj” w kolekcji dziecka.',
@@ -789,13 +789,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "five", options: ["five", "fine", "fun"], pl: "pięć", emoji: "5️⃣" },
       { answer: "time", options: ["time", "team", "tame"], pl: "czas", emoji: "⏰" },
     ],
-    redWords: ["the", "I"],
+    redWords: ["come", "some"],
   },
 
   "o-e": {
     soundId: "o-e",
     heroId: "gleam",
-    chant: "o-e — o-e — o-e!",
+    chant: "phone home!",
     parentIntro:
       'Czarodziejskie „e” zmienia „o” na „oł”: „hop” → „hope”. Ten sam dźwięk co „ow” z „blow”.',
     listen: [
@@ -821,13 +821,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "nose", options: ["nose", "nice", "noise"], pl: "nos", emoji: "👃" },
       { answer: "stone", options: ["stone", "stun", "stop"], pl: "kamień", emoji: "🗿" },
     ],
-    redWords: ["the", "come"],
+    redWords: ["some", "who"],
   },
 
   "u-e": {
     soundId: "u-e",
     heroId: "gleam",
-    chant: "u-e — u-e — u-e!",
+    chant: "huge brute!",
     parentIntro:
       'Czarodziejskie „e” zmienia „u” na „ju”: „cub” → „cube”. Ostatnie z czterech ' +
       "czarodziejskich „e” — dziecko zna już cały mechanizm.",
@@ -853,13 +853,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "huge", options: ["huge", "hug", "hedge"], pl: "ogromny", emoji: "🐘" },
       { answer: "tube", options: ["tube", "tub", "tab"], pl: "rurka", emoji: "🧪" },
     ],
-    redWords: ["the", "you"],
+    redWords: ["who", "no"],
   },
 
   aw: {
     soundId: "aw",
     heroId: "flame",
-    chant: "aw — aw — aw!",
+    chant: "yawn at dawn!",
     parentIntro:
       'Długie „ooo” — dokładnie ten sam dźwięk co „or” z Set 2, kolejny drugi zapis. ' +
       "Usta zaokrąglone, jak przy zachwycie „ooo!”.",
@@ -882,17 +882,19 @@ export const LESSONS: Record<string, Lesson> = {
     ],
     choice: [
       { answer: "paw", options: ["paw", "pow", "pea"], pl: "łapa", emoji: "🐾" },
-      { answer: "draw", options: ["draw", "drew", "door"], pl: "rysować", emoji: "🎨" },
+      // "drew" i "door" wymagały dźwięków spoza tego etapu. Wspólny nagłos "dr"
+      // zostaje, więc dziecko rozróżnia po samej samogłosce: /ɔː/ vs /ɒ/ vs /ʌ/.
+      { answer: "draw", options: ["draw", "drop", "drum"], pl: "rysować", emoji: "🎨" },
       { answer: "claw", options: ["claw", "clay", "crow"], pl: "szczypce", emoji: "🦀" },
       { answer: "yawn", options: ["yawn", "yarn", "lawn"], pl: "ziewać", emoji: "😪" },
     ],
-    redWords: ["the", "all"],
+    redWords: ["no", "go"],
   },
 
   are: {
     soundId: "are",
     heroId: "flame",
-    chant: "are — are — are!",
+    chant: "share and care!",
     parentIntro:
       'Brzmi jak „ea” — ten sam dźwięk co „air” z Set 2. Uwaga: słowo „are” (jesteśmy) ' +
       "to red word i czyta się inaczej — „ar”!",
@@ -920,13 +922,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "scare", options: ["scare", "score", "stare"], pl: "straszyć", emoji: "👻" },
       { answer: "care", options: ["care", "car", "core"], pl: "opiekować się", emoji: "❤️" },
     ],
-    redWords: ["are", "there"],
+    redWords: ["go", "so"],
   },
 
   ur: {
     soundId: "ur",
     heroId: "flame",
-    chant: "ur — ur — ur!",
+    chant: "nurse with a purse!",
     parentIntro:
       'Ten sam dźwięk co „ir” z „bird” — trzeci zapis „yyy”. Dziecko może już samo zauważyć ' +
       "wzór: angielski lubi zapisywać jeden dźwięk na kilka sposobów.",
@@ -953,25 +955,27 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "hurt", options: ["hurt", "heart", "hat"], pl: "boleć", emoji: "🤕" },
       { answer: "curl", options: ["curl", "call", "cool"], pl: "lok", emoji: "🌀" },
     ],
-    redWords: ["her", "were"],
+    redWords: ["so", "my"],
   },
 
   er: {
     soundId: "er",
     heroId: "burn",
-    chant: "er — er — er!",
+    chant: "a better letter!",
     parentIntro:
       'Krótkie, ciche „e” na końcu dłuższych słów: let-ter, din-ner. To pierwsze lekcje ' +
       "z DWUSYLABOWYMI słowami — klaskajcie sylaby przed sklejaniem!",
     listen: [
+      // Negatywy TEŻ dwusylabowe. Z jednosylabowymi ("van", "zip") zadanie dawało
+      // się rozwiązać w 100% licząc sylaby, bez wsłuchiwania się w końcówkę.
       { word: "letter", hasTarget: true, pl: "list", emoji: "✉️" },
-      { word: "van", hasTarget: false, pl: "furgonetka", emoji: "🚐" },
+      { word: "rabbit", hasTarget: false, pl: "królik", emoji: "🐰" },
       { word: "dinner", hasTarget: true, pl: "kolacja", emoji: "🍽️" },
-      { word: "web", hasTarget: false, pl: "pajęczyna", emoji: "🕸️" },
+      { word: "apple", hasTarget: false, pl: "jabłko", emoji: "🍎" },
       { word: "summer", hasTarget: true, pl: "lato", emoji: "🌞" },
-      { word: "zip", hasTarget: false, pl: "zamek", emoji: "🤐" },
+      { word: "monkey", hasTarget: false, pl: "małpa", emoji: "🐒" },
       { word: "winter", hasTarget: true, pl: "zima", emoji: "⛄" },
-      { word: "bat", hasTarget: false, pl: "nietoperz", emoji: "🦇" },
+      { word: "basket", hasTarget: false, pl: "koszyk", emoji: "🧺" },
     ],
     blend: [
       { word: "letter", graphemes: ["l", "e", "tt", "er"], targetIndex: 3, pl: "list", emoji: "✉️" },
@@ -988,13 +992,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "summer", options: ["summer", "simmer", "super"], pl: "lato", emoji: "🌞" },
       { answer: "winter", options: ["winter", "winner", "water"], pl: "zima", emoji: "⛄" },
     ],
-    redWords: ["the", "water"],
+    redWords: ["my", "by"],
   },
 
   "ow-brown": {
     soundId: "ow-brown",
     heroId: "burn",
-    chant: "ow — ow — ow!",
+    chant: "brown cow!",
     parentIntro:
       'Te same litery „ow”, ale dźwięk „ał” — jak w „brown”. Zestaw z „blow” z Set 2: ' +
       '„snow” (oł) kontra „cow” (ał). Które jak brzmi, mówi słowo, nie zapis — trzeba osłuchać.',
@@ -1021,13 +1025,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "brown", options: ["brown", "blow", "crown"], pl: "brązowy", emoji: "🐻" },
       { answer: "clown", options: ["clown", "crown", "cloud"], pl: "klaun", emoji: "🤡" },
     ],
-    redWords: ["the", "how"],
+    redWords: ["by", "the"],
   },
 
   ai: {
     soundId: "ai",
     heroId: "burn",
-    chant: "ai — ai — ai!",
+    chant: "snail in the rain!",
     parentIntro:
       'Znów „ej” — jak „ay” i „a-e”, trzeci zapis. Zasada z grubsza: „ai” w środku słowa, ' +
       '„ay” na końcu.',
@@ -1038,12 +1042,14 @@ export const LESSONS: Record<string, Lesson> = {
       { word: "cup", hasTarget: false, pl: "kubek", emoji: "☕" },
       { word: "train", hasTarget: true, pl: "pociąg", emoji: "🚂" },
       { word: "desk", hasTarget: false, pl: "biurko", emoji: "📚" },
-      { word: "tail", hasTarget: true, pl: "ogon", emoji: "🐕" },
+      // Było "tail" z emoji całego psa — a w tej samej lekcji "dog 🐶" jest
+      // przykładem NIE. Dziecko widziało dwa niemal identyczne psy o różnym opisie.
+      { word: "chain", hasTarget: true, pl: "łańcuch", emoji: "⛓️" },
       { word: "dog", hasTarget: false, pl: "pies", emoji: "🐶" },
     ],
     blend: [
       { word: "rain", graphemes: ["r", "ai", "n"], targetIndex: 1, pl: "deszcz", emoji: "🌧️" },
-      { word: "tail", graphemes: ["t", "ai", "l"], targetIndex: 1, pl: "ogon", emoji: "🐕" },
+      { word: "chain", graphemes: ["ch", "ai", "n"], targetIndex: 1, pl: "łańcuch", emoji: "⛓️" },
       { word: "snail", graphemes: ["s", "n", "ai", "l"], targetIndex: 2, pl: "ślimak", emoji: "🐌" },
       { word: "train", graphemes: ["t", "r", "ai", "n"], targetIndex: 2, pl: "pociąg", emoji: "🚂" },
       { word: "paint", graphemes: ["p", "ai", "n", "t"], targetIndex: 1, pl: "malować", emoji: "🖌️" },
@@ -1055,13 +1061,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "snail", options: ["snail", "nail", "sail"], pl: "ślimak", emoji: "🐌" },
       { answer: "paint", options: ["paint", "pant", "point"], pl: "malować", emoji: "🖌️" },
     ],
-    redWords: ["the", "again"],
+    redWords: ["put", "very"],
   },
 
   oa: {
     soundId: "oa",
     heroId: "burn",
-    chant: "oa — oa — oa!",
+    chant: "goat in a boat!",
     parentIntro: 'Jeszcze jedno „oł” — jak „ow” z „blow” i „o-e” z „home”. Zapis „oa”, np. „goat”.',
     listen: [
       { word: "goat", hasTarget: true, pl: "koza", emoji: "🐐" },
@@ -1086,13 +1092,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "coat", options: ["coat", "cot", "cat"], pl: "płaszcz", emoji: "🧥" },
       { answer: "soap", options: ["soap", "soup", "sap"], pl: "mydło", emoji: "🧼" },
     ],
-    redWords: ["the", "go"],
+    redWords: ["very", "any"],
   },
 
   ew: {
     soundId: "ew",
     heroId: "burn",
-    chant: "ew — ew — ew!",
+    chant: "chew the stew!",
     parentIntro:
       'Długie „uu” jak „oo” z „zoo”, zapis „ew”: „chew”, „flew”, „grew”. Uwaga: po „n”, ' +
       '„st” i „f” Brytyjczycy dodają „j” — „new” = „nju”, „stew” = „stju”, „few” = „fju”. ' +
@@ -1108,11 +1114,14 @@ export const LESSONS: Record<string, Lesson> = {
       { word: "kid", hasTarget: false, pl: "dzieciak", emoji: "🧒" },
     ],
     blend: [
-      { word: "new", graphemes: ["n", "ew"], targetIndex: 1, pl: "nowy", emoji: "✨" },
+      // Kafelek "ew" gra /uː/. Odpadły "new" i "stew": po "n" i "st" brytyjskie
+      // nagranie dokłada jotę (/njuː/, /stjuː/), więc sklejenie n + /uː/ dałoby
+      // amerykańskie „nuu" — dokładnie to, przed czym ostrzega wskazówka wyżej.
+      // Oba zostają w słuchaniu i wyborze, gdzie gra całe nagranie.
       { word: "chew", graphemes: ["ch", "ew"], targetIndex: 1, pl: "żuć", emoji: "🍬" },
       { word: "flew", graphemes: ["f", "l", "ew"], targetIndex: 2, pl: "poleciał", emoji: "🕊️" },
       { word: "grew", graphemes: ["g", "r", "ew"], targetIndex: 2, pl: "urósł", emoji: "🌱" },
-      { word: "stew", graphemes: ["s", "t", "ew"], targetIndex: 2, pl: "gulasz", emoji: "🍲" },
+      { word: "drew", graphemes: ["d", "r", "ew"], targetIndex: 2, pl: "narysował", emoji: "🖍️" },
     ],
     choice: [
       { answer: "new", options: ["new", "now", "nose"], pl: "nowy", emoji: "✨" },
@@ -1120,13 +1129,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "flew", options: ["flew", "flow", "few"], pl: "poleciał", emoji: "🕊️" },
       { answer: "grew", options: ["grew", "grow", "green"], pl: "urósł", emoji: "🌱" },
     ],
-    redWords: ["the", "who"],
+    redWords: ["any", "many"],
   },
 
   ire: {
     soundId: "ire",
     heroId: "burn",
-    chant: "ire — ire — ire!",
+    chant: "fire, fire!",
     parentIntro: '„Aj-e” — dwa dźwięki płynnie połączone: „fire” = „fa-je”. Trzy litery razem.',
     listen: [
       { word: "fire", hasTarget: true, pl: "ogień", emoji: "🔥" },
@@ -1150,13 +1159,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "tired", options: ["tired", "tried", "tore"], pl: "zmęczony", emoji: "😴" },
       { answer: "hire", options: ["hire", "hare", "here"], pl: "wynająć", emoji: "💼" },
     ],
-    redWords: ["the", "what"],
+    redWords: ["many", "would"],
   },
 
   ear: {
     soundId: "ear",
     heroId: "burn",
-    chant: "ear — ear — ear!",
+    chant: "hear with your ear!",
     parentIntro:
       '„I-je” — jak w „hear”. Samo słowo „ear” (ucho) też tak brzmi — łatwo zapamiętać: ' +
       "słuchamy uchem.",
@@ -1183,13 +1192,13 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "near", options: ["near", "never", "nor"], pl: "blisko", emoji: "📍" },
       { answer: "beard", options: ["beard", "bird", "board"], pl: "broda", emoji: "🧔" },
     ],
-    redWords: ["the", "here"],
+    redWords: ["would", "should"],
   },
 
   ure: {
     soundId: "ure",
     heroId: "burn",
-    chant: "ure — ure — ure!",
+    chant: "sure it's pure!",
     parentIntro:
       'Ostatni dźwięk całego programu! „ure” brzmi „jue” — jak w „pure” i „cure”. ' +
       'Uwaga na „sure”: tam „ju” znika i całość brzmi „szua”, a „s” czyta się jak „sz” — ' +
@@ -1217,7 +1226,7 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "cure", options: ["cure", "care", "core"], pl: "lekarstwo", emoji: "💊" },
       { answer: "picture", options: ["picture", "pitcher", "pasture"], pl: "obrazek", emoji: "🖼️" },
     ],
-    redWords: ["the", "where"],
+    redWords: ["should", "put"],
   },
 };
 
