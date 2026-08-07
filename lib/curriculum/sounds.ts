@@ -174,7 +174,9 @@ export const SOUNDS: Sound[] = [
   { id: "ew", grapheme: "ew", set: 3, kind: "speed-sound", example: "chew" },
   { id: "ire", grapheme: "ire", set: 3, kind: "speed-sound", example: "fire" },
   { id: "ear", grapheme: "ear", set: 3, kind: "speed-sound", example: "hear" },
-  { id: "ure", grapheme: "ure", set: 3, kind: "speed-sound", example: "sure" },
+  // Przykład "pure", nie "sure": w "sure" grafem brzmi inaczej (szua) — wyjątek,
+  // który omawia rodzic, a nie wzorzec dźwięku.
+  { id: "ure", grapheme: "ure", set: 3, kind: "speed-sound", example: "pure" },
 ];
 
 export const SOUNDS_BY_ID: Record<string, Sound> = Object.fromEntries(

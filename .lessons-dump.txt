@@ -1,59 +1,3 @@
-/**
- * Treść ćwiczeń dla poszczególnych dźwięków.
- *
- * Świadomie NIE piszemy tu całego programu na miesiące — brief mówi wprost:
- * najpierw 1-2 kompletne, grywalne sesje, test z dzieckiem, dopiero potem
- * skalowanie. Dźwięki bez lekcji pokazują się w aplikacji jako "wkrótce".
- *
- * Emoji zamiast ilustracji to świadomy skrót MVP — działa na każdym urządzeniu
- * bez ładowania grafik. Docelowo do podmiany na własne ilustracje postaci.
- * UWAGA: używamy wyłącznie emoji sprzed Unicode 12 (2019) — nowsze (🪥 🛖 🪑 🪓)
- * na starszych tabletach wyświetlają się jako puste prostokąty.
- */
-
-import { getSound } from "./sounds";
-
-/** Słowo rozbite na grafemy — dziecko stuka w kolejne kawałki (RWI: Fred Talk). */
-export type WordCard = {
-  word: string;
-  /** Kawałki do "sklejania". Grafem docelowy jest oznaczony przez targetIndex. */
-  graphemes: string[];
-  targetIndex: number;
-  pl: string;
-  emoji: string;
-};
-
-/** Dziecko słyszy słowo i decyduje, czy jest w nim dany dźwięk. */
-export type ListenItem = {
-  word: string;
-  hasTarget: boolean;
-  pl: string;
-  emoji: string;
-};
-
-/** Dziecko słyszy słowo i wybiera właściwy zapis spośród podobnych. */
-export type ChoiceRound = {
-  answer: string;
-  options: string[];
-  pl: string;
-  emoji: string;
-};
-
-export type Lesson = {
-  soundId: string;
-  /** Postać prowadząca tę sesję. */
-  heroId: string;
-  /** Krótkie hasło, które dziecko powtarza na głos. */
-  chant: string;
-  /** Co rodzic ma zrobić/powiedzieć przy wprowadzaniu dźwięku. */
-  parentIntro: string;
-  listen: ListenItem[];
-  blend: WordCard[];
-  choice: ChoiceRound[];
-  /** "Red words" pasujące do tej sesji — czytane w całości, bez głoskowania. */
-  redWords: string[];
-};
-
 export const LESSONS: Record<string, Lesson> = {
   sh: {
     soundId: "sh",
@@ -141,10 +85,8 @@ export const LESSONS: Record<string, Lesson> = {
       { word: "dog", hasTarget: false, pl: "pies", emoji: "🐶" },
     ],
     blend: [
-      // Tylko bezdźwięczne /θ/: kafelek "th" ma jedno nagranie (thin), a "this"
-      // i "that" mają th DŹWIĘCZNE — sklejanie kłamałoby dziecku w uszy.
-      { word: "thin", graphemes: ["th", "i", "n"], targetIndex: 0, pl: "chudy", emoji: "📏" },
-      { word: "path", graphemes: ["p", "a", "th"], targetIndex: 2, pl: "ścieżka", emoji: "🛤️" },
+      { word: "this", graphemes: ["th", "i", "s"], targetIndex: 0, pl: "to", emoji: "👇" },
+      { word: "that", graphemes: ["th", "a", "t"], targetIndex: 0, pl: "tamto", emoji: "👉" },
       { word: "bath", graphemes: ["b", "a", "th"], targetIndex: 2, pl: "kąpiel", emoji: "🛁" },
       { word: "with", graphemes: ["w", "i", "th"], targetIndex: 2, pl: "z", emoji: "🤝" },
       { word: "moth", graphemes: ["m", "o", "th"], targetIndex: 2, pl: "ćma", emoji: "🦋" },
@@ -546,8 +488,7 @@ export const LESSONS: Record<string, Lesson> = {
       { answer: "hair", options: ["hair", "chair", "pair"], pl: "włosy", emoji: "💇" },
       { answer: "chair", options: ["chair", "hair", "fair"], pl: "krzesło", emoji: "💺" },
       { answer: "pair", options: ["pair", "par", "pain"], pl: "para", emoji: "👯" },
-      // "stares" odpadło: w brytyjskiej wymowie to dokładny homofon "stairs".
-      { answer: "stairs", options: ["stairs", "stars", "starts"], pl: "schody", emoji: "⬆️" },
+      { answer: "stairs", options: ["stairs", "stars", "stares"], pl: "schody", emoji: "⬆️" },
     ],
     redWords: ["the", "there"],
   },
@@ -673,8 +614,7 @@ export const LESSONS: Record<string, Lesson> = {
     ],
     choice: [
       { answer: "tea", options: ["tea", "toe", "tie"], pl: "herbata", emoji: "🍵" },
-      // "see" odpadło: homofon "sea" — zadanie nie miałoby jednej odpowiedzi.
-      { answer: "sea", options: ["sea", "seed", "say"], pl: "morze", emoji: "🌊" },
+      { answer: "sea", options: ["sea", "see", "say"], pl: "morze", emoji: "🌊" },
       { answer: "read", options: ["read", "red", "road"], pl: "czytać", emoji: "📖" },
       { answer: "leaf", options: ["leaf", "loaf", "left"], pl: "liść", emoji: "🍃" },
     ],
@@ -903,8 +843,7 @@ export const LESSONS: Record<string, Lesson> = {
     ],
     choice: [
       { answer: "share", options: ["share", "shore", "sharp"], pl: "dzielić się", emoji: "🤲" },
-      // "hair" odpadło (homofon "hare"), "here" też (grafem "ere" spoza programu).
-      { answer: "hare", options: ["hare", "harm", "horn"], pl: "zając", emoji: "🐇" },
+      { answer: "hare", options: ["hare", "hair", "here"], pl: "zając", emoji: "🐇" },
       { answer: "scare", options: ["scare", "score", "stare"], pl: "straszyć", emoji: "👻" },
       { answer: "care", options: ["care", "car", "core"], pl: "opiekować się", emoji: "❤️" },
     ],
@@ -1035,8 +974,7 @@ export const LESSONS: Record<string, Lesson> = {
       { word: "paint", graphemes: ["p", "ai", "n", "t"], targetIndex: 1, pl: "malować", emoji: "🖌️" },
     ],
     choice: [
-      // "rein" odpadło: homofon "rain". "rail" zawiera ćwiczone "ai".
-      { answer: "rain", options: ["rain", "ran", "rail"], pl: "deszcz", emoji: "🌧️" },
+      { answer: "rain", options: ["rain", "ran", "rein"], pl: "deszcz", emoji: "🌧️" },
       { answer: "train", options: ["train", "tray", "brain"], pl: "pociąg", emoji: "🚂" },
       { answer: "snail", options: ["snail", "nail", "sail"], pl: "ślimak", emoji: "🐌" },
       { answer: "paint", options: ["paint", "pant", "point"], pl: "malować", emoji: "🖌️" },
@@ -1174,9 +1112,8 @@ export const LESSONS: Record<string, Lesson> = {
     heroId: "burn",
     chant: "ure — ure — ure!",
     parentIntro:
-      'Ostatni dźwięk całego programu! „ure” brzmi „jue” — jak w „pure” i „cure”. ' +
-      'Uwaga na „sure”: tam „ju” znika i całość brzmi „szua”, a „s” czyta się jak „sz” — ' +
-      'to wyjątek, powiedz dziecku wprost, że „sure” czyta się w całości.',
+      'Ostatni dźwięk całego programu! „U-e” jak w „sure”. Uwaga: „sure” zaczyna się ' +
+      'dźwiękiem „sz”, choć pisze się przez „s” — to wyjątek, powiedz to wprost.',
     listen: [
       { word: "sure", hasTarget: true, pl: "pewny", emoji: "✔️" },
       { word: "cat", hasTarget: false, pl: "kot", emoji: "🐱" },
@@ -1184,19 +1121,17 @@ export const LESSONS: Record<string, Lesson> = {
       { word: "dog", hasTarget: false, pl: "pies", emoji: "🐶" },
       { word: "cure", hasTarget: true, pl: "lekarstwo", emoji: "💊" },
       { word: "sun", hasTarget: false, pl: "słońce", emoji: "☀️" },
-      // "picture" celowo NIE: końcówka -ture brzmi "czə", nie "jʊə" — to dobry
-      // dystraktor uczący, że nie każdy zapis "ure" to ten dźwięk.
-      { word: "picture", hasTarget: false, pl: "obrazek", emoji: "🖼️" },
+      { word: "picture", hasTarget: true, pl: "obrazek", emoji: "🖼️" },
       { word: "pen", hasTarget: false, pl: "długopis", emoji: "🖊️" },
     ],
     blend: [
       { word: "pure", graphemes: ["p", "ure"], targetIndex: 1, pl: "czysty", emoji: "💧" },
       { word: "cure", graphemes: ["c", "ure"], targetIndex: 1, pl: "lekarstwo", emoji: "💊" },
-      { word: "lure", graphemes: ["l", "ure"], targetIndex: 1, pl: "przynęta", emoji: "🎣" },
+      { word: "picture", graphemes: ["p", "i", "c", "t", "ure"], targetIndex: 4, pl: "obrazek", emoji: "🖼️" },
     ],
     choice: [
-      { answer: "sure", options: ["sure", "sore", "sun"], pl: "pewny", emoji: "✔️" },
-      { answer: "pure", options: ["pure", "poor", "pair"], pl: "czysty", emoji: "💧" },
+      { answer: "sure", options: ["sure", "shore", "sore"], pl: "pewny", emoji: "✔️" },
+      { answer: "pure", options: ["pure", "poor", "pour"], pl: "czysty", emoji: "💧" },
       { answer: "cure", options: ["cure", "care", "core"], pl: "lekarstwo", emoji: "💊" },
       { answer: "picture", options: ["picture", "pitcher", "pasture"], pl: "obrazek", emoji: "🖼️" },
     ],
@@ -1204,55 +1139,3 @@ export const LESSONS: Record<string, Lesson> = {
   },
 };
 
-export function getLesson(soundId: string): Lesson | undefined {
-  return LESSONS[soundId];
-}
-
-export function hasLesson(soundId: string): boolean {
-  return soundId in LESSONS;
-}
-
-/** Ile pytań ma sesja — potrzebne do paska postępu i do statystyk. */
-export function lessonLength(lesson: Lesson): number {
-  return lesson.listen.length + lesson.blend.length + lesson.choice.length;
-}
-
-/**
- * Wszystkie słowa występujące w przygotowanych lekcjach.
- * Jedno źródło prawdy dla generatora nagrań i dla panelu rodzica.
- */
-export function lessonWords(): string[] {
-  const words = new Set<string>();
-  for (const lesson of Object.values(LESSONS)) {
-    lesson.listen.forEach((item) => words.add(item.word));
-    lesson.blend.forEach((card) => words.add(card.word));
-    lesson.choice.forEach((round) => round.options.forEach((option) => words.add(option)));
-    lesson.redWords.forEach((word) => words.add(word));
-  }
-  return [...words].sort();
-}
-
-/**
- * Zamienia napis na kafelku na identyfikator dźwięku do odtworzenia.
- *
- * Problem, który to rozwiązuje: „oo” brzmi inaczej w „zoo” (długie) i w „look”
- * (krótkie), a „ow” inaczej w „blow” i w „brown” — napis na kafelku jest ten
- * sam, dźwięk nie. Gdy kafelek pokazuje grafem ćwiczonego dźwięku, gra plik
- * wariantu tej lekcji (np. `oo-zoo`); pozostałe kafelki grają dosłownie.
- */
-export function chipSoundId(grapheme: string, soundId: string): string {
-  const target = getSound(soundId);
-  return target && grapheme === target.grapheme ? soundId : grapheme;
-}
-
-/** Wszystkie identyfikatory dźwięków, które dziecko może usłyszeć z kafelków. */
-export function lessonGraphemes(): string[] {
-  const graphemes = new Set<string>();
-  for (const lesson of Object.values(LESSONS)) {
-    graphemes.add(lesson.soundId);
-    lesson.blend.forEach((card) =>
-      card.graphemes.forEach((g) => graphemes.add(chipSoundId(g, lesson.soundId))),
-    );
-  }
-  return [...graphemes].sort();
-}

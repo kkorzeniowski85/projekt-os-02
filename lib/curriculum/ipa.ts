@@ -60,7 +60,8 @@ export const IPA_BY_GRAPHEME: Record<string, string> = {
   ew: "uː",
   ire: "aɪə",
   ear: "ɪə",
-  ure: "ʊə",
+  // Z jotą: pure /pjʊə/, cure /kjʊə/ — bez niej "pure" brzmiałoby jak "poor".
+  ure: "jʊə",
 };
 
 /** Spółgłoski zwarte — te nagrania wymagają szczególnie uważnego odsłuchu. */
