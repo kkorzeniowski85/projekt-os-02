@@ -15,6 +15,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -98,6 +99,11 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<ProgressState>(() => emptyProgress());
   const [ready, setReady] = useState(false);
 
+  // Najświeższy stan dla silnika synchronizacji — bez tego domknięcia w
+  // timerach widziałyby stan z chwili rejestracji, nie bieżący.
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
   useEffect(() => {
     setState(load());
     setReady(true);
@@ -130,10 +136,58 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   const update = useCallback((updater: (previous: ProgressState) => ProgressState) => {
     setState((previous) => {
       const next = updater(previous);
+      if (next === previous) return previous; // brak zmian = brak zapisu i brak pętli
       save(next);
       return next;
     });
   }, []);
+
+  // --- automatyczna synchronizacja między urządzeniami ----------------------
+
+  const runSync = useCallback(() => {
+    void import("./sync").then(({ syncNow }) =>
+      syncNow(stateRef.current, (merged) => {
+        update((previous) => {
+          // Scalamy jeszcze raz z NAJNOWSZYM stanem (mógł się zmienić w trakcie
+          // pobierania) — scalanie jest idempotentne, więc to bezpieczne.
+          const zMerged = mergeProgress(previous, merged);
+          return JSON.stringify(zMerged) === JSON.stringify(previous) ? previous : zMerged;
+        });
+      }),
+    );
+  }, [update]);
+
+  useEffect(() => {
+    if (!ready) return;
+    void import("./sync").then(({ adoptFromHash, loadSyncId }) => {
+      adoptFromHash();
+      if (loadSyncId()) runSync();
+    });
+
+    // Pobieranie przy powrocie do aplikacji i odzyskaniu internetu, oraz
+    // regularnie co 3 minuty, dopóki karta jest widoczna.
+    const naWidocznosc = () => {
+      if (document.visibilityState === "visible") runSync();
+    };
+    document.addEventListener("visibilitychange", naWidocznosc);
+    window.addEventListener("online", runSync);
+    const interwal = setInterval(() => {
+      if (document.visibilityState === "visible") runSync();
+    }, 3 * 60 * 1000);
+
+    return () => {
+      document.removeEventListener("visibilitychange", naWidocznosc);
+      window.removeEventListener("online", runSync);
+      clearInterval(interwal);
+    };
+  }, [ready, runSync]);
+
+  // Wysyłka po każdej zmianie postępu (z odstępem, żeby seria zmian poszła raz).
+  useEffect(() => {
+    if (!ready || state.sessions.length === 0) return;
+    const timer = setTimeout(runSync, 2000);
+    return () => clearTimeout(timer);
+  }, [state, ready, runSync]);
 
   const commitSession = useCallback(
     (commit: SessionCommit): SessionOutcome => {
