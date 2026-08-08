@@ -670,9 +670,15 @@ export default function ParentPage() {
               automatycznej oceny wymowy zostaje w mocy.
             </li>
             <li>
-              Nagranie zostaje na tym urządzeniu (nic nie jest wysyłane) i nie przenosi się
-              samo na tablet. Żeby było wszędzie: pobierz je (⤓) i wrzuć do{" "}
-              <code>public/audio/phonemes/</code>.
+              Przy włączonej synchronizacji nagranie samo trafia na pozostałe urządzenia —
+              nie musisz nic przenosić. (⤓ pobiera je jako plik, gdyby przydało się poza
+              aplikacją.)
+            </li>
+            <li>
+              Nagrywanie można przerwać: <strong>„zapisz teraz”</strong> kończy i zachowuje to,
+              co już powiedziane, a <strong>„odrzuć”</strong> wychodzi bez zapisu i zostawia
+              poprzednie nagranie nietknięte. Po zapisie przez chwilę jest jeszcze{" "}
+              <strong>„cofnij”</strong>.
             </li>
             <li>
               Mów samą głoskę, bez doklejonej samogłoski: „sh", nie „szy"; „p", nie „py".
