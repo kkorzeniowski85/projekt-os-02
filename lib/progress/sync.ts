@@ -162,9 +162,76 @@ export function pairingLink(): string | null {
   return `${window.location.origin}${base}#sync=${status.code}`;
 }
 
+// --- krótki kod do przepisania ---------------------------------------------
+
+/**
+ * Kod QR nie pomoże urządzeniu bez aparatu (typowy pecet), a długiego kodu
+ * rodziny nikt nie przepisze z ekranu. Dlatego obok QR generujemy 6-znakowy
+ * kod, który jest tylko PRZEKAZKĄ: leży w osobnej szufladzie skrzynki i
+ * zawiera właściwy kod rodziny. Wpisuje się go raz, na drugim urządzeniu.
+ *
+ * Alfabet bez I, O, 0 i 1 — te znaki mylą się przy przepisywaniu z ekranu.
+ */
+const KOD_ALFABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+function szufladaKodu(short: string): string {
+  return mailboxUrl(`para-${short}`);
+}
+
+export function normalizeShortCode(wpisane: string): string {
+  return wpisane.trim().toUpperCase().replace(/[^A-Z2-9]/g, "");
+}
+
+/** Zwraca 6-znakowy kod do przepisania albo null, gdy nie udało się go zapisać. */
+export async function createShortCode(): Promise<string | null> {
+  if (!status.code) return null;
+
+  for (let proba = 0; proba < 3; proba++) {
+    const bytes = new Uint8Array(6);
+    crypto.getRandomValues(bytes);
+    const short = Array.from(bytes, (b) => KOD_ALFABET[b & 31]).join("");
+
+    // Trafienie w kod używany właśnie przez kogoś innego jest skrajnie mało
+    // prawdopodobne (ponad miliard kombinacji), ale nadpisanie cudzej przekazki
+    // odcięłoby komuś parowanie — więc sprawdzamy, czy szuflada jest wolna.
+    const zajete = await readMailbox(szufladaKodu(short));
+    if (!zajete.ok) return null;
+    if (zajete.dane.trim()) continue;
+
+    const zapis = await writeMailbox(
+      szufladaKodu(short),
+      JSON.stringify({ code: status.code, ts: Date.now() }),
+    );
+    if (zapis.ok) return short;
+  }
+  return null;
+}
+
+/** Podłączenie tego urządzenia kodem przepisanym z drugiego ekranu. */
+export async function adoptShortCode(wpisane: string): Promise<boolean> {
+  const short = normalizeShortCode(wpisane);
+  if (short.length !== 6) return false;
+
+  const odczyt = await readMailbox(szufladaKodu(short));
+  if (!odczyt.ok || !odczyt.dane.trim()) return false;
+
+  try {
+    const dane = JSON.parse(odczyt.dane) as { code?: string };
+    if (!dane?.code) return false;
+    saveSyncCode(dane.code);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // --- rozmowa ze skrzynką ---------------------------------------------------
 
-async function timeoutFetch(url: string, init: RequestInit = {}, ms = 15000): Promise<Response> {
+export async function timeoutFetch(
+  url: string,
+  init: RequestInit = {},
+  ms = 20000,
+): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   try {
@@ -174,19 +241,31 @@ async function timeoutFetch(url: string, init: RequestInit = {}, ms = 15000): Pr
   }
 }
 
-function adres(code: string): string {
-  return `${ENDPOINT}/${KEY_PREFIX}${code}`;
+/**
+ * Adres skrzynki rodziny. `sufiks` pozwala trzymać obok siebie kilka szuflad
+ * pod jednym kodem — postęp leży w gołym adresie, a nagrania w osobnych
+ * (każde nagranie we własnym, bo razem nie zmieściłyby się w limicie).
+ */
+export function mailboxUrl(code: string, sufiks = ""): string {
+  return `${ENDPOINT}/${KEY_PREFIX}${encodeURIComponent(code + sufiks)}`;
 }
 
-type Wynik<T> =
+function adres(code: string): string {
+  return mailboxUrl(code);
+}
+
+export type Wynik<T> =
   | { ok: true; dane: T }
   | { ok: false; rodzaj: SyncError; opis: string };
 
-/** `null` w danych = skrzynka jeszcze pusta (nikt nic nie wysłał). To nie błąd. */
-async function pobierz(code: string): Promise<Wynik<ProgressState | null>> {
+/**
+ * Surowa treść ze skrzynki. Pusty łańcuch = skrzynka jeszcze nieużywana —
+ * to normalny stan, nie błąd.
+ */
+export async function readMailbox(url: string): Promise<Wynik<string>> {
   let response: Response;
   try {
-    response = await timeoutFetch(adres(code));
+    response = await timeoutFetch(url);
   } catch (blad) {
     return { ok: false, rodzaj: "brak-sieci", opis: opisWyjatku(blad) };
   }
@@ -195,20 +274,41 @@ async function pobierz(code: string): Promise<Wynik<ProgressState | null>> {
   }
 
   const text = (await response.text()).trim();
-  if (!text) return { ok: true, dane: null };
+  if (!text) return { ok: true, dane: "" };
 
-  // Usługa oddaje treść w kopercie {"value":"<nasz json>"}; gdyby kiedyś
+  // Usługa oddaje treść w kopercie {"value":"<nasza treść>"}; gdyby kiedyś
   // zaczęła oddawać samą treść, druga gałąź to obsłuży.
-  let surowy = text;
   try {
     const koperta = JSON.parse(text) as { value?: unknown };
-    if (typeof koperta?.value === "string") surowy = koperta.value;
+    if (typeof koperta?.value === "string") return { ok: true, dane: koperta.value };
   } catch {
     // nie koperta — bierzemy tekst jak leci
   }
-  if (!surowy.trim()) return { ok: true, dane: null };
+  return { ok: true, dane: text };
+}
 
-  return { ok: true, dane: parseProgressFile(surowy) };
+export async function writeMailbox(url: string, tresc: string): Promise<Wynik<true>> {
+  try {
+    const response = await timeoutFetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value: tresc }),
+    });
+    if (!response.ok) {
+      return { ok: false, rodzaj: "usluga-odmowila", opis: `zapis HTTP ${response.status}` };
+    }
+    return { ok: true, dane: true };
+  } catch (blad) {
+    return { ok: false, rodzaj: "brak-sieci", opis: opisWyjatku(blad) };
+  }
+}
+
+/** `null` w danych = skrzynka jeszcze pusta (nikt nic nie wysłał). To nie błąd. */
+async function pobierz(code: string): Promise<Wynik<ProgressState | null>> {
+  const surowy = await readMailbox(adres(code));
+  if (!surowy.ok) return surowy;
+  if (!surowy.dane.trim()) return { ok: true, dane: null };
+  return { ok: true, dane: parseProgressFile(surowy.dane) };
 }
 
 /**

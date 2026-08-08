@@ -138,16 +138,25 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   // --- automatyczna synchronizacja między urządzeniami ----------------------
 
   const runSync = useCallback(() => {
-    void import("./sync").then(({ syncNow }) =>
-      syncNow(stateRef.current, (merged) => {
+    void (async () => {
+      const { syncNow, loadSyncCode } = await import("./sync");
+      await syncNow(stateRef.current, (merged) => {
         update((previous) => {
           // Scalamy jeszcze raz z NAJNOWSZYM stanem (mógł się zmienić w trakcie
           // pobierania) — scalanie jest idempotentne, więc to bezpieczne.
           const zMerged = mergeProgress(previous, merged);
           return JSON.stringify(zMerged) === JSON.stringify(previous) ? previous : zMerged;
         });
-      }),
-    );
+      });
+
+      // Nagrania rodzica jadą tym samym kodem, ale osobnym obiegiem — są
+      // znacznie cięższe od postępu i nie ma sensu ruszać ich przy każdej
+      // drobnej zmianie punktów.
+      const code = loadSyncCode();
+      if (!code) return;
+      const { syncRecordings } = await import("./recordingsSync");
+      await syncRecordings(code);
+    })();
   }, [update]);
 
   useEffect(() => {

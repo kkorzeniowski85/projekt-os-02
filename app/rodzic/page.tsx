@@ -27,9 +27,14 @@ import { lessonGraphemes, lessonWords } from "@/lib/curriculum/lessons";
 import { IPA_BY_GRAPHEME, trickyHint } from "@/lib/curriculum/ipa";
 import { getSound } from "@/lib/curriculum/sounds";
 import { importRecordingFiles, listRecordings } from "@/lib/recordings";
+import { QrCode } from "@/components/QrCode";
+import { RECORDINGS_CHANGED } from "@/lib/progress/recordingsSync";
 import {
+  adoptShortCode,
+  createShortCode,
   disableSync,
   enableSync,
+  normalizeShortCode,
   pairingLink,
   subscribeSync,
   type SyncStatus,
@@ -123,6 +128,10 @@ export default function ParentPage() {
   const [copied, setCopied] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [sync, setSync] = useState<SyncStatus | null>(null);
+  const [krotkiKod, setKrotkiKod] = useState<string | null>(null);
+  const [kodWTrakcie, setKodWTrakcie] = useState(false);
+  const [wpisanyKod, setWpisanyKod] = useState("");
+  const [laczenie, setLaczenie] = useState(false);
   useEffect(() => subscribeSync(setSync), []);
   const importInputRef = useRef<HTMLInputElement>(null);
   const audioImportRef = useRef<HTMLInputElement>(null);
@@ -171,6 +180,12 @@ export default function ParentPage() {
   useEffect(() => {
     void runAudit();
     void refreshRecordings();
+
+    // Nagrania potrafią przyjechać z innego urządzenia w trakcie patrzenia na
+    // panel — bez tego lista pokazywałaby stan sprzed synchronizacji.
+    const naZmiane = () => void refreshRecordings();
+    window.addEventListener(RECORDINGS_CHANGED, naZmiane);
+    return () => window.removeEventListener(RECORDINGS_CHANGED, naZmiane);
   }, [runAudit, refreshRecordings]);
 
 
@@ -409,23 +424,66 @@ export default function ParentPage() {
                 )}
               </p>
             )}
-            <p className="mb-2 text-sm text-paper/80">
-              <strong>Podłącz kolejne urządzenie:</strong> wyślij sobie ten link i kliknij go na
-              tablecie lub telefonie. Jedno dotknięcie — i tamto urządzenie też jest w obiegu.
-            </p>
+            {/* Dwie drogi, bo urządzenia są różne: tablet i telefon mają aparat,
+                a komputer zwykle nie. Żadna nie wymaga przenoszenia linku. */}
+            <div className="mb-3 rounded-2xl border border-white/10 bg-black/20 p-4">
+              <p className="mb-3 text-sm font-bold text-paper/80">Podłącz kolejne urządzenie</p>
+              <div className="flex flex-wrap items-start gap-6">
+                <div className="w-[190px] shrink-0 text-center">
+                  <QrCode value={pairingLink() ?? ""} size={190} />
+                  <p className="mt-2 text-xs text-paper/60">
+                    <strong className="text-paper/80">Ma aparat?</strong> Zeskanuj to tabletem
+                    albo telefonem — aplikacja otworzy się już podłączona.
+                  </p>
+                </div>
+
+                <div className="min-w-[240px] flex-1">
+                  <p className="mb-2 text-xs text-paper/60">
+                    <strong className="text-paper/80">Bez aparatu (np. komputer)?</strong> Pokaż
+                    krótki kod i wpisz go tam w polu „Podłącz to urządzenie kodem”.
+                  </p>
+                  {krotkiKod ? (
+                    <>
+                      <p className="rounded-xl bg-white/10 px-4 py-3 text-center font-mono text-3xl font-black tracking-[0.35em] text-hero-gold">
+                        {krotkiKod}
+                      </p>
+                      <p className="mt-2 text-xs text-paper/50">
+                        Kod zadziała także później — nie musisz się spieszyć.
+                      </p>
+                    </>
+                  ) : (
+                    <BigButton
+                      tone="quiet"
+                      onClick={async () => {
+                        setKodWTrakcie(true);
+                        const kod = await createShortCode();
+                        setKodWTrakcie(false);
+                        setKrotkiKod(kod);
+                        if (!kod) {
+                          setSyncMessage(
+                            "Nie udało się przygotować krótkiego kodu — sprawdź połączenie i spróbuj ponownie.",
+                          );
+                        }
+                      }}
+                    >
+                      {kodWTrakcie ? "Przygotowuję…" : "Pokaż krótki kod"}
+                    </BigButton>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div className="mb-3 flex flex-wrap items-center gap-3">
-              <code className="max-w-full overflow-x-auto rounded-xl bg-black/40 px-3 py-2 text-xs">
-                {pairingLink()}
-              </code>
               <BigButton
+                tone="quiet"
                 onClick={async () => {
                   const link = pairingLink();
                   if (!link) return;
                   try {
                     await navigator.clipboard.writeText(link);
-                    setSyncMessage("Link skopiowany — wyślij go sobie i kliknij na drugim urządzeniu.");
+                    setSyncMessage("Link skopiowany.");
                   } catch {
-                    setSyncMessage("Nie udało się skopiować — zaznacz link ręcznie i skopiuj.");
+                    setSyncMessage("Nie udało się skopiować — użyj kodu QR albo krótkiego kodu.");
                   }
                 }}
               >
@@ -435,6 +493,7 @@ export default function ParentPage() {
                 tone="quiet"
                 onClick={() => {
                   disableSync();
+                  setKrotkiKod(null);
                   setSyncMessage("Synchronizacja wyłączona na tym urządzeniu. Postęp lokalny zostaje.");
                 }}
               >
@@ -443,25 +502,74 @@ export default function ParentPage() {
             </div>
           </>
         ) : (
-          <>
-            <p className="mb-3 text-sm text-paper/80">
-              Włącz raz, sparuj urządzenia kliknięciem w link — i od tej pory postęp z każdego
-              urządzenia sam pojawia się na wszystkich. Bez plików, bez Dysku, bez kont.
-              Statystyki nauki trafiają do skrzynki pod losowym, niezgadywalnym adresem w
-              usłudze zewnętrznej — nie ma tam nic wrażliwego.
-            </p>
+          <p className="mb-3 text-sm text-paper/80">
+            Włącz na jednym urządzeniu, podłącz pozostałe kodem — i od tej pory postęp ORAZ
+            Twoje nagrania głosek same pojawiają się wszędzie. Bez plików, bez Dysku, bez kont.
+            Dane trafiają do skrzynki pod losowym, niezgadywalnym adresem w usłudze zewnętrznej.
+          </p>
+        )}
+
+        {/* Pole na kod jest ZAWSZE widoczne — także gdy synchronizacja już
+            działa. Inaczej urządzenie, które ma własny obieg, nie miałoby jak
+            dołączyć do obiegu pozostałych bez wcześniejszego wyłączania. */}
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+          <p className="mb-1 text-sm font-bold text-paper/80">Podłącz to urządzenie kodem</p>
+          <p className="mb-3 text-xs text-paper/50">
+            Sześcioznakowy kod pokazany na drugim urządzeniu. Możesz go wkleić albo wpisać.
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              value={wpisanyKod}
+              onChange={(event) => setWpisanyKod(normalizeShortCode(event.target.value))}
+              placeholder="np. K7M2QP"
+              maxLength={6}
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+              className="min-h-12 w-44 rounded-xl bg-black/40 px-4 text-center font-mono text-xl tracking-[0.25em] text-paper placeholder:text-paper/25"
+            />
+            <BigButton
+              onClick={async () => {
+                setLaczenie(true);
+                const udalo = await adoptShortCode(wpisanyKod);
+                setLaczenie(false);
+                if (udalo) {
+                  setWpisanyKod("");
+                  setKrotkiKod(null);
+                  requestSync();
+                  setSyncMessage(
+                    "Podłączone. Za chwilę pojawi się tu postęp i nagrania z pozostałych urządzeń.",
+                  );
+                } else {
+                  setSyncMessage(
+                    "Ten kod nie zadziałał. Sprawdź, czy przepisałeś go dokładnie, i czy na tamtym urządzeniu nadal jest widoczny.",
+                  );
+                }
+              }}
+            >
+              {laczenie ? "Łączę…" : "Podłącz"}
+            </BigButton>
+          </div>
+        </div>
+
+        {!sync?.enabled && (
+          <div className="mt-3">
             <BigButton
               onClick={() => {
                 enableSync();
                 requestSync();
                 setSyncMessage(
-                  "Synchronizacja włączona. Wyślij sobie link parowania i kliknij go na pozostałych urządzeniach.",
+                  "Synchronizacja włączona. Podłącz pozostałe urządzenia kodem QR albo krótkim kodem.",
                 );
               }}
             >
               Włącz automatyczną synchronizację
             </BigButton>
-          </>
+            <p className="mt-2 text-xs text-paper/50">
+              To zakłada nowy, własny obieg. Jeśli obieg już gdzieś działa, użyj pola z kodem
+              powyżej — inaczej urządzenia trafią do dwóch osobnych obiegów.
+            </p>
+          </div>
         )}
 
         <div className="mt-6 border-t border-white/10 pt-4">

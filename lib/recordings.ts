@@ -69,20 +69,61 @@ function dropUrl(id: string): void {
   }
 }
 
-export async function saveRecording(id: string, blob: Blob): Promise<void> {
+/**
+ * Ślady po skasowanych nagraniach.
+ *
+ * Bez nich synchronizacja przywracałaby nagranie skasowane na jednym
+ * urządzeniu: inne urządzenie wciąż by je miało i uznało za nowość do
+ * rozesłania. Zapamiętujemy więc SAM FAKT i CZAS skasowania, żeby dało się
+ * porównać, co jest świeższe — nagranie czy jego usunięcie.
+ */
+const TOMBSTONES_KEY = "phonics.recordings.deleted.v1";
+
+export function deletionMarks(): Record<string, number> {
+  try {
+    return JSON.parse(localStorage.getItem(TOMBSTONES_KEY) ?? "{}") as Record<string, number>;
+  } catch {
+    return {};
+  }
+}
+
+export function markDeleted(id: string, ts = Date.now()): void {
+  try {
+    localStorage.setItem(TOMBSTONES_KEY, JSON.stringify({ ...deletionMarks(), [id]: ts }));
+  } catch {
+    // brak miejsca — synchronizacja co najwyżej przywróci nagranie
+  }
+}
+
+function clearDeletionMark(id: string): void {
+  try {
+    const marks = deletionMarks();
+    if (!(id in marks)) return;
+    delete marks[id];
+    localStorage.setItem(TOMBSTONES_KEY, JSON.stringify(marks));
+  } catch {
+    // jw.
+  }
+}
+
+export async function saveRecording(id: string, blob: Blob, createdTs = Date.now()): Promise<void> {
   const row: RecordingRow = {
     id,
     blob,
     mime: blob.type || "audio/webm",
     size: blob.size,
-    createdTs: Date.now(),
+    createdTs,
   };
   await run("readwrite", (store) => store.put(row));
+  // Nowe nagranie unieważnia wcześniejsze skasowanie — inaczej ślad po nim
+  // kasowałby je zaraz po zapisaniu.
+  clearDeletionMark(id);
   dropUrl(id);
 }
 
 export async function deleteRecording(id: string): Promise<void> {
   await run("readwrite", (store) => store.delete(id));
+  markDeleted(id);
   dropUrl(id);
 }
 
