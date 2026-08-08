@@ -34,6 +34,7 @@ import {
 } from "@/lib/curriculum/lessons";
 import type { Sound } from "@/lib/curriculum/sounds";
 import { getHero, HEROES_BY_ID } from "@/lib/heroes";
+import { RULES } from "@/lib/progress/rules";
 import { useProgress, type PendingAttempt, type SessionOutcome } from "@/lib/progress/store";
 import type { DeviceRole, SessionMode } from "@/lib/progress/types";
 import { useDeviceRole } from "@/lib/useDeviceRole";
@@ -94,6 +95,7 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
   const [screens, setScreens] = useState<Screen[]>([]);
   const [index, setIndex] = useState(0);
   const [outcome, setOutcome] = useState<SessionOutcome | null>(null);
+  const [pytanieOWyjscie, setPytanieOWyjscie] = useState(false);
 
   const attemptsRef = useRef<PendingAttempt[]>([]);
   const startedTsRef = useRef(0);
@@ -116,18 +118,23 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
     [lesson, role],
   );
 
+  const zapisz = useCallback(
+    () =>
+      commitSession({
+        soundId: sound.id,
+        mode,
+        device: role,
+        startedTs: startedTsRef.current,
+        endedTs: Date.now(),
+        attempts: attemptsRef.current,
+      }),
+    [commitSession, mode, role, sound.id],
+  );
+
   const finish = useCallback(() => {
-    const result = commitSession({
-      soundId: sound.id,
-      mode,
-      device: role,
-      startedTs: startedTsRef.current,
-      endedTs: Date.now(),
-      attempts: attemptsRef.current,
-    });
-    setOutcome(result);
+    setOutcome(zapisz());
     setStage("done");
-  }, [commitSession, mode, role, sound.id]);
+  }, [zapisz]);
 
   const handleAttempt = useCallback((attempt: PendingAttempt) => {
     attemptsRef.current = [...attemptsRef.current, attempt];
@@ -160,11 +167,25 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
 
   return (
     <div className={role === "desktop" ? "grid grid-cols-[1fr_320px] gap-6" : "flex flex-col gap-4"}>
+      {pytanieOWyjscie && (
+        <PrzerwanieSesji
+          zrobione={index}
+          wszystkich={screens.length}
+          ocenianych={attemptsRef.current.filter((attempt) => attempt.correct !== null).length}
+          onZapisz={zapisz}
+          onWroc={() => setPytanieOWyjscie(false)}
+        />
+      )}
+
       <div className="flex flex-col gap-4">
         <header className="flex items-center justify-between gap-4">
-          <Link href="/" className="text-sm text-paper/60 underline">
+          <button
+            type="button"
+            onClick={() => setPytanieOWyjscie(true)}
+            className="text-sm text-paper/60 underline"
+          >
             ← Przerwij
-          </Link>
+          </button>
           <StepDots total={screens.length} current={index} />
           <span className="font-reading rounded-full bg-white/10 px-3 py-1 text-sm font-bold">
             {sound.grapheme}
@@ -772,6 +793,68 @@ function RewardScreen({
       >
         wycisz muzykę
       </button>
+    </div>
+  );
+}
+
+/**
+ * Pytanie przy przerwaniu ćwiczenia w połowie.
+ *
+ * Sesja zapisuje się normalnie dopiero na końcu, jednym kompletem — bez tego
+ * okna przerwanie po ośmiu z dziesięciu zadań kasowało całą pracę bez słowa.
+ * Trzy wyjścia zamiast dwóch, bo „← Przerwij” bywa kliknięte przypadkowo przez
+ * dziecko: powrót do ćwiczenia musi być równie łatwy jak wyjście.
+ */
+function PrzerwanieSesji({
+  zrobione,
+  wszystkich,
+  ocenianych,
+  onZapisz,
+  onWroc,
+}: {
+  zrobione: number;
+  wszystkich: number;
+  ocenianych: number;
+  onZapisz: () => void;
+  onWroc: () => void;
+}) {
+  const zaMaloDoOceny = ocenianych < RULES.minScoredForStatus;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Przerwać ćwiczenie?"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-night/85 p-4 backdrop-blur-sm"
+    >
+      <Card className="max-w-lg">
+        <h2 className="mb-2 text-2xl font-black">Przerwać ćwiczenie?</h2>
+        <p className="mb-1 text-paper/80">
+          Zrobione: <strong>{zrobione}</strong> z {wszystkich} zadań.
+        </p>
+        <p className="mb-5 text-sm text-paper/60">
+          {zaMaloDoOceny
+            ? "Zapis zachowa tę pracę i pokaże ją w raporcie, ale to za mało zadań, żeby zmienić ocenę dźwięku — na to trzeba ich więcej."
+            : "Zapis zachowa tę pracę razem z wynikiem — dźwięk dostanie normalną ocenę za tę sesję."}
+        </p>
+
+        <div className="flex flex-col gap-3">
+          <BigButton href="/" onClick={onZapisz} full>
+            Zapisz i wyjdź
+          </BigButton>
+          <BigButton href="/" tone="quiet" full>
+            Wyjdź bez zapisu
+          </BigButton>
+          <BigButton onClick={onWroc} tone="quiet" full>
+            Wróć do ćwiczenia
+          </BigButton>
+        </div>
+
+        <p className="mt-4 text-xs text-paper/50">
+          „Wyjdź bez zapisu” nie zostawia śladu — ten sam dźwięk można zacząć od nowa,
+          od pierwszego zadania.
+        </p>
+      </Card>
     </div>
   );
 }

@@ -31,6 +31,16 @@ export const RULES = {
   strugglingSessions: 2,
   /** Ile ostatnich wyników trzymamy na potrzeby reguł. */
   historyWindow: 3,
+  /**
+   * Ile ocenianych zadań musi mieć sesja, żeby jej wynik w ogóle liczył się do
+   * oceny dźwięku. Sesję można przerwać i zapisać w połowie — ale dwa trafione
+   * zadania z rzędu nie są dowodem opanowania, a dwa chybione nie są powodem do
+   * alarmu. Bez tego progu możliwość zapisywania przerwanych sesji psułaby to,
+   * po co ta aplikacja jest: podpowiadanie, co ćwiczyć dalej.
+   * Pełna sesja na telefonie ma ich 6, na tablecie więcej — próg nie przeszkadza
+   * normalnej pracy.
+   */
+  minScoredForStatus: 4,
   /** Ile prób trzymamy w logu, zanim zaczniemy obcinać najstarsze. */
   attemptLogLimit: 2000,
 } as const;
@@ -70,19 +80,25 @@ export function applySessionResult(
   const previous = state.sounds[session.soundId] ?? emptySoundState(session.soundId);
   const accuracy = accuracyOf(session);
 
+  // Sesja przerwana po kilku zadaniach zostaje w historii (widać ją w raporcie
+  // i liczy się do "ile razy ćwiczyliśmy"), ale nie rusza oceny dźwięku —
+  // patrz RULES.minScoredForStatus.
+  const doOceny =
+    accuracy !== null && session.scored >= RULES.minScoredForStatus ? accuracy : null;
+
   const recentAccuracies =
-    accuracy === null
+    doOceny === null
       ? previous.recentAccuracies
-      : [...previous.recentAccuracies, accuracy].slice(-RULES.historyWindow);
+      : [...previous.recentAccuracies, doOceny].slice(-RULES.historyWindow);
 
   const updated: SoundState = {
     ...previous,
     sessions: previous.sessions + 1,
-    lastAccuracy: accuracy ?? previous.lastAccuracy,
+    lastAccuracy: doOceny ?? previous.lastAccuracy,
     bestAccuracy:
-      accuracy === null
+      doOceny === null
         ? previous.bestAccuracy
-        : Math.max(accuracy, previous.bestAccuracy ?? 0),
+        : Math.max(doOceny, previous.bestAccuracy ?? 0),
     recentAccuracies,
     lastSeenTs: session.endedTs,
     status: nextStatus(recentAccuracies),

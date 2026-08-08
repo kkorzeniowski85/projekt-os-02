@@ -39,8 +39,11 @@ export function BigButton({
 
   if (href) {
     return (
+      // `onClick` działa też tutaj: pozwala zrobić coś tuż przed przejściem
+      // (np. zapisać przerwaną sesję), bez dublowania stylów przycisku.
       <Link
         href={href}
+        onClick={onClick}
         className={`${className} flex items-center justify-center text-center`}
       >
         {children}
