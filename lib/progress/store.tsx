@@ -59,6 +59,13 @@ type ProgressContextValue = {
   importProgress: (incoming: ProgressState) => number;
   setChildName: (name: string) => void;
   resetAll: () => void;
+  /**
+   * Ręczne kopnięcie synchronizacji. Potrzebne po WŁĄCZENIU jej w panelu:
+   * automatyczne wysyłki reagują na zmianę postępu, a włączenie postępu nie
+   * zmienia — bez tego pierwsza paczka poszłaby dopiero po następnej sesji
+   * i drugie urządzenie sparowałoby się z pustą skrzynką.
+   */
+  requestSync: () => void;
 };
 
 const ProgressContext = createContext<ProgressContextValue | null>(null);
@@ -145,9 +152,9 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!ready) return;
-    void import("./sync").then(({ adoptFromHash, loadSyncId }) => {
+    void import("./sync").then(({ adoptFromHash, loadSyncCode }) => {
       adoptFromHash();
-      if (loadSyncId()) runSync();
+      if (loadSyncCode()) runSync();
     });
 
     // Pobieranie przy powrocie do aplikacji i odzyskaniu internetu, oraz
@@ -244,8 +251,16 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<ProgressContextValue>(
-    () => ({ ready, state, commitSession, importProgress, setChildName, resetAll }),
-    [ready, state, commitSession, importProgress, setChildName, resetAll],
+    () => ({
+      ready,
+      state,
+      commitSession,
+      importProgress,
+      setChildName,
+      resetAll,
+      requestSync: runSync,
+    }),
+    [ready, state, commitSession, importProgress, setChildName, resetAll, runSync],
   );
 
   return <ProgressContext.Provider value={value}>{children}</ProgressContext.Provider>;

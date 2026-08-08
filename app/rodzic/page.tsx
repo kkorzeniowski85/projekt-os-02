@@ -28,8 +28,8 @@ import { IPA_BY_GRAPHEME, trickyHint } from "@/lib/curriculum/ipa";
 import { getSound } from "@/lib/curriculum/sounds";
 import { importRecordingFiles, listRecordings } from "@/lib/recordings";
 import {
-  createMailbox,
   disableSync,
+  enableSync,
   pairingLink,
   subscribeSync,
   type SyncStatus,
@@ -119,7 +119,7 @@ function WordClipList({
 }
 
 export default function ParentPage() {
-  const { state, importProgress, setChildName, resetAll, ready } = useProgress();
+  const { state, importProgress, setChildName, resetAll, ready, requestSync } = useProgress();
   const [copied, setCopied] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [sync, setSync] = useState<SyncStatus | null>(null);
@@ -378,18 +378,37 @@ export default function ParentPage() {
               {sync.lastOkTs && (
                 <> Ostatnia synchronizacja: {new Date(sync.lastOkTs).toLocaleTimeString("pl-PL")}.</>
               )}
-              {sync.lastError === "siec" && (
-                <> Ostatnia próba nie doszła (brak internetu?) — spróbuje ponownie sama.</>
-              )}
-              {sync.lastError === "skrzynka-wygasla" && (
-                <>
-                  {" "}
-                  Wspólna skrzynka wygasła po długiej przerwie — kliknij „Wyłącz”, włącz
-                  ponownie i sparuj urządzenia nowym linkiem. Postęp na urządzeniach jest
-                  bezpieczny.
-                </>
-              )}
             </p>
+            {sync.lastError && (
+              <p className="mb-3 rounded-2xl bg-hero-pink/15 p-3 text-sm text-paper/85">
+                {sync.lastError === "brak-sieci" && (
+                  <>
+                    <strong>Nie udało się połączyć z usługą synchronizacji.</strong> Aplikacja
+                    spróbuje sama za chwilę, więc pojedyncza wpadka nic nie kosztuje. Jeśli to
+                    się powtarza mimo działającego internetu, ruch blokuje zwykle ochrona przed
+                    śledzeniem w przeglądarce, rozszerzenie blokujące reklamy albo antywirus —
+                    dodaj wyjątek dla adresu <code>textdb.dev</code>.
+                  </>
+                )}
+                {sync.lastError === "usluga-odmowila" && (
+                  <>
+                    <strong>Usługa synchronizacji odmówiła.</strong> To zwykle przejściowe —
+                    aplikacja spróbuje ponownie. Postęp na urządzeniach jest bezpieczny.
+                  </>
+                )}
+                {sync.lastError === "za-duzo-danych" && (
+                  <>
+                    <strong>Postęp przerósł pojemność skrzynki.</strong> Zapisz kopię do pliku
+                    i daj znać — trzeba wtedy zmienić sposób przesyłania.
+                  </>
+                )}
+                {sync.lastErrorDetail && (
+                  <span className="mt-1 block text-xs text-paper/50">
+                    Szczegół techniczny: {sync.lastErrorDetail}
+                  </span>
+                )}
+              </p>
+            )}
             <p className="mb-2 text-sm text-paper/80">
               <strong>Podłącz kolejne urządzenie:</strong> wyślij sobie ten link i kliknij go na
               tablecie lub telefonie. Jedno dotknięcie — i tamto urządzenie też jest w obiegu.
@@ -432,12 +451,11 @@ export default function ParentPage() {
               usłudze zewnętrznej — nie ma tam nic wrażliwego.
             </p>
             <BigButton
-              onClick={async () => {
-                const id = await createMailbox(state);
+              onClick={() => {
+                enableSync();
+                requestSync();
                 setSyncMessage(
-                  id
-                    ? "Synchronizacja włączona. Wyślij sobie link parowania i kliknij go na pozostałych urządzeniach."
-                    : "Nie udało się połączyć z usługą — sprawdź internet i spróbuj ponownie.",
+                  "Synchronizacja włączona. Wyślij sobie link parowania i kliknij go na pozostałych urządzeniach.",
                 );
               }}
             >
