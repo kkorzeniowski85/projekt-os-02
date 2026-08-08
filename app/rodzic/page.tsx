@@ -35,14 +35,6 @@ import {
   type SyncStatus,
 } from "@/lib/progress/sync";
 import {
-  isSupported as folderIsSupported,
-  stanFolderu,
-  wybierzFolder,
-  zapiszPostep,
-  zapomnijFolder,
-  type StanFolderu,
-} from "@/lib/progress/driveFolder";
-import {
   buildProgressExport,
   parseProgressFile,
   progressFileName,
@@ -130,13 +122,8 @@ export default function ParentPage() {
   const { state, importProgress, setChildName, resetAll, ready } = useProgress();
   const [copied, setCopied] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
-  const [kodDoSkopiowania, setKodDoSkopiowania] = useState("");
-  const [folder, setFolder] = useState<StanFolderu | null>(null);
   const [sync, setSync] = useState<SyncStatus | null>(null);
   useEffect(() => subscribeSync(setSync), []);
-  const [folderSupported, setFolderSupported] = useState(false);
-  const [wklejonyKod, setWklejonyKod] = useState("");
-  const [canShareFile, setCanShareFile] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
   const audioImportRef = useRef<HTMLInputElement>(null);
   const [audioImportMessage, setAudioImportMessage] = useState<string | null>(null);
@@ -186,42 +173,16 @@ export default function ParentPage() {
     void refreshRecordings();
   }, [runAudit, refreshRecordings]);
 
-  // Stan połączenia z folderem sprawdzamy po zamontowaniu — API jest dostępne
-  // tylko w przeglądarce na komputerze, więc na tablecie ta sekcja się nie pokaże.
-  useEffect(() => {
-    setFolderSupported(folderIsSupported());
-    if (folderIsSupported()) void stanFolderu().then(setFolder);
-  }, []);
 
   const missingWords = resolved
     ? words.filter((word) => !resolved[wordClipBase(word)]).length
     : null;
 
-  // Web Share API z plikami działa głównie na telefonach/tabletach — tam
-  // arkusz udostępniania ma "Zapisz na Dysku" i to najkrótsza droga.
-  useEffect(() => {
-    try {
-      const probe = new File(["x"], "probe.json", { type: "application/json" });
-      setCanShareFile(Boolean(navigator.canShare?.({ files: [probe] })));
-    } catch {
-      setCanShareFile(false);
-    }
-  }, []);
 
   function exportProgressFile() {
     downloadFile(progressFileName(), buildProgressExport(state), "application/json");
   }
 
-  async function shareProgressFile() {
-    try {
-      const file = new File([buildProgressExport(state)], progressFileName(), {
-        type: "application/json",
-      });
-      await navigator.share({ files: [file], title: "Postęp nauki — Liga Dźwięków" });
-    } catch {
-      // Anulowanie arkusza udostępniania też tu trafia — nic nie robimy.
-    }
-  }
 
   async function onImportAudio(event: React.ChangeEvent<HTMLInputElement>) {
     const files = [...(event.target.files ?? [])];
@@ -407,282 +368,108 @@ export default function ParentPage() {
       </Card>
 
       <Card>
-        <h2 className="mb-1 text-lg font-bold">Postęp między urządzeniami (Dysk Google)</h2>
-        <p className="mb-3 text-sm text-paper/70">
-          Postęp zapisuje się w pamięci tego urządzenia. Żeby przenieść go na inne, zapisz
-          plik i umieść na Dysku Google, a na drugim urządzeniu wczytaj go stamtąd.
-          Wczytywanie <strong>scala</strong> — sesje z obu urządzeń się sumują i nic nie
-          jest nadpisywane, więc kolejność i liczba wczytań nie mają znaczenia.
-        </p>
-        <ol className="mb-4 list-decimal space-y-1 pl-5 text-sm text-paper/70">
-          <li>
-            Tu: {canShareFile ? "„Wyślij na Dysk” (wybierz Dysk Google w oknie udostępniania) albo " : ""}
-            „Zapisz plik” i wrzuć go do folderu na Dysku.
-          </li>
-          <li>
-            Na drugim urządzeniu: „Wczytaj plik” → w oknie wyboru otwórz Dysk Google
-            (na tablecie: menu ☰ albo „Przeglądaj” → Dysk Google) i wybierz plik{" "}
-            <code>liga-dzwiekow-postep-DATA.json</code> — jeśli jest kilka, bierz ten
-            z najnowszą datą w nazwie.
-          </li>
-        </ol>
-        {/* Pełny automat: wspólna skrzynka w internecie, każde urządzenie samo
-            wysyła i pobiera. Parowanie = jedno kliknięcie w link. */}
-        <div className="mb-4 rounded-2xl border-2 border-hero-gold/60 bg-hero-gold/10 p-4">
-          <p className="mb-1 font-bold text-hero-gold">
-            Automatyczna synchronizacja — bez żadnego klikania
-          </p>
-          {sync?.enabled ? (
-            <>
-              <p className="mb-3 text-sm text-paper/80">
-                <strong>Działa.</strong> To urządzenie samo wysyła i pobiera postęp — przy
-                otwarciu aplikacji, po każdej sesji i co 3 minuty.
-                {sync.lastOkTs && (
-                  <> Ostatnia synchronizacja: {new Date(sync.lastOkTs).toLocaleTimeString("pl-PL")}.</>
-                )}
-                {sync.lastError === "siec" && <> Ostatnia próba nie doszła (brak internetu?) — spróbuje sama ponownie.</>}
-                {sync.lastError === "skrzynka-wygasla" && (
-                  <> Skrzynka wygasła po długiej przerwie — wyłącz i włącz synchronizację, potem sparuj urządzenia nowym linkiem. Lokalny postęp jest bezpieczny.</>
-                )}
-              </p>
-              <p className="mb-2 text-sm text-paper/80">
-                <strong>Podłącz pozostałe urządzenia:</strong> wyślij sobie ten link (mailem,
-                komunikatorem) i kliknij go na tablecie/telefonie — jedno dotknięcie i gotowe:
-              </p>
-              <div className="mb-3 flex flex-wrap items-center gap-3">
-                <code className="max-w-full overflow-x-auto rounded-xl bg-black/40 px-3 py-2 text-xs">
-                  {pairingLink()}
-                </code>
-                <BigButton
-                  onClick={async () => {
-                    const link = pairingLink();
-                    if (!link) return;
-                    try {
-                      await navigator.clipboard.writeText(link);
-                      setSyncMessage("Link parowania skopiowany — wyślij go sobie i kliknij na drugim urządzeniu.");
-                    } catch {
-                      setSyncMessage("Nie udało się skopiować — zaznacz link ręcznie.");
-                    }
-                  }}
-                >
-                  Kopiuj link
-                </BigButton>
-                <BigButton
-                  tone="quiet"
-                  onClick={() => {
-                    disableSync();
-                    setSyncMessage("Synchronizacja wyłączona na tym urządzeniu. Postęp lokalny zostaje.");
-                  }}
-                >
-                  Wyłącz
-                </BigButton>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="mb-3 text-sm text-paper/80">
-                Włącz raz, sparuj urządzenia jednym kliknięciem w link — i od tej pory postęp
-                z każdego urządzenia sam pojawia się na wszystkich. Dane (statystyki nauki)
-                trafiają do skrzynki pod losowym, niezgadywalnym adresem w usłudze
-                zewnętrznej — nie ma tam nic wrażliwego.
-              </p>
+        <h2 className="mb-1 text-lg font-bold">Synchronizacja między urządzeniami</h2>
+        {sync?.enabled ? (
+          <>
+            <p className="mb-3 text-sm text-paper/80">
+              <strong className="text-hero-lime">Działa automatycznie.</strong> To urządzenie
+              samo wysyła i pobiera postęp — przy otwarciu aplikacji, po każdej sesji i co
+              3 minuty. Nic nie musisz klikać.
+              {sync.lastOkTs && (
+                <> Ostatnia synchronizacja: {new Date(sync.lastOkTs).toLocaleTimeString("pl-PL")}.</>
+              )}
+              {sync.lastError === "siec" && (
+                <> Ostatnia próba nie doszła (brak internetu?) — spróbuje ponownie sama.</>
+              )}
+              {sync.lastError === "skrzynka-wygasla" && (
+                <>
+                  {" "}
+                  Wspólna skrzynka wygasła po długiej przerwie — kliknij „Wyłącz”, włącz
+                  ponownie i sparuj urządzenia nowym linkiem. Postęp na urządzeniach jest
+                  bezpieczny.
+                </>
+              )}
+            </p>
+            <p className="mb-2 text-sm text-paper/80">
+              <strong>Podłącz kolejne urządzenie:</strong> wyślij sobie ten link i kliknij go na
+              tablecie lub telefonie. Jedno dotknięcie — i tamto urządzenie też jest w obiegu.
+            </p>
+            <div className="mb-3 flex flex-wrap items-center gap-3">
+              <code className="max-w-full overflow-x-auto rounded-xl bg-black/40 px-3 py-2 text-xs">
+                {pairingLink()}
+              </code>
               <BigButton
                 onClick={async () => {
-                  const id = await createMailbox(state);
-                  setSyncMessage(
-                    id
-                      ? "Synchronizacja włączona. Teraz wyślij sobie link parowania i kliknij go na pozostałych urządzeniach."
-                      : "Nie udało się połączyć z usługą — sprawdź internet i spróbuj ponownie.",
-                  );
+                  const link = pairingLink();
+                  if (!link) return;
+                  try {
+                    await navigator.clipboard.writeText(link);
+                    setSyncMessage("Link skopiowany — wyślij go sobie i kliknij na drugim urządzeniu.");
+                  } catch {
+                    setSyncMessage("Nie udało się skopiować — zaznacz link ręcznie i skopiuj.");
+                  }
                 }}
               >
-                Włącz automatyczną synchronizację
+                Kopiuj link
               </BigButton>
-            </>
-          )}
-        </div>
-
-        {/* Najwygodniejsza droga na komputerze: aplikacja sama pisze plik do
-            wskazanego folderu (np. folderu Dysku Google), a synchronizacja
-            Dysku roznosi go na pozostałe urządzenia. Zero klikania po sesji. */}
-        {folderSupported && (
-          <div className="mb-4 rounded-2xl border border-hero-cyan/40 bg-hero-cyan/10 p-4">
-            <p className="mb-1 font-bold text-hero-cyan">
-              Automatycznie: zapis prosto do folderu na Dysku
+              <BigButton
+                tone="quiet"
+                onClick={() => {
+                  disableSync();
+                  setSyncMessage("Synchronizacja wyłączona na tym urządzeniu. Postęp lokalny zostaje.");
+                }}
+              >
+                Wyłącz
+              </BigButton>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="mb-3 text-sm text-paper/80">
+              Włącz raz, sparuj urządzenia kliknięciem w link — i od tej pory postęp z każdego
+              urządzenia sam pojawia się na wszystkich. Bez plików, bez Dysku, bez kont.
+              Statystyki nauki trafiają do skrzynki pod losowym, niezgadywalnym adresem w
+              usłudze zewnętrznej — nie ma tam nic wrażliwego.
             </p>
-            {folder?.polaczony ? (
-              <>
-                <p className="mb-3 text-sm text-paper/80">
-                  Połączono z folderem <strong>{folder.nazwaFolderu}</strong>. Po każdej sesji
-                  aplikacja sama nadpisuje tam plik{" "}
-                  <code>liga-dzwiekow-postep.json</code>
-                  {folder.wymagaPotwierdzenia && (
-                    <> — ale przeglądarka czeka na potwierdzenie dostępu (przycisk niżej).</>
-                  )}
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  <BigButton
-                    onClick={async () => {
-                      const wynik = await zapiszPostep(buildProgressExport(state), true);
-                      setFolder(await stanFolderu());
-                      setSyncMessage(
-                        wynik === "zapisano"
-                          ? `Zapisano do folderu ${folder.nazwaFolderu}. Dysk Google prześle plik na pozostałe urządzenia.`
-                          : wynik === "brak-uprawnien"
-                            ? "Przeglądarka nie dała dostępu do folderu — spróbuj wskazać go ponownie."
-                            : "Nie udało się zapisać do folderu.",
-                      );
-                    }}
-                  >
-                    Zapisz teraz
-                  </BigButton>
-                  <BigButton
-                    tone="quiet"
-                    onClick={async () => {
-                      await zapomnijFolder();
-                      setFolder(await stanFolderu());
-                      setSyncMessage("Odłączono folder — automatyczny zapis wyłączony.");
-                    }}
-                  >
-                    Odłącz folder
-                  </BigButton>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="mb-3 text-sm text-paper/80">
-                  Wskaż raz folder na Dysku Google (np. <code>aplikacja fiszki Jurek</code>) —
-                  od tej pory aplikacja będzie sama zapisywać tam postęp po każdej sesji.
-                  Na tablecie wystarczy wtedy raz na jakiś czas wczytać ten plik.
-                </p>
-                <BigButton
-                  onClick={async () => {
-                    try {
-                      const stan = await wybierzFolder();
-                      setFolder(stan);
-                      const wynik = await zapiszPostep(buildProgressExport(state), true);
-                      setSyncMessage(
-                        wynik === "zapisano"
-                          ? `Połączono z folderem ${stan.nazwaFolderu} i zapisano pierwszy plik.`
-                          : "Folder połączony, ale zapis się nie powiódł — kliknij „Zapisz teraz”.",
-                      );
-                    } catch {
-                      // Anulowanie okna wyboru też tu trafia — nic nie robimy.
-                    }
-                  }}
-                >
-                  Wskaż folder na Dysku
-                </BigButton>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Przenoszenie tekstem — najpewniejsza droga. Pobieranie plików bywa
-            zawodne w zainstalowanej aplikacji (PWA), a okno wyboru plików na
-            Androidzie potrafi nie wpuścić pliku z Dysku. Skopiowany tekst
-            przejdzie każdym kanałem: mailem, komunikatorem, notatką. */}
-        <div className="mb-4 rounded-2xl border border-hero-lime/40 bg-hero-lime/10 p-4">
-          <p className="mb-1 font-bold text-hero-lime">Najprościej: przez skopiowany tekst</p>
-          <p className="mb-3 text-sm text-paper/80">
-            Tu kliknij „Kopiuj kod postępu”, wyślij go sobie na drugie urządzenie (mailem,
-            Messengerem, w notatce) i tam wklej w pole poniżej. Bez plików i bez Dysku.
-          </p>
-          <div className="mb-3 flex flex-wrap gap-3">
             <BigButton
               onClick={async () => {
-                const kod = buildProgressExport(state);
-                try {
-                  await navigator.clipboard.writeText(kod);
-                  setSyncMessage(`Skopiowano kod postępu (${kod.length} znaków). Wklej go na drugim urządzeniu.`);
-                } catch {
-                  // Schowek bywa zablokowany — wtedy pokazujemy kod do ręcznego zaznaczenia.
-                  setKodDoSkopiowania(kod);
-                  setSyncMessage("Nie udało się użyć schowka — zaznacz i skopiuj kod z pola poniżej.");
-                }
-              }}
-            >
-              Kopiuj kod postępu
-            </BigButton>
-            <BigButton
-              tone="quiet"
-              onClick={() => setKodDoSkopiowania(kodDoSkopiowania ? "" : buildProgressExport(state))}
-            >
-              {kodDoSkopiowania ? "Ukryj kod" : "Pokaż kod"}
-            </BigButton>
-          </div>
-
-          {kodDoSkopiowania && (
-            <textarea
-              readOnly
-              value={kodDoSkopiowania}
-              onFocus={(event) => event.target.select()}
-              className="mb-3 h-28 w-full rounded-xl bg-black/40 p-3 font-mono text-xs"
-            />
-          )}
-
-          <label className="flex flex-col gap-2 text-sm text-paper/80">
-            Wklej tu kod z drugiego urządzenia:
-            <textarea
-              value={wklejonyKod}
-              onChange={(event) => setWklejonyKod(event.target.value)}
-              placeholder='{ "version": 1, ... }'
-              className="h-24 w-full rounded-xl bg-black/30 p-3 font-mono text-xs"
-            />
-          </label>
-          <div className="mt-3">
-            <BigButton
-              tone="yes"
-              onClick={() => {
-                const incoming = parseProgressFile(wklejonyKod);
-                if (!incoming) {
-                  setSyncMessage(
-                    "Ten tekst nie wygląda na kod postępu. Skopiuj go w całości — od pierwszego znaku { do ostatniego }.",
-                  );
-                  return;
-                }
-                const added = importProgress(incoming);
-                setWklejonyKod("");
+                const id = await createMailbox(state);
                 setSyncMessage(
-                  added > 0
-                    ? `Scalono postęp: dodano ${added} ${sessionsWord(added)}. Nic nie zostało nadpisane.`
-                    : "Kod wczytany — wszystkie sesje z niego już tu były. Nic się nie zmieniło.",
+                  id
+                    ? "Synchronizacja włączona. Wyślij sobie link parowania i kliknij go na pozostałych urządzeniach."
+                    : "Nie udało się połączyć z usługą — sprawdź internet i spróbuj ponownie.",
                 );
               }}
             >
-              Wczytaj z kodu
+              Włącz automatyczną synchronizację
             </BigButton>
-          </div>
-        </div>
+          </>
+        )}
 
-        <p className="mb-2 text-sm font-bold text-paper/70">Albo przez plik:</p>
-        <div className="flex flex-wrap gap-3">
-          {canShareFile && <BigButton onClick={() => void shareProgressFile()}>Wyślij na Dysk</BigButton>}
-          <BigButton tone={canShareFile ? "quiet" : "primary"} onClick={exportProgressFile}>
-            Zapisz plik
-          </BigButton>
-          <BigButton tone="quiet" onClick={() => importInputRef.current?.click()}>
-            Wczytaj plik
-          </BigButton>
-          {/* Celowo BEZ filtra `accept`: okno wyboru plików na Androidzie
-              wyszarza pliki z Dysku Google, gdy ich typ MIME nie pasuje
-              dokładnie do filtra — a Dysk różnie zapisuje typ JSON-a.
-              Zawartość i tak jest walidowana po wczytaniu. */}
-          <input
-            ref={importInputRef}
-            type="file"
-            onChange={(event) => void onImportFile(event)}
-            className="hidden"
-          />
+        <div className="mt-6 border-t border-white/10 pt-4">
+          <p className="mb-2 text-sm font-bold text-paper/70">Kopia zapasowa</p>
+          <p className="mb-3 text-xs text-paper/50">
+            Synchronizacja wystarcza na co dzień. Plik przydaje się jako zabezpieczenie —
+            np. przed czyszczeniem danych przeglądarki. Wczytanie scala, nic nie nadpisuje.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <BigButton tone="quiet" onClick={exportProgressFile}>
+              Zapisz kopię
+            </BigButton>
+            <BigButton tone="quiet" onClick={() => importInputRef.current?.click()}>
+              Wczytaj kopię
+            </BigButton>
+            <input
+              ref={importInputRef}
+              type="file"
+              onChange={(event) => void onImportFile(event)}
+              className="hidden"
+            />
+          </div>
         </div>
         {syncMessage && (
           <p className="mt-3 rounded-2xl bg-black/25 p-3 text-sm text-paper/85">{syncMessage}</p>
         )}
-        <p className="mt-3 text-xs text-paper/50">
-          Ten sam plik służy też jako kopia zapasowa (np. przed czyszczeniem danych
-          przeglądarki). Nagrania głosek nie wchodzą do pliku — mają własny przycisk ⤓ w
-          studiu głosek.
-        </p>
       </Card>
 
       <Card>
@@ -846,8 +633,36 @@ export default function ParentPage() {
           </BigButton>
           <p className="mt-2 text-xs text-paper/50">
             Dane siedzą w tej przeglądarce. Przenoszenie między urządzeniami: karta
-            „Postęp między urządzeniami” wyżej.
+            „Synchronizacja między urządzeniami” wyżej.
           </p>
+        </div>
+
+        {/* Wersja + wymuszenie aktualizacji. Zainstalowana aplikacja potrafi
+            trzymać starą wersję w pamięci mimo poprawnie działającego mechanizmu
+            aktualizacji — to daje sposób, żeby to sprawdzić i naprawić od ręki. */}
+        <div className="mt-6 border-t border-white/10 pt-4">
+          <p className="mb-2 text-sm font-bold text-paper/70">Wersja aplikacji</p>
+          <p className="mb-3 text-xs text-paper/50">
+            Ta wersja: <code>{(process.env.NEXT_PUBLIC_BUILD_ID ?? "lokalna").slice(0, 7)}</code>.
+            Jeśli na jednym urządzeniu brakuje czegoś, co widać na innym, użyj tego przycisku —
+            wyczyści pamięć podręczną i pobierze najnowszą wersję. Postępu to nie dotyka.
+          </p>
+          <BigButton
+            tone="quiet"
+            onClick={async () => {
+              try {
+                const rejestracje = await navigator.serviceWorker?.getRegistrations();
+                await Promise.all((rejestracje ?? []).map((r) => r.unregister()));
+                const klucze = await caches.keys();
+                await Promise.all(klucze.map((k) => caches.delete(k)));
+              } catch {
+                // Nawet jeśli sprzątanie się nie uda, przeładowanie i tak pomoże.
+              }
+              window.location.reload();
+            }}
+          >
+            Pobierz najnowszą wersję
+          </BigButton>
         </div>
       </Card>
     </div>

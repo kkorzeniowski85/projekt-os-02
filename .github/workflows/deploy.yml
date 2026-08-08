@@ -36,6 +36,9 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+          # Krótki znacznik wersji widoczny w trybie rodzica — pozwala od ręki
+          # sprawdzić, czy urządzenie ma najnowszą wersję, czy starą z pamięci.
+          NEXT_PUBLIC_BUILD_ID: ${{ github.sha }}
 
       # Pages muszą być już włączone w ustawieniach repozytorium (źródło:
       # GitHub Actions). Token workflow nie ma prawa włączyć ich sam.

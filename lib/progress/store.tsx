@@ -119,20 +119,6 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  // Automatyczna kopia do folderu na dysku (jeśli rodzic go wskazał).
-  // Dzięki temu po każdej sesji plik w folderze Dysku Google jest aktualny
-  // i sam trafia na pozostałe urządzenia — bez pobierania i kopiowania.
-  // Opóźnienie, żeby przy serii zmian zapisać raz, a nie kilka razy.
-  useEffect(() => {
-    if (!ready || state.sessions.length === 0) return;
-    const timer = setTimeout(() => {
-      void import("./driveFolder").then(({ zapiszPostep }) =>
-        zapiszPostep(JSON.stringify(state, null, 2)),
-      );
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [state, ready]);
-
   const update = useCallback((updater: (previous: ProgressState) => ProgressState) => {
     setState((previous) => {
       const next = updater(previous);
