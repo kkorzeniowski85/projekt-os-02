@@ -13,6 +13,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Celebration } from "@/components/Celebration";
+import { InterruptDialog } from "@/components/session/InterruptDialog";
 import { HeroAvatar } from "@/components/HeroAvatar";
 import { BigButton, Card, ParentTip, PhonemeSpeaker, StepDots, WordSpeaker } from "@/components/ui";
 import {
@@ -34,7 +35,6 @@ import {
 } from "@/lib/curriculum/lessons";
 import type { Sound } from "@/lib/curriculum/sounds";
 import { getHero, HEROES_BY_ID } from "@/lib/heroes";
-import { RULES } from "@/lib/progress/rules";
 import { useProgress, type PendingAttempt, type SessionOutcome } from "@/lib/progress/store";
 import type { DeviceRole, SessionMode } from "@/lib/progress/types";
 import { useDeviceRole } from "@/lib/useDeviceRole";
@@ -168,7 +168,7 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
   return (
     <div className={role === "desktop" ? "grid grid-cols-[1fr_320px] gap-6" : "flex flex-col gap-4"}>
       {pytanieOWyjscie && (
-        <PrzerwanieSesji
+        <InterruptDialog
           zrobione={index}
           wszystkich={screens.length}
           ocenianych={attemptsRef.current.filter((attempt) => attempt.correct !== null).length}
@@ -793,68 +793,6 @@ function RewardScreen({
       >
         wycisz muzykę
       </button>
-    </div>
-  );
-}
-
-/**
- * Pytanie przy przerwaniu ćwiczenia w połowie.
- *
- * Sesja zapisuje się normalnie dopiero na końcu, jednym kompletem — bez tego
- * okna przerwanie po ośmiu z dziesięciu zadań kasowało całą pracę bez słowa.
- * Trzy wyjścia zamiast dwóch, bo „← Przerwij” bywa kliknięte przypadkowo przez
- * dziecko: powrót do ćwiczenia musi być równie łatwy jak wyjście.
- */
-function PrzerwanieSesji({
-  zrobione,
-  wszystkich,
-  ocenianych,
-  onZapisz,
-  onWroc,
-}: {
-  zrobione: number;
-  wszystkich: number;
-  ocenianych: number;
-  onZapisz: () => void;
-  onWroc: () => void;
-}) {
-  const zaMaloDoOceny = ocenianych < RULES.minScoredForStatus;
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Przerwać ćwiczenie?"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-night/85 p-4 backdrop-blur-sm"
-    >
-      <Card className="max-w-lg">
-        <h2 className="mb-2 text-2xl font-black">Przerwać ćwiczenie?</h2>
-        <p className="mb-1 text-paper/80">
-          Zrobione: <strong>{zrobione}</strong> z {wszystkich} zadań.
-        </p>
-        <p className="mb-5 text-sm text-paper/60">
-          {zaMaloDoOceny
-            ? "Zapis zachowa tę pracę i pokaże ją w raporcie, ale to za mało zadań, żeby zmienić ocenę dźwięku — na to trzeba ich więcej."
-            : "Zapis zachowa tę pracę razem z wynikiem — dźwięk dostanie normalną ocenę za tę sesję."}
-        </p>
-
-        <div className="flex flex-col gap-3">
-          <BigButton href="/" onClick={onZapisz} full>
-            Zapisz i wyjdź
-          </BigButton>
-          <BigButton href="/" tone="quiet" full>
-            Wyjdź bez zapisu
-          </BigButton>
-          <BigButton onClick={onWroc} tone="quiet" full>
-            Wróć do ćwiczenia
-          </BigButton>
-        </div>
-
-        <p className="mt-4 text-xs text-paper/50">
-          „Wyjdź bez zapisu” nie zostawia śladu — ten sam dźwięk można zacząć od nowa,
-          od pierwszego zadania.
-        </p>
-      </Card>
     </div>
   );
 }

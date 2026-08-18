@@ -23,6 +23,7 @@ import { mergeProgress } from "./merge";
 import { applySessionResult, RULES } from "./rules";
 import {
   emptyProgress,
+  normalizeProgress,
   PROGRESS_SCHEMA_VERSION,
   STORAGE_KEY,
   type Attempt,
@@ -30,12 +31,17 @@ import {
   type ProgressState,
   type SessionMode,
   type SessionRecord,
+  type TrackId,
 } from "./types";
 
-export type PendingAttempt = Omit<Attempt, "id" | "mode">;
+/** Tor i tryb dokleja commitSession — ćwiczenie ich nie zna i nie musi. */
+export type PendingAttempt = Omit<Attempt, "id" | "mode" | "track">;
 
 export type SessionCommit = {
+  /** Id dźwięku (tor 1) albo id tematu (tor 2) — patrz Attempt.soundId. */
   soundId: string;
+  /** Brak = tor czytania, dla zgodności z wywołaniami sprzed toru 2. */
+  track?: TrackId;
   mode: SessionMode;
   device: DeviceRole;
   startedTs: number;
@@ -85,10 +91,18 @@ function load(): ProgressState {
     const parsed = JSON.parse(raw) as ProgressState;
     if (parsed.version !== PROGRESS_SCHEMA_VERSION) {
       // Migracji jeszcze nie ma — przy pierwszej zmianie schematu dopisujemy ją
-      // tutaj, zamiast po cichu kasować postęp dziecka.
+      // tutaj. Do tego czasu: KONWENCJE zabraniają cichego kasowania danych
+      // dziecka, więc przed startem od zera odkładamy surowy zapis pod klucz
+      // zapasowy. Nic go nie czyta automatycznie, ale dane da się odzyskać.
+      try {
+        window.localStorage.setItem(`${STORAGE_KEY}.backup.v${parsed.version}`, raw);
+      } catch {
+        // brak miejsca — trudno, i tak nie mamy jak zmigrować
+      }
       return { ...emptyProgress(parsed.childName), version: PROGRESS_SCHEMA_VERSION };
     }
-    return parsed;
+    // Uzupełnienie pól dołożonych bez zmiany wersji (tor 2 dołożył `topics`).
+    return normalizeProgress(parsed);
   } catch {
     return emptyProgress();
   }
@@ -197,12 +211,14 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         ...attempt,
         id: newId(),
         mode: commit.mode,
+        track: commit.track,
       }));
 
       const scored = attempts.filter((attempt) => attempt.correct !== null);
       const session: SessionRecord = {
         id: newId(),
         soundId: commit.soundId,
+        track: commit.track,
         mode: commit.mode,
         device: commit.device,
         startedTs: commit.startedTs,

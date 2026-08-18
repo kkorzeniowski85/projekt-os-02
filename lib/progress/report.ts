@@ -10,8 +10,9 @@
  */
 
 import { getSound } from "@/lib/curriculum/sounds";
+import { getTopic } from "@/lib/curriculum/vocab";
 import { accuracyOf, RULES } from "./rules";
-import type { ProgressState, SoundState } from "./types";
+import { trackOf, type ProgressState, type SoundState } from "./types";
 
 const STATUS_LABEL: Record<SoundState["status"], string> = {
   new: "nowy",
@@ -47,10 +48,16 @@ export function buildMarkdownReport(state: ProgressState, now = Date.now()): str
   const recentSessions = state.sessions.filter((session) => session.endedTs >= since);
   const recentAttempts = state.attempts.filter((attempt) => attempt.ts >= since);
 
+  const phonicsSessions = recentSessions.filter((session) => trackOf(session) === "phonics");
+  const vocabSessions = recentSessions.filter((session) => trackOf(session) === "vocab");
+
   lines.push(`# Raport nauki — ${state.childName}`);
   lines.push("");
   lines.push(`Okres: ostatnie ${days} dni (do ${formatDate(now)})`);
   lines.push(`Sesje w okresie: ${recentSessions.length} (łącznie: ${state.sessions.length})`);
+  lines.push(
+    `W tym: ${phonicsSessions.length} czytanie (tor 1) / ${vocabSessions.length} słownictwo (tor 2)`,
+  );
 
   const totalMinutes = Math.round(
     recentSessions.reduce((sum, session) => sum + (session.endedTs - session.startedTs), 0) /
@@ -64,7 +71,7 @@ export function buildMarkdownReport(state: ProgressState, now = Date.now()): str
   );
   lines.push("");
 
-  lines.push("## Dźwięki");
+  lines.push("## Dźwięki (tor 1: czytanie)");
   lines.push("");
   lines.push("| dźwięk | status | sesje | ostatni wynik | najlepszy | ostatnio |");
   lines.push("| --- | --- | --- | --- | --- | --- |");
@@ -78,41 +85,80 @@ export function buildMarkdownReport(state: ProgressState, now = Date.now()): str
   if (Object.keys(state.sounds).length === 0) lines.push("| — | brak danych | | | | |");
   lines.push("");
 
+  lines.push("## Tematy (tor 2: słownictwo i zwroty)");
+  lines.push("");
+  lines.push("| temat | status | sesje | ostatni wynik | najlepszy | ostatnio |");
+  lines.push("| --- | --- | --- | --- | --- | --- |");
+  for (const topic of Object.values(state.topics)) {
+    const title = getTopic(topic.topicId)?.titlePl ?? topic.topicId;
+    lines.push(
+      `| ${title} | ${STATUS_LABEL[topic.status]} | ${topic.sessions} | ` +
+        `${percent(topic.lastAccuracy)} | ${percent(topic.bestAccuracy)} | ${formatDate(topic.lastSeenTs)} |`,
+    );
+  }
+  if (Object.keys(state.topics).length === 0) lines.push("| — | brak danych | | | | |");
+  lines.push("");
+
   lines.push("## Gdzie idzie trudno");
   lines.push("");
-  const wrongByItem = new Map<string, { wrong: number; total: number; soundId: string }>();
+  const wrongByItem = new Map<
+    string,
+    { wrong: number; total: number; subjectId: string; item: string; track: string }
+  >();
   for (const attempt of recentAttempts) {
     if (attempt.correct === null) continue;
-    const key = `${attempt.soundId}:${attempt.item}`;
-    const entry = wrongByItem.get(key) ?? { wrong: 0, total: 0, soundId: attempt.soundId };
+    const key = `${attempt.soundId}\u0000${attempt.item}`;
+    const entry = wrongByItem.get(key) ?? {
+      wrong: 0,
+      total: 0,
+      subjectId: attempt.soundId,
+      item: attempt.item,
+      track: trackOf(attempt),
+    };
     entry.total += 1;
     if (!attempt.correct) entry.wrong += 1;
     wrongByItem.set(key, entry);
   }
-  const hardest = [...wrongByItem.entries()]
-    .filter(([, entry]) => entry.wrong > 0)
-    .sort((a, b) => b[1].wrong - a[1].wrong)
+  const hardest = [...wrongByItem.values()]
+    .filter((entry) => entry.wrong > 0)
+    .sort((a, b) => b.wrong - a.wrong)
     .slice(0, 8);
 
   if (hardest.length === 0) {
     lines.push("Brak powtarzających się błędów w tym okresie.");
   } else {
-    for (const [key, entry] of hardest) {
-      const item = key.split(":")[1];
-      lines.push(`- \`${item}\` (${entry.soundId}): ${entry.wrong} błędów / ${entry.total} prób`);
+    for (const entry of hardest) {
+      // Nazwa tematu czyta się lepiej niż jego identyfikator, a w torze 1
+      // identyfikator dźwięku jest już czytelny sam w sobie.
+      const gdzie =
+        entry.track === "vocab"
+          ? (getTopic(entry.subjectId)?.titlePl ?? entry.subjectId)
+          : entry.subjectId;
+      lines.push(`- \`${entry.item}\` (${gdzie}): ${entry.wrong} błędów / ${entry.total} prób`);
     }
   }
   lines.push("");
 
   lines.push("## Tempo odpowiedzi");
   lines.push("");
-  for (const exercise of ["listen", "blend", "choice"] as const) {
+  const EXERCISE_LABEL = {
+    listen: "listen (słyszysz dźwięk?)",
+    blend: "blend (sklejanie)",
+    choice: "choice (które słowo)",
+    vocab: "vocab (które słowo słyszysz)",
+    phrase: "phrase (kiedy to mówisz)",
+    command: "command (co robisz)",
+    collocation: "collocation (które słowo pasuje)",
+    say: "say (powiedz na głos)",
+  } as const;
+  for (const exercise of Object.keys(EXERCISE_LABEL) as (keyof typeof EXERCISE_LABEL)[]) {
     const times = recentAttempts
       .filter((attempt) => attempt.exercise === exercise && attempt.correct !== null)
       .map((attempt) => attempt.responseMs);
+    if (times.length === 0) continue;
     const median = medianResponseMs(times);
     lines.push(
-      `- ${exercise}: mediana ${median === null ? "—" : `${(median / 1000).toFixed(1)} s`} (${times.length} prób)`,
+      `- ${EXERCISE_LABEL[exercise]}: mediana ${median === null ? "—" : `${(median / 1000).toFixed(1)} s`} (${times.length} prób)`,
     );
   }
   lines.push("");
@@ -127,15 +173,30 @@ export function buildMarkdownReport(state: ProgressState, now = Date.now()): str
   lines.push(
     "Ćwiczenia mówione nie są oceniane przez aplikację (ocenia rodzic) — nie wchodzą do procentów.",
   );
+  lines.push(
+    "Te same progi obowiązują w obu torach. Tor 2 (słownictwo) ćwiczy rozumienie ze słuchu — " +
+      "polecenia nauczyciela są tam sprawdzane wyłącznie na rozumienie, nie na wypowiadanie.",
+  );
 
   return lines.join("\n");
+}
+
+/**
+ * Cytowanie pola CSV. Konieczne, odkąd w dzienniku lądują całe zwroty toru 2
+ * („Can I go to the toilet, please?") — przecinek w treści rozsypałby kolumny
+ * w arkuszu, a błąd byłby widoczny dopiero przy analizie.
+ */
+function csvCell(value: string | number): string {
+  const text = String(value);
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
 export function buildAttemptsCsv(state: ProgressState): string {
   const header = [
     "timestamp",
     "data",
-    "sound_id",
+    "track",
+    "subject_id",
     "exercise",
     "item",
     "correct",
@@ -147,13 +208,16 @@ export function buildAttemptsCsv(state: ProgressState): string {
     [
       attempt.ts,
       new Date(attempt.ts).toISOString(),
+      trackOf(attempt),
       attempt.soundId,
       attempt.exercise,
       attempt.item,
       attempt.correct === null ? "" : attempt.correct ? "1" : "0",
       attempt.responseMs,
       attempt.mode,
-    ].join(","),
+    ]
+      .map(csvCell)
+      .join(","),
   );
 
   return [header, ...rows].join("\n");
@@ -163,7 +227,8 @@ export function buildSessionsCsv(state: ProgressState): string {
   const header = [
     "session_id",
     "data",
-    "sound_id",
+    "track",
+    "subject_id",
     "mode",
     "device",
     "correct",
@@ -176,6 +241,7 @@ export function buildSessionsCsv(state: ProgressState): string {
     [
       session.id,
       new Date(session.endedTs).toISOString(),
+      trackOf(session),
       session.soundId,
       session.mode,
       session.device,
@@ -183,7 +249,9 @@ export function buildSessionsCsv(state: ProgressState): string {
       session.scored,
       accuracyOf(session)?.toFixed(2) ?? "",
       Math.round((session.endedTs - session.startedTs) / 1000),
-    ].join(","),
+    ]
+      .map(csvCell)
+      .join(","),
   );
 
   return [header, ...rows].join("\n");

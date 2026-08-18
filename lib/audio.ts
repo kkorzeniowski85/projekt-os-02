@@ -18,6 +18,7 @@
  * przekręconej głoski — patrz docs/audio.md.
  */
 
+import { audioSlug } from "./curriculum/vocab";
 import { getRecordingUrl } from "./recordings";
 
 export type PlaybackSource =
@@ -48,11 +49,20 @@ const CLIP_BASE = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/audio`;
 const CLIP_EXTENSIONS = ["mp3", "wav", "webm", "m4a"];
 
 export function wordClipBase(word: string): string {
-  return `${CLIP_BASE}/words/${word.toLowerCase()}`;
+  return `${CLIP_BASE}/words/${audioSlug(word)}`;
 }
 
 export function phonemeClipBase(soundId: string): string {
   return `${CLIP_BASE}/phonemes/${soundId}`;
+}
+
+export function phraseClipBase(text: string): string {
+  return `${CLIP_BASE}/phrases/${audioSlug(text)}`;
+}
+
+/** Kanoniczna ścieżka (MP3) — do wyświetlania i do generatora. */
+export function phraseClipPath(text: string): string {
+  return `${phraseClipBase(text)}.mp3`;
 }
 
 /** Kanoniczna ścieżka (MP3) — do wyświetlania i do generatora. */
@@ -260,6 +270,29 @@ export async function playWord(word: string): Promise<PlaybackResult> {
     if (status === "blocked") return { source: "unavailable", approximate: false };
   }
   return speak(word)
+    ? { source: "tts", approximate: false }
+    : { source: "unavailable", approximate: false };
+}
+
+/**
+ * Odtwarza cały zwrot toru 2.
+ *
+ * W przeciwieństwie do czystej głoski, zdanie syntezator wymawia sensownie —
+ * to jest dokładnie to, do czego służy. Dlatego zapasowa synteza jest tu
+ * uczciwym rozwiązaniem, a nie namiastką, i `approximate` zostaje na false.
+ * Nagranie brytyjskiego głosu jest lepsze (i po `npm run audio` wygrywa), ale
+ * jego brak nie unieruchamia ćwiczenia.
+ */
+export async function playPhrase(text: string): Promise<PlaybackResult> {
+  const clip = await findClip(phraseClipBase(text));
+  if (clip) {
+    const status = await playUrl(clip);
+    if (status === "ok") return { source: "clip", approximate: false };
+    if (status === "blocked") return { source: "unavailable", approximate: false };
+  }
+  // Wolniej niż pojedyncze słowo: całe zdanie w obcym języku dziecko musi
+  // zdążyć rozłożyć na kawałki.
+  return speak(text, 0.75)
     ? { source: "tts", approximate: false }
     : { source: "unavailable", approximate: false };
 }

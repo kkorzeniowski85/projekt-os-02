@@ -15,9 +15,11 @@ import { fileURLToPath } from "node:url";
 import { LESSONS, chipSoundId } from "../lib/curriculum/lessons.ts";
 import { SOUNDS, getSound } from "../lib/curriculum/sounds.ts";
 import { HEROES_BY_ID } from "../lib/heroes.ts";
+import { TOPICS, audioSlug, vocabPhrases, vocabWords } from "../lib/curriculum/vocab.ts";
 
 const root = path.join(fileURLToPath(new URL("../", import.meta.url)));
 const wordsDir = path.join(root, "public", "audio", "words");
+const phrasesDir = path.join(root, "public", "audio", "phrases");
 const phonemesDir = path.join(root, "public", "audio", "phonemes");
 
 const problems = [];
@@ -202,7 +204,7 @@ const phonemeFiles = new Set(
   existsSync(phonemesDir) ? readdirSync(phonemesDir).map((f) => f.replace(/\.[^.]+$/, "")) : [],
 );
 
-const missingWordAudio = [...allWords].filter((w) => !wordFiles.has(w.toLowerCase())).sort();
+const missingWordAudio = [...allWords].filter((w) => !wordFiles.has(audioSlug(w))).sort();
 for (const word of missingWordAudio) {
   note("BŁĄD", "audio słów", `brak nagrania dla "${word}"`);
 }
@@ -236,6 +238,149 @@ for (const [id, lesson] of Object.entries(LESSONS)) {
   }
 }
 
+
+// --- 5. Tor 2: tematy słownictwa -------------------------------------------
+//
+// Te same zasady co dla lekcji: sprawdzamy to, co da się sprawdzić bez
+// oceniania. Czy kolokacja ma dokładnie jedną lukę, czy dystraktor nie jest
+// przypadkiem poprawną odpowiedzią, czy jest z czego zbudować wybór.
+
+const phraseFiles = existsSync(phrasesDir)
+  ? new Set(readdirSync(phrasesDir).map((file) => file.replace(/\.[^.]+$/, "")))
+  : new Set();
+
+const topicIds = new Set();
+for (const topic of TOPICS) {
+  if (topicIds.has(topic.id)) {
+    note("BŁĄD", "temat", `powtórzony identyfikator tematu "${topic.id}"`);
+  }
+  topicIds.add(topic.id);
+
+  if (!HEROES_BY_ID[topic.heroId]) {
+    note("BŁĄD", "postać", `temat "${topic.id}" wskazuje nieistniejącą postać "${topic.heroId}"`);
+  }
+
+  // Wybór z mniej niż trzech opcji da się zbudować (dobieramy z innych tematów),
+  // ale własny materiał zawsze myli sensowniej niż pożyczony.
+  if (topic.words.length < 3) {
+    note("UWAGA", "temat", `"${topic.id}": tylko ${topic.words.length} słów (norma 6-8)`);
+  }
+  if (topic.phrases.length < 3) {
+    note("UWAGA", "temat", `"${topic.id}": tylko ${topic.phrases.length} zwrotów`);
+  }
+  if (topic.commands.length < 3) {
+    note(
+      "UWAGA",
+      "temat",
+      `"${topic.id}": ${topic.commands.length} poleceń — dystraktory pójdą z innych tematów`,
+    );
+  }
+
+  const enWords = new Set();
+  for (const word of topic.words) {
+    if (enWords.has(word.en)) {
+      note("BŁĄD", "słownictwo", `"${topic.id}": słowo "${word.en}" powtórzone w temacie`);
+    }
+    enWords.add(word.en);
+    if (!word.pl?.trim()) {
+      note("BŁĄD", "słownictwo", `"${topic.id}": słowo "${word.en}" bez tłumaczenia`);
+    }
+  }
+
+  for (const phrase of [...topic.phrases, ...topic.commands]) {
+    if (!audioSlug(phrase.en)) {
+      note("BŁĄD", "zwrot", `"${topic.id}": zwrot "${phrase.en}" daje pustą nazwę pliku`);
+    }
+  }
+
+  for (const collocation of topic.collocations) {
+    const gaps = collocation.gap.split("___").length - 1;
+    if (gaps !== 1) {
+      note(
+        "BŁĄD",
+        "kolokacja",
+        `"${topic.id}": "${collocation.en}" ma ${gaps} luk zamiast jednej`,
+      );
+    }
+    // Odpowiedź musi być jednym słowem: tylko wtedy ma własne nagranie
+    // w /audio/words i tylko wtedy przycisk wyboru daje się przeczytać.
+    if (/\s/.test(collocation.answer)) {
+      note(
+        "BŁĄD",
+        "kolokacja",
+        `"${topic.id}": odpowiedź "${collocation.answer}" jest wielowyrazowa`,
+      );
+    }
+    if (collocation.distractors.includes(collocation.answer)) {
+      note(
+        "BŁĄD",
+        "kolokacja",
+        `"${topic.id}": "${collocation.answer}" jest jednocześnie odpowiedzią i dystraktorem`,
+      );
+    }
+    if (collocation.distractors.length < 2) {
+      note("UWAGA", "kolokacja", `"${topic.id}": "${collocation.en}" ma mniej niż 2 dystraktory`);
+    }
+    // Wstawienie odpowiedzi w lukę musi dać dokładnie deklarowane wyrażenie —
+    // inaczej dziecko zobaczy co innego, niż usłyszy.
+    const zlozone = collocation.gap.replace("___", collocation.answer);
+    if (zlozone.toLowerCase() !== collocation.en.toLowerCase()) {
+      note(
+        "BŁĄD",
+        "kolokacja",
+        `"${topic.id}": luka daje "${zlozone}", a wyrażenie to "${collocation.en}"`,
+      );
+    }
+  }
+
+  const emoji = [
+    topic.emoji,
+    ...topic.words.map((w) => w.emoji),
+    ...topic.phrases.map((p) => p.emoji),
+    ...topic.commands.map((c) => c.emoji),
+    ...topic.collocations.map((c) => c.emoji),
+  ];
+  for (const znak of emoji) {
+    if (RISKY.test(znak)) {
+      note("UWAGA", "emoji", `"${topic.id}": "${znak}" może się nie wyświetlić na starszym tablecie`);
+    }
+  }
+}
+
+// Nagrania toru 2 nie są warunkiem działania (bez pliku czyta syntezator), więc
+// ich brak to UWAGA, nie BŁĄD.
+const vWords = vocabWords();
+const vPhrases = vocabPhrases();
+const brakSlow = vWords.filter((word) => !wordFiles.has(audioSlug(word)));
+const brakZwrotow = vPhrases.filter((phrase) => !phraseFiles.has(audioSlug(phrase)));
+if (brakSlow.length > 0) {
+  note("UWAGA", "audio tor 2", `${brakSlow.length} słów bez nagrania: ${brakSlow.slice(0, 8).join(", ")}${brakSlow.length > 8 ? "…" : ""}`);
+}
+if (brakZwrotow.length > 0) {
+  note("UWAGA", "audio tor 2", `${brakZwrotow.length} zwrotów bez nagrania (czyta syntezator) — uruchom: npm run audio`);
+}
+
+/*
+ * Wspoldzielenie nagran przez slug.
+ *
+ * Ten sam slug moga dac tylko teksty rozniace sie wylacznie interpunkcja i
+ * wielkoscia liter — czyli TA SAMA wypowiedz, np. polecenie "Tidy up." i
+ * kolokacja "tidy up". Wspolny plik jest wtedy zamierzony, nie bledny: to jedno
+ * zdanie i ma brzmiec tak samo. Zgłaszamy to jako informacje, zeby bylo widac,
+ * ile plikow faktycznie powstanie, ale bledem to nie jest.
+ */
+const slugi = new Map();
+let wspolne = 0;
+for (const phrase of vPhrases) {
+  const slug = audioSlug(phrase);
+  if (!slug) {
+    note("BŁĄD", "zwrot", `"${phrase}" daje pustą nazwę pliku`);
+    continue;
+  }
+  if (slugi.has(slug)) wspolne++;
+  else slugi.set(slug, phrase);
+}
+
 // --- raport -----------------------------------------------------------------
 
 const lessonCount = Object.keys(LESSONS).length;
@@ -248,6 +393,8 @@ console.log("=".repeat(74));
 console.log(`Lekcje:            ${lessonCount} (wymagane: ${needsLesson.length})`);
 console.log(`Unikalne słowa:    ${allWords.size}   nagrania: ${wordFiles.size}`);
 console.log(`Kafelki głosek:    ${allChips.size}   nagrania głosek: ${phonemeFiles.size}`);
+console.log(`Tematy (tor 2):    ${TOPICS.length}   słowa: ${vWords.length}   zwroty: ${vPhrases.length}`);
+console.log(`Pliki zwrotów:     ${slugi.size} do wygenerowania (${wspolne} wypowiedzi współdzieli plik)   są: ${phraseFiles.size}`);
 console.log(`Błędy: ${errors.length}   Uwagi: ${warnings.length}`);
 console.log("=".repeat(74));
 

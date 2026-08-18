@@ -57,13 +57,16 @@ Claude nie może go wykonać, bo wymaga zalogowania na konto Google rodzica.
 
 ## Kolejka funkcji (propozycja)
 
-1. **Nagrania głosek** — 14 sztuk, kilkanaście minut w studiu głosek. Odblokowuje
-   ćwiczenie sklejania, które dziś w części milczy.
-2. **Kolejne dźwięki** — `th`, `qu`, `ng`, `nk`, potem Set 2 (`ay`, `ee`,
-   `igh`…). Dopisanie lekcji to jeden wpis w `lessons.ts`.
+1. ~~**Nagrania głosek**~~ — **zrobione inaczej**: 73 głoski wycięte
+   automatycznie z nagrań słów (`npm run audio:phonemes`); studio głosek
+   zostało jako nadpisanie własnym głosem.
+2. ~~**Kolejne dźwięki**~~ — **zrobione**: komplet 60 lekcji (cała sekwencja
+   RWI, łącznie z pojedynczymi literami Set 1).
 3. **Red words jako osobne ćwiczenie** — teraz tylko pokazują się na końcu
    sesji. Zasługują na własny, krótki tryb („rozpoznaj w 5 sekund”).
-4. **Tor 2: słuchanie i słownictwo** — osobny typ sesji, bez czytania.
+4. ~~**Tor 2: słuchanie i słownictwo**~~ — **zrobione**: 10 tematów
+   (słowa, zwroty, polecenia nauczyciela, kolokacje), osobny typ sesji, bez
+   czytania. Patrz [slownictwo.md](slownictwo.md).
 5. **Backend + synchronizacja** — dopiero gdy dziecko realnie używa aplikacji na
    więcej niż jednym urządzeniu. Wcześniej to praca bez zwrotu.
 6. **Alien words** (nonsense words z Phonics Screening Check) — ćwiczenie czystego

@@ -16,6 +16,7 @@
 import { applySessionResult, RULES } from "./rules";
 import {
   emptyProgress,
+  normalizeProgress,
   PROGRESS_SCHEMA_VERSION,
   type Attempt,
   type ProgressState,
@@ -72,7 +73,9 @@ export function parseProgressFile(text: string): ProgressState | null {
     if (!Array.isArray(data.sessions) || !Array.isArray(data.attempts)) return null;
     if (typeof data.sounds !== "object" || data.sounds === null) return null;
     if (typeof data.childName !== "string") return null;
-    return data;
+    // `topics` celowo NIE jest wymagane: pliki zapisane przed torem 2 go nie
+    // mają i są w pełni poprawne. Uzupełniamy zamiast odrzucać.
+    return normalizeProgress(data);
   } catch {
     return null;
   }

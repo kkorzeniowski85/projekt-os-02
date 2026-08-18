@@ -352,7 +352,7 @@ async function wyslij(code: string, state: ProgressState): Promise<Wynik<true>> 
 }
 
 function opisWyjatku(blad: unknown): string {
-  if (blad instanceof DOMException && blad.name === "AbortError") return "przekroczony czas (15 s)";
+  if (blad instanceof DOMException && blad.name === "AbortError") return "przekroczony czas (20 s)";
   if (blad instanceof Error) return blad.message;
   return String(blad);
 }

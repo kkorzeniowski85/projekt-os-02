@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { playPhoneme, playWord } from "@/lib/audio";
+import { playPhoneme, playPhrase, playWord } from "@/lib/audio";
 
 /**
  * Duży przycisk — minimum 64 px wysokości, bo celuje w niego palec 7-latka.
@@ -102,6 +102,46 @@ export function WordSpeaker({
       <span aria-hidden>🔊</span>
       {label}
     </button>
+  );
+}
+
+/**
+ * Przycisk całego zwrotu (tor 2).
+ *
+ * Angielski tekst jest pod spodem, nie na przycisku: w tym torze dziecko ma
+ * SŁUCHAĆ, a czytanie jest opcjonalnym podparciem. Kto jeszcze nie czyta,
+ * rozwiąże ćwiczenie samym uchem — i o to chodzi.
+ */
+export function PhraseSpeaker({
+  text,
+  label = "Posłuchaj",
+  size = "md",
+  showText = true,
+}: {
+  text: string;
+  label?: string;
+  size?: "md" | "lg";
+  showText?: boolean;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <button
+        type="button"
+        onClick={() => void playPhrase(text)}
+        aria-label={`${label}: ${text}`}
+        className={`flex items-center gap-3 rounded-blob bg-hero-gold font-bold text-night shadow-[0_6px_0_#c99a1f] transition active:translate-y-1 active:shadow-none ${
+          size === "lg" ? "px-8 py-5 text-3xl" : "px-5 py-3 text-xl"
+        }`}
+      >
+        <span aria-hidden>🔊</span>
+        {label}
+      </button>
+      {showText && (
+        <p className="font-reading max-w-md text-center text-lg font-bold text-paper/80">
+          {text}
+        </p>
+      )}
+    </div>
   );
 }
 

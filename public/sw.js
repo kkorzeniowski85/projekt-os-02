@@ -10,7 +10,10 @@
 
 const BASE = self.location.pathname.replace(/\/sw\.js$/, "");
 const CACHE = "liga-dzwiekow-v1";
-const APP_SHELL = [`${BASE}/`, `${BASE}/rodzic/`, `${BASE}/icon.svg`];
+// Mapa tematów toru 2 jest w powłoce, żeby offline działała od pierwszego
+// otwarcia; poszczególne sesje (/slownictwo/<id>/) trafiają do cache przy
+// pierwszej wizycie, jak każda nawigacja.
+const APP_SHELL = [`${BASE}/`, `${BASE}/rodzic/`, `${BASE}/slownictwo/`, `${BASE}/icon.svg`];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

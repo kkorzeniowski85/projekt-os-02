@@ -14,8 +14,9 @@ import { HeroAvatar } from "@/components/HeroAvatar";
 import { BigButton, Card } from "@/components/ui";
 import { hasLesson } from "@/lib/curriculum/lessons";
 import { getSound, SOUNDS, type Sound, type SoundSet } from "@/lib/curriculum/sounds";
+import { TOPICS } from "@/lib/curriculum/vocab";
 import { HEROES } from "@/lib/heroes";
-import { recommendNext } from "@/lib/progress/rules";
+import { recommendNext, recommendNextTopic } from "@/lib/progress/rules";
 import { useProgress } from "@/lib/progress/store";
 import type { SoundState, SoundStatus } from "@/lib/progress/types";
 import { useDeviceRole } from "@/lib/useDeviceRole";
@@ -42,6 +43,11 @@ export default function HomePage() {
   const recommendedSound = getSound(recommendation.soundId);
   const masteredCount = Object.values(state.sounds).filter(
     (sound) => sound.status === "mastered",
+  ).length;
+
+  const topicRecommendation = recommendNextTopic(state);
+  const masteredTopics = Object.values(state.topics).filter(
+    (topic) => topic.status === "mastered",
   ).length;
 
   return (
@@ -106,14 +112,26 @@ export default function HomePage() {
           </p>
         </section>
 
-        {/* Tor 2 — uczciwie oznaczony jako jeszcze niezbudowany */}
-        <Card className="border-dashed border-white/20 bg-transparent">
-          <h2 className="text-lg font-bold text-paper/70">Tor 2: słuchanie i słownictwo</h2>
-          <p className="mt-1 text-sm text-paper/50">
-            Drugi tor z briefu (rozumienie ze słuchu, budowanie słownictwa) nie jest jeszcze
-            zbudowany. Najpierw testujemy tor czytania — dopiero potem dokładamy kolejny,
-            żeby nie robić dwóch połowicznych rzeczy naraz.
+        {/* Tor 2: słuchanie i słownictwo */}
+        <Card className="border-hero-cyan/40 bg-hero-cyan/10">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-xl font-bold">Słowa i zwroty</h2>
+            <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-paper/70">
+              {masteredTopics} z {TOPICS.length} tematów
+            </span>
+          </div>
+          <p className="mt-1 mb-4 text-sm text-paper/70">
+            Drugi tor: rozumienie ze słuchu, zwroty i kolokacje. Bez czytania — pytaniem jest
+            nagranie, odpowiedzią obrazek. {topicRecommendation.labelPl}
           </p>
+          <div className="flex flex-wrap gap-3">
+            <BigButton href={`/slownictwo/${topicRecommendation.topicId}`}>
+              {topicRecommendation.reason === "repeat-hard" ? "Powtórka" : "Zaczynamy!"}
+            </BigButton>
+            <BigButton href="/slownictwo" tone="quiet">
+              Wszystkie tematy
+            </BigButton>
+          </div>
         </Card>
 
         <section className="flex flex-col gap-3">
@@ -155,6 +173,10 @@ export default function HomePage() {
               <div className="flex justify-between">
                 <dt>Opanowane dźwięki</dt>
                 <dd className="font-bold">{masteredCount}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt>Opanowane tematy</dt>
+                <dd className="font-bold">{masteredTopics}</dd>
               </div>
               <div className="flex justify-between">
                 <dt>Sesje łącznie</dt>

@@ -29,6 +29,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { lessonGraphemes, lessonWords } from "../lib/curriculum/lessons.ts";
+import { audioSlug, vocabPhrases, vocabWords } from "../lib/curriculum/vocab.ts";
 import { IPA_BY_GRAPHEME } from "../lib/curriculum/ipa.ts";
 
 const args = process.argv.slice(2);
@@ -39,8 +40,10 @@ const VOICE = voiceArg >= 0 ? args[voiceArg + 1] : "en-GB-SoniaNeural";
 const root = path.join(fileURLToPath(new URL("../", import.meta.url)));
 const wordsDir = path.join(root, "public", "audio", "words");
 const phonemesDir = path.join(root, "public", "audio", "phonemes");
+const phrasesDir = path.join(root, "public", "audio", "phrases");
 mkdirSync(wordsDir, { recursive: true });
 mkdirSync(phonemesDir, { recursive: true });
+mkdirSync(phrasesDir, { recursive: true });
 
 /**
  * Nowe połączenie na każdy plik. Usługa zamyka websocket po syntezie, a
@@ -73,7 +76,10 @@ async function withRetry(label, run, attempts = 3) {
   return null;
 }
 
-const words = lessonWords();
+// Oba tory naraz. Slowa toru 2 ida do tego samego katalogu co slowa lekcji,
+// wiec slowo wspolne dla obu torow ma jeden plik i generuje sie raz.
+const words = [...new Set([...lessonWords(), ...vocabWords()])].sort();
+const phrases = vocabPhrases();
 const graphemes = lessonGraphemes().filter((grapheme) => {
   if (IPA_BY_GRAPHEME[grapheme]) return true;
   console.warn(`  ! brak zapisu IPA dla "${grapheme}" — pomijam`);
@@ -89,7 +95,7 @@ let failed = 0;
 
 // Słowa — nieco wolniej niż normalna mowa, dziecko dopiero łapie dźwięki.
 for (const word of words) {
-  const target = path.join(wordsDir, `${word.toLowerCase()}.mp3`); // małe litery: GitHub Pages rozróżnia wielkość
+  const target = path.join(wordsDir, `${audioSlug(word)}.mp3`); // slug: male litery i bez spacji (GitHub Pages rozroznia wielkosc)
   if (!force && existsSync(target)) {
     skipped++;
     continue;
@@ -98,7 +104,32 @@ for (const word of words) {
   if (buffer) {
     writeFileSync(target, buffer);
     created++;
-    console.log(`  ✓ words/${word}.mp3 (${buffer.length} B)`);
+    console.log(`  ✓ words/${audioSlug(word)}.mp3 (${buffer.length} B)`);
+  } else {
+    failed++;
+  }
+}
+
+/**
+ * Zwroty toru 2 — cale zdania. Tu usluga Edge wystarcza w zupelnosci: zdania
+ * synteza wymawia sensownie, w przeciwienstwie do pojedynczych glosek. Nazwa
+ * pliku powstaje przez audioSlug z lib/curriculum/vocab.ts — TE SAMA funkcje, ktorej
+ * uzywa aplikacja, bo inaczej szukalaby innych nazw, niz tu zapisujemy.
+ *
+ * Wolniej niz slowa (-25%): dziecko musi zdazyc rozlozyc cale zdanie.
+ */
+for (const phrase of phrases) {
+  const slug = audioSlug(phrase);
+  const target = path.join(phrasesDir, `${slug}.mp3`);
+  if (!force && existsSync(target)) {
+    skipped++;
+    continue;
+  }
+  const buffer = await withRetry(`zwrot "${phrase}"`, () => synthesize(phrase, "-25%"));
+  if (buffer) {
+    writeFileSync(target, buffer);
+    created++;
+    console.log(`  ✓ phrases/${slug}.mp3 (${buffer.length} B)`);
   } else {
     failed++;
   }

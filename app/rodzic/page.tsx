@@ -15,6 +15,8 @@ import {
   auditClips,
   getVoiceStatus,
   phonemeClipBase,
+  phraseClipBase,
+  phraseClipPath,
   playClipFile,
   primeSpeech,
   wordClipBase,
@@ -26,6 +28,7 @@ import { PhonemeRecorder } from "@/components/PhonemeRecorder";
 import { lessonGraphemes, lessonWords } from "@/lib/curriculum/lessons";
 import { IPA_BY_GRAPHEME, trickyHint } from "@/lib/curriculum/ipa";
 import { getSound } from "@/lib/curriculum/sounds";
+import { getTopic, TOPICS, vocabPhrases, vocabWords } from "@/lib/curriculum/vocab";
 import { importRecordingFiles, listRecordings } from "@/lib/recordings";
 import { QrCode } from "@/components/QrCode";
 import { RECORDINGS_CHANGED } from "@/lib/progress/recordingsSync";
@@ -50,9 +53,9 @@ import {
   buildSessionsCsv,
   downloadFile,
 } from "@/lib/progress/report";
-import { accuracyOf, recommendNext, RULES } from "@/lib/progress/rules";
+import { accuracyOf, recommendNext, recommendNextTopic, RULES } from "@/lib/progress/rules";
 import { useProgress } from "@/lib/progress/store";
-import type { SoundState } from "@/lib/progress/types";
+import { trackOf, type SoundState } from "@/lib/progress/types";
 
 /** Polska odmiana: 1 sesję, 2-4 sesje, 5+ sesji (z wyjątkiem 12-14). */
 function sessionsWord(count: number): string {
@@ -83,9 +86,11 @@ const STATUS_LABEL: Record<SoundState["status"], string> = {
 function WordClipList({
   words,
   resolved,
+  title = "Słowa",
 }: {
   words: string[];
   resolved: Record<string, string | null> | null;
+  title?: string;
 }) {
   const availableCount = resolved
     ? words.filter((word) => resolved[wordClipBase(word)]).length
@@ -94,7 +99,7 @@ function WordClipList({
   return (
     <div className="mb-4">
       <p className="mb-2 text-sm font-bold text-paper/80">
-        Słowa{" "}
+        {title}{" "}
         <span className="font-normal text-paper/50">
           {availableCount === null ? "" : `(${availableCount}/${words.length} nagrań)`}
         </span>
@@ -123,6 +128,55 @@ function WordClipList({
   );
 }
 
+/** To samo co wyżej, ale dla całych zwrotów toru 2 (jeden wiersz na zdanie). */
+function PhraseClipList({
+  phrases,
+  resolved,
+}: {
+  phrases: string[];
+  resolved: Record<string, string | null> | null;
+}) {
+  const availableCount = resolved
+    ? phrases.filter((phrase) => resolved[phraseClipBase(phrase)]).length
+    : null;
+
+  return (
+    <div className="mb-4">
+      <p className="mb-2 text-sm font-bold text-paper/80">
+        Zwroty i polecenia{" "}
+        <span className="font-normal text-paper/50">
+          {availableCount === null ? "" : `(${availableCount}/${phrases.length} nagrań)`}
+        </span>
+      </p>
+      <div className="flex flex-col gap-1">
+        {phrases.map((phrase) => {
+          const path = resolved?.[phraseClipBase(phrase)] ?? null;
+          return (
+            <button
+              key={phrase}
+              type="button"
+              disabled={!path}
+              onClick={() => path && void playClipFile(path)}
+              title={path ?? `brak pliku: ${phraseClipPath(phrase)}`}
+              className={`rounded-xl px-3 py-2 text-left text-sm ${
+                path ? "bg-white/15 text-paper hover:bg-white/25" : "bg-white/5 text-paper/30"
+              }`}
+            >
+              <span aria-hidden>{path ? "▶ " : "· "}</span>
+              <span className="font-reading font-bold">{phrase}</span>
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-2 text-xs text-paper/50">
+        Zwrot bez nagrania NIE blokuje ćwiczenia — czyta go wtedy syntezator urządzenia. Całe
+        zdania syntezator wymawia sensownie (w przeciwieństwie do pojedynczych głosek), więc to
+        uczciwe rozwiązanie awaryjne, a nie namiastka.
+      </p>
+    </div>
+  );
+}
+
 export default function ParentPage() {
   const { state, importProgress, setChildName, resetAll, ready, requestSync } = useProgress();
   const [copied, setCopied] = useState(false);
@@ -142,9 +196,17 @@ export default function ParentPage() {
 
   const words = useMemo(lessonWords, []);
   const graphemes = useMemo(lessonGraphemes, []);
+  // Tor 2 dokłada własne słowa (te idą do tego samego katalogu co słowa lekcji)
+  // i całe zwroty (te mają katalog osobny — patrz phraseClipBase).
+  const vocabOnlyWords = useMemo(
+    () => vocabWords().filter((word) => !words.includes(word)),
+    [words],
+  );
+  const phrases = useMemo(vocabPhrases, []);
 
   const report = useMemo(() => buildMarkdownReport(state), [state]);
   const recommendation = recommendNext(state);
+  const topicRecommendation = recommendNextTopic(state);
 
   // Lista głosów ładuje się asynchronicznie, więc pytamy o nią po zamontowaniu
   // (i raz jeszcze chwilę później) zamiast w trakcie renderu.
@@ -159,11 +221,19 @@ export default function ParentPage() {
   const sounds = Object.values(state.sounds).sort(
     (a, b) => (b.lastSeenTs ?? 0) - (a.lastSeenTs ?? 0),
   );
+  const topics = Object.values(state.topics).sort(
+    (a, b) => (b.lastSeenTs ?? 0) - (a.lastSeenTs ?? 0),
+  );
   const recentSessions = [...state.sessions].slice(-10).reverse();
 
   const bases = useMemo(
-    () => [...words.map(wordClipBase), ...graphemes.map(phonemeClipBase)],
-    [words, graphemes],
+    () => [
+      ...words.map(wordClipBase),
+      ...vocabOnlyWords.map(wordClipBase),
+      ...graphemes.map(phonemeClipBase),
+      ...phrases.map(phraseClipBase),
+    ],
+    [words, vocabOnlyWords, graphemes, phrases],
   );
 
   const runAudit = useCallback(async () => {
@@ -191,6 +261,14 @@ export default function ParentPage() {
 
   const missingWords = resolved
     ? words.filter((word) => !resolved[wordClipBase(word)]).length
+    : null;
+
+  const missingVocab = resolved
+    ? vocabOnlyWords.filter((word) => !resolved[wordClipBase(word)]).length
+    : null;
+
+  const missingPhrases = resolved
+    ? phrases.filter((phrase) => !resolved[phraseClipBase(phrase)]).length
     : null;
 
 
@@ -263,14 +341,85 @@ export default function ParentPage() {
 
       <Card>
         <h2 className="mb-3 text-lg font-bold">Co dalej</h2>
-        <p className="text-paper/80">{recommendation.labelPl}</p>
-        <div className="mt-4 inline-block">
-          <BigButton href={`/sesja/${recommendation.soundId}`}>Otwórz tę sesję</BigButton>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <div>
+            <p className="mb-1 text-xs font-bold tracking-wide text-paper/50 uppercase">
+              Tor 1 — czytanie
+            </p>
+            <p className="text-paper/80">{recommendation.labelPl}</p>
+            <div className="mt-3 inline-block">
+              <BigButton href={`/sesja/${recommendation.soundId}`}>Otwórz sesję</BigButton>
+            </div>
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-bold tracking-wide text-paper/50 uppercase">
+              Tor 2 — słowa i zwroty
+            </p>
+            <p className="text-paper/80">{topicRecommendation.labelPl}</p>
+            <div className="mt-3 inline-block">
+              <BigButton href={`/slownictwo/${topicRecommendation.topicId}`}>
+                Otwórz temat
+              </BigButton>
+            </div>
+          </div>
         </div>
       </Card>
 
       <Card>
-        <h2 className="mb-3 text-lg font-bold">Postęp per dźwięk</h2>
+        <h2 className="mb-1 text-lg font-bold">Postęp per temat (tor 2)</h2>
+        <p className="mb-3 text-sm text-paper/60">
+          Słownictwo, zwroty i kolokacje. Tor niezależny od czytania — można je prowadzić
+          równolegle, bo ćwiczą inne rzeczy.
+        </p>
+        {topics.length === 0 ? (
+          <p className="text-paper/60">
+            Brak sesji w tym torze. Pierwszy temat („Ratunek!”) warto zrobić przed pierwszym
+            dniem w szkole.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="text-paper/60">
+                <tr>
+                  <th className="py-2">Temat</th>
+                  <th>Status</th>
+                  <th>Sesje</th>
+                  <th>Ostatni</th>
+                  <th>Najlepszy</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topics.map((topic) => (
+                  <tr key={topic.topicId} className="border-t border-white/10">
+                    <td className="py-2 font-bold">
+                      {getTopic(topic.topicId)?.titlePl ?? topic.topicId}
+                    </td>
+                    <td>{STATUS_LABEL[topic.status]}</td>
+                    <td>{topic.sessions}</td>
+                    <td>
+                      {topic.lastAccuracy === null
+                        ? "—"
+                        : `${Math.round(topic.lastAccuracy * 100)}%`}
+                    </td>
+                    <td>
+                      {topic.bestAccuracy === null
+                        ? "—"
+                        : `${Math.round(topic.bestAccuracy * 100)}%`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="mt-3 text-xs text-paper/50">
+          Tematów jest {TOPICS.length}. Kolejność w aplikacji to kolejność pilności, nie
+          trudności — pierwsze cztery to przetrwanie w szkole.
+        </p>
+      </Card>
+
+      <Card>
+        <h2 className="mb-3 text-lg font-bold">Postęp per dźwięk (tor 1)</h2>
         {sounds.length === 0 ? (
           <p className="text-paper/60">Brak sesji — po pierwszej ćwiczeniu pojawią się dane.</p>
         ) : (
@@ -326,7 +475,12 @@ export default function ParentPage() {
             {recentSessions.map((session) => (
               <li key={session.id} className="flex flex-wrap gap-x-3">
                 <span className="font-bold">
-                  {getSound(session.soundId)?.grapheme ?? session.soundId}
+                  {trackOf(session) === "vocab"
+                    ? (getTopic(session.soundId)?.titlePl ?? session.soundId)
+                    : (getSound(session.soundId)?.grapheme ?? session.soundId)}
+                </span>
+                <span className="text-paper/50">
+                  {trackOf(session) === "vocab" ? "słownictwo" : "czytanie"}
                 </span>
                 <span>{new Date(session.endedTs).toLocaleString("pl-PL")}</span>
                 <span>{session.mode === "parent" ? "z rodzicem" : "sam"}</span>
@@ -628,17 +782,37 @@ export default function ParentPage() {
           {missingWords !== null && (
             <span className="text-sm text-paper/70">
               {missingWords === 0
-                ? "Wszystkie słowa nagrane ✓"
-                : `Brakuje ${missingWords} z ${words.length} nagrań słów`}
+                ? "Wszystkie słowa toru 1 nagrane ✓"
+                : `Brakuje ${missingWords} z ${words.length} nagrań słów (tor 1)`}
+            </span>
+          )}
+          {missingPhrases !== null && (missingPhrases > 0 || (missingVocab ?? 0) > 0) && (
+            <span className="text-sm text-hero-gold">
+              Tor 2: brakuje {missingVocab} słów i {missingPhrases} zwrotów
             </span>
           )}
         </div>
 
-        <WordClipList words={words} resolved={resolved} />
+        <WordClipList words={words} resolved={resolved} title="Słowa (tor 1: czytanie)" />
+
+        <div className="mt-6 border-t border-white/10 pt-4">
+          <p className="mb-3 text-sm text-paper/70">
+            Materiał toru 2. Te nagrania <strong>nie są warunkiem</strong> działania ćwiczeń —
+            bez pliku czyta je syntezator urządzenia, a całe zdania wychodzą mu sensownie.
+            Nagranie brytyjskiego głosu jest lepsze i wygrywa automatycznie, gdy się pojawi.
+          </p>
+          <WordClipList
+            words={vocabOnlyWords}
+            resolved={resolved}
+            title="Słowa (tor 2: słownictwo)"
+          />
+          <PhraseClipList phrases={phrases} resolved={resolved} />
+        </div>
 
         <p className="mt-4 text-xs text-paper/50">
-          Generowanie nagrań słów: <code>npm run audio</code> (tylko brakujące) lub{" "}
-          <code>npm run audio -- --force</code>.
+          Generowanie nagrań: <code>npm run audio</code> (tylko brakujące) lub{" "}
+          <code>npm run audio -- --force</code>. Jeden przebieg obsługuje oba tory — słowa
+          lądują w <code>public/audio/words/</code>, zwroty w <code>public/audio/phrases/</code>.
         </p>
       </Card>
 

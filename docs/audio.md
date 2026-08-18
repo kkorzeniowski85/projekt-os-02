@@ -1,14 +1,17 @@
 # Audio — stan i jak dodać brakujące nagrania
 
-## Stan na 3 sierpnia 2026
+## Stan na 18 sierpnia 2026
 
 | Co | Stan | Czym zrobione |
 | --- | --- | --- |
-| **Słowa** (395 plików) | ✅ gotowe | synteza, brytyjski głos neuronowy `en-GB-SoniaNeural`, tempo −15% |
-| **Czyste głoski** (62 pliki) | ✅ gotowe, do odsłuchania | wycięte z nagrań słów (`npm run audio:phonemes`) |
+| **Słowa toru 1** (594 pliki) | ✅ gotowe | synteza, brytyjski głos neuronowy `en-GB-SoniaNeural`, tempo −15% |
+| **Czyste głoski** (73 pliki) | ✅ gotowe, do odsłuchania | wycięte z nagrań słów (`npm run audio:phonemes`) |
+| **Słowa i zwroty toru 2** | ⬜ do wygenerowania | `npm run audio` dogra ~208 słów i ~128 zwrotów; do tego czasu czyta je syntezator urządzenia |
 
-Nagrania słów leżą w `public/audio/words/`. Aplikacja używa ich automatycznie
-zamiast głosu z urządzenia.
+Nagrania słów leżą w `public/audio/words/`, całe zwroty toru 2 w
+`public/audio/phrases/` (nazwa pliku ze sluga zdania — patrz
+[slownictwo.md](slownictwo.md)). Aplikacja używa ich automatycznie zamiast
+głosu z urządzenia.
 
 **Nikt tych plików jeszcze nie odsłuchał** — powstały maszynowo. Zanim usiądziesz
 z dzieckiem, przejdź przez listę w **Tryb rodzica → Audio** i kliknij ▶ przy
