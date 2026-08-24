@@ -48,6 +48,13 @@ export const RULES = {
   minScoredForStatus: 4,
   /** Ile prób trzymamy w logu, zanim zaczniemy obcinać najstarsze. */
   attemptLogLimit: 2000,
+  /**
+   * Przypominajki: opanowany materiał nieużywany tyle dni kwalifikuje się do
+   * powtórki, a proponujemy ją co tyle sesji danego toru. Wiedza nieużywana
+   * cichnie — bez tego aplikacja nigdy nie wracała do niczego opanowanego.
+   */
+  refreshAfterDays: 14,
+  refreshEvery: 5,
 } as const;
 
 export function accuracyOf(session: SessionRecord): number | null {
@@ -167,14 +174,53 @@ export function applySessionResult(
 
 export type Recommendation = {
   soundId: string;
-  reason: "repeat-hard" | "continue" | "new-sound" | "all-done";
+  reason: "repeat-hard" | "continue" | "new-sound" | "refresh" | "all-done";
   /** Gotowy tekst dla rodzica. */
   labelPl: string;
 };
 
+/**
+ * Najstarszy opanowany element, którego nie ruszano od refreshAfterDays.
+ * Wspólne dla obu torów — stany mają ten sam kształt.
+ */
+function najstarszyDoPowtorki<T extends { status: SoundStatus; lastSeenTs: number | null }>(
+  states: T[],
+  now: number,
+): T | null {
+  const prog = now - RULES.refreshAfterDays * 24 * 60 * 60 * 1000;
+  const stare = states
+    .filter(
+      (item) => item.status === "mastered" && item.lastSeenTs !== null && item.lastSeenTs < prog,
+    )
+    .sort((a, b) => (a.lastSeenTs ?? 0) - (b.lastSeenTs ?? 0));
+  return stare[0] ?? null;
+}
+
+function dniTemu(ts: number | null, now: number): number {
+  return Math.max(1, Math.round((now - (ts ?? now)) / (24 * 60 * 60 * 1000)));
+}
+
+function graphemeOf(soundId: string): string {
+  return SOUNDS.find((sound) => sound.id === soundId)?.grapheme ?? soundId;
+}
+
 /** Co robić w następnej sesji. Kolejność dźwięków = kolejność RWI. */
-export function recommendNext(state: ProgressState): Recommendation {
+export function recommendNext(state: ProgressState, now = Date.now()): Recommendation {
   const playable = SOUNDS.filter((sound) => hasLesson(sound.id));
+
+  // Co refreshEvery-tą sesję toru proponujemy powtórkę czegoś opanowanego,
+  // co leży od dawna — zamiast kolejnej nowości. Reguła jest deterministyczna
+  // (licznik sesji), więc rekomendacja nie skacze przy odświeżeniach ekranu.
+  const sesjeToru = state.sessions.filter((session) => trackOf(session) === "phonics").length;
+  const czasNaPowtorke = sesjeToru > 0 && sesjeToru % RULES.refreshEvery === RULES.refreshEvery - 1;
+  const doPowtorki = najstarszyDoPowtorki(Object.values(state.sounds), now);
+  if (czasNaPowtorke && doPowtorki) {
+    return {
+      soundId: doPowtorki.soundId,
+      reason: "refresh",
+      labelPl: `Przypomnienie: „${graphemeOf(doPowtorki.soundId)}” — ostatnio ${dniTemu(doPowtorki.lastSeenTs, now)} dni temu. Opanowane, ale nieużywane cichnie.`,
+    };
+  }
 
   const struggling = playable.find(
     (sound) => state.sounds[sound.id]?.status === "needs-help",
@@ -207,6 +253,16 @@ export function recommendNext(state: ProgressState): Recommendation {
     };
   }
 
+  // Nic nowego i nic w toku — zanim ogłosimy koniec, oddajemy powtórkę
+  // najstarszego opanowanego (jeśli jakikolwiek zdążył „ostygnąć").
+  if (doPowtorki) {
+    return {
+      soundId: doPowtorki.soundId,
+      reason: "refresh",
+      labelPl: `Przypomnienie: „${graphemeOf(doPowtorki.soundId)}” — ostatnio ${dniTemu(doPowtorki.lastSeenTs, now)} dni temu.`,
+    };
+  }
+
   return {
     soundId: playable[playable.length - 1]?.id ?? "sh",
     reason: "all-done",
@@ -217,7 +273,7 @@ export function recommendNext(state: ProgressState): Recommendation {
 
 export type TopicRecommendation = {
   topicId: string;
-  reason: "repeat-hard" | "continue" | "new-topic" | "all-done";
+  reason: "repeat-hard" | "continue" | "new-topic" | "refresh" | "all-done";
   labelPl: string;
 };
 
@@ -228,7 +284,22 @@ export type TopicRecommendation = {
  * „następny nowy temat" znaczy tu „następny najpilniejszy". Dzięki temu dziecko,
  * które dopiero zaczyna, dostanie zwroty ratunkowe, a nie nazwy przyborów.
  */
-export function recommendNextTopic(state: ProgressState): TopicRecommendation {
+export function recommendNextTopic(state: ProgressState, now = Date.now()): TopicRecommendation {
+  const sesjeToru = state.sessions.filter((session) => trackOf(session) === "vocab").length;
+  const czasNaPowtorke = sesjeToru > 0 && sesjeToru % RULES.refreshEvery === RULES.refreshEvery - 1;
+  const doPowtorki = najstarszyDoPowtorki(Object.values(state.topics), now);
+  const tytulPowtorki =
+    doPowtorki === null
+      ? null
+      : (TOPICS.find((topic) => topic.id === doPowtorki.topicId)?.titlePl ?? doPowtorki.topicId);
+  if (czasNaPowtorke && doPowtorki) {
+    return {
+      topicId: doPowtorki.topicId,
+      reason: "refresh",
+      labelPl: `Przypomnienie: „${tytulPowtorki}” — ostatnio ${dniTemu(doPowtorki.lastSeenTs, now)} dni temu. Zwroty nieużywane cichną.`,
+    };
+  }
+
   const struggling = TOPICS.find(
     (topic) => state.topics[topic.id]?.status === "needs-help",
   );
@@ -255,6 +326,14 @@ export function recommendNextTopic(state: ProgressState): TopicRecommendation {
       topicId: fresh.id,
       reason: "new-topic",
       labelPl: `Nowy temat: „${fresh.titlePl}”. ${fresh.goalPl}`,
+    };
+  }
+
+  if (doPowtorki) {
+    return {
+      topicId: doPowtorki.topicId,
+      reason: "refresh",
+      labelPl: `Przypomnienie: „${tytulPowtorki}” — ostatnio ${dniTemu(doPowtorki.lastSeenTs, now)} dni temu.`,
     };
   }
 

@@ -27,6 +27,7 @@ import {
   unlockAudio,
 } from "@/lib/audio";
 import {
+  allRedWords,
   chipSoundId,
   type ChoiceRound,
   type Lesson,
@@ -42,6 +43,7 @@ import { useDeviceRole } from "@/lib/useDeviceRole";
 type Screen =
   | { kind: "listen"; item: ListenItem }
   | { kind: "blend"; card: WordCard }
+  | { kind: "redword"; answer: string; options: string[] }
   | { kind: "choice"; round: ChoiceRound };
 
 /** Fisher-Yates na kopii — wywoływane po kliknięciu startu, nigdy w renderze. */
@@ -78,9 +80,25 @@ function buildScreens(lesson: Lesson, role: DeviceRole): Screen[] {
     .slice(0, short ? 2 : lesson.choice.length)
     .map((round) => ({ ...round, options: shuffled(round.options) }));
 
+  // Red words: rozpoznawanie całościowe. Dystraktory to INNE red words —
+  // wszystkie czyta się z pamięci, więc wybór sprawdza pamięć wzrokową,
+  // a nie technikę sklejania (którą red word właśnie łamie).
+  const redPool = allRedWords();
+  const redwords = shuffled(lesson.redWords)
+    .slice(0, short ? 1 : 2)
+    .map<Screen>((word) => ({
+      kind: "redword",
+      answer: word,
+      options: shuffled([
+        word,
+        ...shuffled(redPool.filter((other) => other !== word)).slice(0, 2),
+      ]),
+    }));
+
   return [
     ...listen.map<Screen>((item) => ({ kind: "listen", item })),
     ...blend.map<Screen>((card) => ({ kind: "blend", card })),
+    ...redwords,
     ...choice.map<Screen>((round) => ({ kind: "choice", round })),
   ];
 }
@@ -267,6 +285,17 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
           <BlendScreen
             key={`blend-${index}`}
             card={screen.card}
+            sound={sound}
+            mode={mode}
+            onAnswer={onAnswer}
+            onNext={onNext}
+          />
+        )}
+        {!powtorka && screen?.kind === "redword" && (
+          <RedWordScreen
+            key={`redword-${index}`}
+            answer={screen.answer}
+            options={screen.options}
             sound={sound}
             mode={mode}
             onAnswer={onAnswer}
@@ -1004,6 +1033,16 @@ function PowtorkaEkranu({
         </>
       )}
 
+      {screen.kind === "redword" && (
+        <>
+          <p className="font-reading text-4xl font-black text-hero-pink">{screen.answer}</p>
+          <WordSpeaker word={screen.answer} label="Posłuchaj" size="lg" />
+          <p className="text-sm text-paper/70">
+            Red word — nie da się go skleić z dźwięków, czyta się w całości.
+          </p>
+        </>
+      )}
+
       {screen.kind === "choice" && (
         <>
           <div className="text-7xl" aria-hidden>
@@ -1016,6 +1055,138 @@ function PowtorkaEkranu({
       )}
 
       <BigButton onClick={onDalej}>Dalej ▸</BigButton>
+    </Card>
+  );
+}
+
+// --- Ćwiczenie: red words (rozpoznawanie całościowe) -------------------------
+
+/**
+ * Red words czyta się w całości — sklejanie z dźwięków na nich zawodzi
+ * (said ≠ s-a-i-d). Dotąd były tylko pokazywane na ekranie nagrody; teraz są
+ * ćwiczone: dziecko słyszy słowo i wskazuje zapis wśród INNYCH red words.
+ * Bramka naprawy działa jak wszędzie: błąd kończy się wykonaniem poprawnego
+ * ruchu, a punktuje się pierwszy wybór.
+ */
+function RedWordScreen({
+  answer,
+  options,
+  sound,
+  mode,
+  onAnswer,
+  onNext,
+}: {
+  answer: string;
+  options: string[];
+  sound: Sound;
+  mode: SessionMode;
+  onAnswer: (attempt: PendingAttempt) => void;
+  onNext: () => void;
+}) {
+  const [picked, setPicked] = useState<string | null>(null);
+  const [naprawione, setNaprawione] = useState(false);
+  const [needsTap, setNeedsTap] = useState(false);
+  const startRef = useRef(Date.now());
+
+  const correct = picked !== null && picked === answer;
+  const wNaprawie = picked !== null && !correct && !naprawione;
+
+  useEffect(() => {
+    void playWord(answer).then((result) => setNeedsTap(result.source === "unavailable"));
+  }, [answer]);
+
+  useEffect(() => {
+    if (picked === null) return;
+    playFeedbackTone(correct ? "good" : "try-again");
+    if (correct) {
+      const timer = setTimeout(onNext, 1100);
+      return () => clearTimeout(timer);
+    }
+    void playWord(answer);
+  }, [picked, correct, answer, onNext]);
+
+  useEffect(() => {
+    if (!naprawione) return;
+    playFeedbackTone("good");
+    const timer = setTimeout(onNext, 900);
+    return () => clearTimeout(timer);
+  }, [naprawione, onNext]);
+
+  function pick(option: string) {
+    setPicked(option);
+    onAnswer({
+      ts: Date.now(),
+      soundId: sound.id,
+      exercise: "redword",
+      item: answer,
+      correct: option === answer,
+      responseMs: Date.now() - startRef.current,
+    });
+  }
+
+  return (
+    <Card className="no-select flex flex-col items-center gap-5 text-center">
+      <h2 className="text-2xl font-bold">
+        <span className="text-hero-pink">Słowo-łobuz!</span> Które słyszysz?
+      </h2>
+      <p className="max-w-md text-sm text-paper/70">
+        Tego słowa nie da się skleić z dźwięków — czyta się je w całości, z pamięci.
+      </p>
+      <div
+        className={needsTap ? "animate-pulse-ring rounded-blob" : undefined}
+        onClickCapture={() => setNeedsTap(false)}
+      >
+        <WordSpeaker word={answer} label="Posłuchaj" size="lg" />
+      </div>
+      {needsTap && (
+        <p className="text-sm font-bold text-hero-gold">Stuknij 🔊, żeby usłyszeć słowo</p>
+      )}
+
+      <div className="grid w-full max-w-2xl gap-3 sm:grid-cols-3">
+        {options.map((option) => {
+          const isAnswer = option === answer;
+          const state =
+            picked === null
+              ? "idle"
+              : isAnswer
+                ? "correct"
+                : option === picked
+                  ? "wrong"
+                  : "dim";
+          return (
+            <button
+              key={option}
+              type="button"
+              disabled={picked !== null && !(wNaprawie && isAnswer)}
+              onClick={() => (wNaprawie ? setNaprawione(true) : pick(option))}
+              className={`font-reading rounded-blob px-4 py-6 text-3xl font-black transition active:translate-y-1 ${
+                state === "idle"
+                  ? "bg-white/15 text-paper shadow-[0_6px_0_rgba(0,0,0,0.3)]"
+                  : state === "correct"
+                    ? `bg-hero-lime text-night ${wNaprawie ? "animate-pulse-ring" : ""}`
+                    : state === "wrong"
+                      ? "bg-hero-pink text-night"
+                      : "bg-white/5 text-paper/40"
+              }`}
+            >
+              {option}
+            </button>
+          );
+        })}
+      </div>
+
+      {wNaprawie && (
+        <p className="text-sm font-bold text-hero-gold">
+          👆 Posłuchaj i stuknij dobre słowo, żeby iść dalej.
+        </p>
+      )}
+
+      {mode === "parent" && picked === null && (
+        <p className="text-xs text-paper/50">
+          Nie sklejajcie tego słowa z dźwięków — dziecko ma je poznać „z twarzy”, jak
+          znajomego. Pomaga zdanie: „to jest słowo-łobuz, nie gra według zasad”.
+        </p>
+      )}
     </Card>
   );
 }

@@ -26,14 +26,15 @@ coś boli", a resztę zostawić na później.
 | --- | --- | --- |
 | 1 | Ratunek! | Zdania na wypadek, gdy dziecko nic nie rozumie |
 | 2 | Co mówi nauczyciel | Polecenia w klasie — wyłącznie do zrozumienia |
-| 3 | Zagadać do dzieci | Wejście do grupy rówieśniczej |
-| 4 | Grzeczność | „please" i „thank you" — w UK to sprawa społeczna |
-| 5 | Poranek | Rutyna dnia, gęsta od kolokacji |
-| 6 | Obiad w szkole | Stołówka i słownictwo czysto brytyjskie |
-| 7 | Kiedy coś boli | Bezpieczeństwo — powiedzieć dorosłemu, że coś jest nie tak |
-| 8 | Ubranie i pogoda | jumper, wellies, PE kit — słowa z codziennego dnia |
-| 9 | Jak się czuję | Nazwać to, co w środku |
-| 10 | Rzeczy w szkole | Przybory i polecenia okołozadaniowe |
+| 3 | Dzień w szkole | Rytuały dnia bez polskich odpowiedników: assembly, wet play, home time |
+| 4 | Zagadać do dzieci | Wejście do grupy rówieśniczej |
+| 5 | Grzeczność | „please" i „thank you" — w UK to sprawa społeczna |
+| 6 | Poranek | Rutyna dnia, gęsta od kolokacji |
+| 7 | Obiad w szkole | Stołówka i słownictwo czysto brytyjskie |
+| 8 | Kiedy coś boli | Bezpieczeństwo — powiedzieć dorosłemu, że coś jest nie tak |
+| 9 | Ubranie i pogoda | jumper, wellies, PE kit — słowa z codziennego dnia |
+| 10 | Jak się czuję | Nazwać to, co w środku |
+| 11 | Rzeczy w szkole | Przybory i polecenia okołozadaniowe |
 
 **Trzy zdania warto przećwiczyć do automatyzmu przed pierwszym dniem:**
 „I don't understand", „Can you help me, please?", „Can I go to the toilet,

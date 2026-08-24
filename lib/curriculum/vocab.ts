@@ -185,6 +185,32 @@ export const TOPICS: Topic[] = [
         situationPl: "Jest Ci bardzo smutno i chcesz do domu.",
         emoji: "😢",
       },
+      // Dopiski po przeglądzie "okiem nauczyciela": cztery zwroty, których
+      // dziecko EAL uczy się w pierwszej kolejności.
+      {
+        en: "I'm stuck.",
+        pl: "Utknąłem.",
+        situationPl: "Zadanie nie wychodzi i nie wiesz, co dalej.",
+        emoji: "🧱",
+      },
+      {
+        en: "How do you say it in English?",
+        pl: "Jak to jest po angielsku?",
+        situationPl: "Chcesz coś powiedzieć, ale nie znasz angielskiego słowa.",
+        emoji: "🔤",
+      },
+      {
+        en: "What does it mean?",
+        pl: "Co to znaczy?",
+        situationPl: "Słyszysz słowo, którego nie rozumiesz.",
+        emoji: "❓",
+      },
+      {
+        en: "Can you say that again, please?",
+        pl: "Możesz powtórzyć?",
+        situationPl: "Chcesz, żeby ktoś powtórzył całe zdanie.",
+        emoji: "🔁",
+      },
     ],
     commands: [
       {
@@ -391,6 +417,159 @@ export const TOPICS: Topic[] = [
         emoji: "📦",
         whyPl:
           "„throw it away” znaczy WYRZUCIĆ — pomyłka kosztowna, gdy chodzi o cudzą rzecz.",
+      },
+    ],
+  },
+
+  // --- Dzień w szkole (po przeglądzie "okiem nauczyciela") ------------------
+  // Wstawiony zaraz po poleceniach nauczyciela, bo lęk nowego dziecka to
+  // głównie NIEWIEDZA, CO ZARAZ NASTĄPI — a brytyjski dzień szkolny ma
+  // rytuały bez polskich odpowiedników (assembly, carpet time, wet play).
+  {
+    id: "school-day",
+    titlePl: "Dzień w szkole",
+    goalPl: "Wiesz, co będzie za chwilę — i nic Cię nie zaskakuje.",
+    emoji: "🏫",
+    heroId: "shock",
+    parentIntroPl:
+      "Brytyjski dzień szkolny ma rytuały, których polska szkoła nie zna: assembly (codzienny apel całej szkoły na sali — siedzi się i słucha, nikt nie odpytuje), carpet time (młodsze klasy siadają na dywanie), wet play (gdy pada, przerwa jest w klasie) i home time (nauczycielka puszcza dzieci z placu pojedynczo, gdy widzi rodzica). Warto przegadać plan dnia PRZED pierwszym dniem — dziecko, które wie, co zaraz nastąpi, ma o połowę mniej stresu.",
+    words: [
+      {
+        en: "assembly",
+        pl: "apel (cała szkoła na sali)",
+        emoji: "🏫",
+        notePl:
+          "Codzienny rytuał bez polskiego odpowiednika: cała szkoła siada na sali, śpiewa, słucha ogłoszeń. Nikt nie odpytuje — siedzi się i słucha.",
+      },
+      {
+        en: "carpet",
+        pl: "dywan",
+        emoji: "🧘",
+        notePl:
+          "Carpet time: młodsze klasy siadają po turecku na dywanie przed tablicą. W Year 3 wciąż częste.",
+      },
+      {
+        en: "water bottle",
+        pl: "bidon",
+        emoji: "🥤",
+        notePl:
+          "Każde dziecko ma w klasie swój bidon z wodą. Podpisz go imieniem — tak jak wszystko inne.",
+      },
+      {
+        en: "whiteboard",
+        pl: "tabliczka suchościeralna",
+        emoji: "📝",
+        notePl:
+          "Dzieci piszą odpowiedzi na małych tabliczkach i podnoszą je do góry — codzienne narzędzie, nie gadżet.",
+      },
+      { en: "playground", pl: "plac zabaw, boisko", emoji: "🤸" },
+      {
+        en: "home time",
+        pl: "koniec lekcji",
+        emoji: "🏠",
+        notePl:
+          "Nauczycielka wypuszcza dzieci z placu pojedynczo, gdy widzi opiekuna. Spóźnienie rodzica = dziecko czeka w szkole, nic się nie dzieje.",
+      },
+      {
+        en: "wet play",
+        pl: "mokra przerwa (w klasie)",
+        emoji: "🌧️",
+        notePl:
+          "Gdy pada, przerwa jest w klasie: gry, rysowanie, klocki. W wielu klasach jest osobne pudło zabawek tylko na wet play.",
+      },
+      { en: "snack", pl: "przekąska", emoji: "🍏" },
+    ],
+    phrases: [
+      {
+        en: "Is it home time?",
+        pl: "Czy to już koniec lekcji?",
+        situationPl: "Nie wiesz, czy dzień już się kończy.",
+        emoji: "🏠",
+      },
+      {
+        en: "When is lunch?",
+        pl: "Kiedy jest obiad?",
+        situationPl: "Jesteś głodny i nie znasz planu dnia.",
+        emoji: "🍽️",
+      },
+      {
+        en: "Where do we go now?",
+        pl: "Dokąd teraz idziemy?",
+        situationPl: "Klasa gdzieś idzie, a Ty nie wiesz dokąd.",
+        emoji: "🚶",
+      },
+    ],
+    commands: [
+      {
+        en: "Sit on the carpet.",
+        pl: "Usiądź na dywanie.",
+        actionPl: "Siadasz po turecku na dywanie z innymi dziećmi.",
+        emoji: "🧘",
+      },
+      {
+        en: "Tuck your chair in.",
+        pl: "Dosuń krzesło.",
+        actionPl: "Dosuwasz krzesło do ławki.",
+        emoji: "💺",
+      },
+      {
+        en: "Line up for assembly.",
+        pl: "Ustawcie się na apel.",
+        actionPl: "Stajesz w rzędzie — cała klasa idzie na salę.",
+        emoji: "🏫",
+      },
+      {
+        en: "Get your water bottle.",
+        pl: "Weź swój bidon.",
+        actionPl: "Bierzesz swój bidon z półki.",
+        emoji: "🥤",
+      },
+      {
+        en: "It's wet play today.",
+        pl: "Dziś przerwa w klasie.",
+        actionPl: "Zostajesz w klasie i bawisz się na miejscu.",
+        emoji: "🌧️",
+      },
+    ],
+    collocations: [
+      {
+        en: "wait your turn",
+        pl: "poczekać na swoją kolej",
+        gap: "___ your turn",
+        answer: "wait",
+        distractors: ["stay", "stand"],
+        emoji: "⏳",
+        whyPl:
+          "W szkolnym zwrocie „wait your turn” nie ma „for” — gotowy klocek, nie zdanie do złożenia.",
+      },
+      {
+        en: "have a snack",
+        pl: "zjeść przekąskę",
+        gap: "___ a snack",
+        answer: "have",
+        distractors: ["eat", "take"],
+        emoji: "🍏",
+        whyPl:
+          "Jak posiłki: have breakfast, have lunch, have a snack. „eat a snack” zrozumieją, ale tak się nie mówi.",
+      },
+      {
+        en: "go to assembly",
+        pl: "iść na apel",
+        gap: "___ to assembly",
+        answer: "go",
+        distractors: ["walk", "come"],
+        emoji: "🏫",
+        whyPl: "Bez „the”: go to assembly, jak go to school — rytuały dnia idą bez przedimka.",
+      },
+      {
+        en: "get changed",
+        pl: "przebrać się",
+        gap: "___ changed",
+        answer: "get",
+        distractors: ["put", "make"],
+        emoji: "👟",
+        whyPl:
+          "Para do „get dressed” z Poranka: przebieranie (na WF i po nim) to zawsze get changed.",
       },
     ],
   },

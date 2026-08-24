@@ -33,6 +33,7 @@ export type ExerciseKind =
   | "listen"
   | "blend"
   | "choice"
+  | "redword"
   | "vocab"
   | "phrase"
   | "command"

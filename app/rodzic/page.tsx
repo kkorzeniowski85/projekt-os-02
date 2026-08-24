@@ -753,6 +753,71 @@ export default function ParentPage() {
       </Card>
 
       <Card>
+        <h2 className="mb-1 text-lg font-bold">
+          Ściąga: pierwszy tydzień w brytyjskiej szkole
+        </h2>
+        <p className="mb-3 text-sm text-paper/70">
+          Rzeczy, które zaskakują polskich rodziców — warto je znać, zanim zaskoczą.
+          To wiedza dla Ciebie, nie ćwiczenia dla dziecka.
+        </p>
+        <ul className="list-disc space-y-2 pl-5 text-sm text-paper/80">
+          <li>
+            <strong>Reading record</strong> — zeszycik, w którym szkoła oczekuje wpisu po
+            KAŻDYM domowym czytaniu (wystarczy data i podpis). Chodzi w book bagu razem z
+            książeczką do czytania; brak wpisów szkoła naprawdę zauważa.
+          </li>
+          <li>
+            <strong>Book bag</strong> — płócienna torba szkolna, chodzi do szkoły codziennie.
+            Plecak zwykle nie jest potrzebny.
+          </li>
+          <li>
+            <strong>PE kit zostaje w szkole</strong> — worek ze strojem na WF wisi na haczyku
+            cały semestr i wraca do domu do prania na przerwy świąteczne. Wszystko podpisz
+            imieniem i nazwiskiem (naprasowanki albo pisak do tkanin).
+          </li>
+          <li>
+            <strong>Bidon (water bottle)</strong> — każde dziecko ma swój w klasie, podpisany.
+            Tylko woda — sok bywa niemile widziany.
+          </li>
+          <li>
+            <strong>„Miss” i „Sir”</strong> — tak dzieci zwracają się do nauczycieli i to jest
+            grzeczne. Wołanie „Teacher!” brzmi dziwnie.
+          </li>
+          <li>
+            <strong>Naklejki i house points</strong> — system nagród: naklejka na bluzie po
+            szkole to powód do dumy, nie śmieć. Zapytaj wieczorem, za co była.
+          </li>
+          <li>
+            <strong>Assembly</strong> — codzienny apel całej szkoły na sali: siedzi się,
+            śpiewa, słucha. Nikt nie odpytuje.
+          </li>
+          <li>
+            <strong>Wet play</strong> — gdy pada, przerwa jest w klasie. Dziecko wróci i powie,
+            że „nie było przerwy” — była, tylko w środku.
+          </li>
+          <li>
+            <strong>School dinner albo packed lunch</strong> — obiad ze stołówki (w wielu
+            szkołach do Year 2 bezpłatny, od Year 3 płatny) albo jedzenie z domu w pudełku.
+            Wybór zgłasza się szkole; można zmieniać.
+          </li>
+          <li>
+            <strong>Lost property</strong> — pudło rzeczy znalezionych. Sweter zniknął? Zanim
+            kupisz nowy, każ dziecku sprawdzić lost property (dlatego wszystko podpisane).
+          </li>
+          <li>
+            <strong>Parents&apos; evening</strong> — dwa razy w roku 10-minutowa rozmowa
+            z nauczycielką po zapisach. Krótko i konkretnie; o EAL można pytać śmiało —
+            szkoły mają na to procedury.
+          </li>
+          <li>
+            <strong>Podręczników nie ma</strong> — dziecko nie nosi książek do domu; praca
+            zostaje w szkole. Do domu wraca tylko book bag z książeczką do czytania i czasem
+            homework raz w tygodniu.
+          </li>
+        </ul>
+      </Card>
+
+      <Card>
         <h2 className="mb-1 text-lg font-bold">Audio</h2>
         <p className="mb-3 text-sm text-paper/70">
           {voice === null

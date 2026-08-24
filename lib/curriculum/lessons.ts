@@ -2015,6 +2015,19 @@ export function hasLesson(soundId: string): boolean {
   return soundId in LESSONS;
 }
 
+/**
+ * Wszystkie red words programu — pula dystraktorów dla ćwiczenia rozpoznawania.
+ * Dystraktorem red worda jest inny red word: wszystkie czyta się w całości,
+ * więc wybór naprawdę sprawdza pamięć wzrokową, a nie technikę sklejania.
+ */
+export function allRedWords(): string[] {
+  const words = new Set<string>();
+  for (const lesson of Object.values(LESSONS)) {
+    lesson.redWords.forEach((word) => words.add(word));
+  }
+  return [...words].sort();
+}
+
 /** Ile pytań ma sesja — potrzebne do paska postępu i do statystyk. */
 export function lessonLength(lesson: Lesson): number {
   return lesson.listen.length + lesson.blend.length + lesson.choice.length;

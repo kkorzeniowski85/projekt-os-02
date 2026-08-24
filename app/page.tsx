@@ -86,7 +86,11 @@ export default function HomePage() {
               )}
             </p>
             <BigButton href={`/sesja/${recommendation.soundId}`} full>
-              {recommendation.reason === "repeat-hard" ? "Powtórka" : "Zaczynamy!"}
+              {recommendation.reason === "repeat-hard"
+                ? "Powtórka"
+                : recommendation.reason === "refresh"
+                  ? "Przypomnij sobie"
+                  : "Zaczynamy!"}
             </BigButton>
             <p className="mt-3 text-xs text-paper/60">{recommendation.labelPl}</p>
           </Card>
@@ -126,7 +130,11 @@ export default function HomePage() {
           </p>
           <div className="flex flex-wrap gap-3">
             <BigButton href={`/slownictwo/${topicRecommendation.topicId}`}>
-              {topicRecommendation.reason === "repeat-hard" ? "Powtórka" : "Zaczynamy!"}
+              {topicRecommendation.reason === "repeat-hard"
+                ? "Powtórka"
+                : topicRecommendation.reason === "refresh"
+                  ? "Przypomnij sobie"
+                  : "Zaczynamy!"}
             </BigButton>
             <BigButton href="/slownictwo" tone="quiet">
               Wszystkie tematy

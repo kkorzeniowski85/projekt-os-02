@@ -65,7 +65,11 @@ export default function VocabHomePage() {
         </p>
         <p className="mt-1 mb-4 text-2xl font-black">{recommendation.labelPl}</p>
         <BigButton href={`/slownictwo/${recommendation.topicId}`} full>
-          {recommendation.reason === "repeat-hard" ? "Powtórka" : "Zaczynamy!"}
+          {recommendation.reason === "repeat-hard"
+            ? "Powtórka"
+            : recommendation.reason === "refresh"
+              ? "Przypomnij sobie"
+              : "Zaczynamy!"}
         </BigButton>
       </Card>
 

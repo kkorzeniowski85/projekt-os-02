@@ -114,6 +114,15 @@ const PRZYKLADY_SLOW: Record<string, ZdaniePrzyklad> = {
   "pencil case": { en: "Put it in your pencil case.", pl: "Schowaj to do piórnika." },
   "exercise book": { en: "Open your exercise book.", pl: "Otwórz zeszyt." },
   "book bag": { en: "Where's your book bag?", pl: "Gdzie jest twoja torba na książki?" },
+  // --- Dzień w szkole ---
+  assembly: { en: "We sing songs in assembly.", pl: "Na apelu śpiewamy piosenki." },
+  carpet: { en: "Carpet time, everyone!", pl: "Wszyscy na dywan!" },
+  "water bottle": { en: "Fill up your water bottle.", pl: "Napełnij swój bidon." },
+  whiteboard: { en: "Write it on your whiteboard.", pl: "Napisz to na tabliczce." },
+  playground: { en: "Let's go to the playground!", pl: "Chodźmy na plac zabaw!" },
+  "home time": { en: "It's nearly home time.", pl: "Już prawie koniec lekcji." },
+  "wet play": { en: "Wet play today, it's raining.", pl: "Dziś przerwa w klasie, bo pada." },
+  snack: { en: "Eat your snack at playtime.", pl: "Przekąskę zjedz na przerwie." },
 };
 
 const SCENKI: Record<string, ScenkaKwestia[]> = {
@@ -154,7 +163,7 @@ const SCENKI: Record<string, ScenkaKwestia[]> = {
   "I want my mum.": [
     { kto: "nauczycielka", en: "Are you OK?", pl: "Wszystko w porządku?" },
     { kto: "Ty", en: "I want my mum.", pl: "Chcę do mamy." },
-    { kto: "nauczycielka", en: "It's OK. Mum comes after school.", pl: "Już dobrze. Mama przyjdzie po szkole." },
+    { kto: "nauczycielka", en: "It's OK. Mum is coming after school.", pl: "Już dobrze. Mama przyjdzie po szkole." },
   ],
   // --- Co mówi nauczyciel ---
   "Here!": [
@@ -270,7 +279,7 @@ const SCENKI: Record<string, ScenkaKwestia[]> = {
     { kto: "pani ze stołówki", en: "Of course, here you are.", pl: "Oczywiście, proszę." },
   ],
   "I don't like it.": [
-    { kto: "pani ze stołówki", en: "Today it's fish pie.", pl: "Dziś zapiekanka rybna." },
+    { kto: "pani ze stołówki", en: "It's fish pie today.", pl: "Dziś zapiekanka rybna." },
     { kto: "Ty", en: "I don't like it.", pl: "Nie lubię tego." },
     { kto: "pani ze stołówki", en: "Try a little bit.", pl: "Spróbuj troszeczkę." },
   ],
@@ -351,7 +360,7 @@ const SCENKI: Record<string, ScenkaKwestia[]> = {
   // --- Rzeczy w szkole ---
   "Can I borrow your rubber, please?": [
     { kto: "Ty", en: "Can I borrow your rubber, please?", pl: "Mogę pożyczyć gumkę?" },
-    { kto: "kolega", en: "Sure, here you are.", pl: "Jasne, proszę." },
+    { kto: "kolega", en: "Yes, here you are.", pl: "Tak, proszę." },
   ],
   "I can't find my bag.": [
     { kto: "Ty", en: "I can't find my bag.", pl: "Nie mogę znaleźć torby." },
@@ -364,6 +373,39 @@ const SCENKI: Record<string, ScenkaKwestia[]> = {
   "I've lost my pencil.": [
     { kto: "Ty", en: "I've lost my pencil.", pl: "Zgubiłem ołówek." },
     { kto: "nauczycielka", en: "Take a new one from the pot.", pl: "Weź nowy z kubeczka." },
+  ],
+  // --- Ratunek: dopiski EAL ---
+  "I'm stuck.": [
+    { kto: "nauczycielka", en: "How is your work going?", pl: "Jak idzie praca?" },
+    { kto: "Ty", en: "I'm stuck.", pl: "Utknąłem." },
+    { kto: "nauczycielka", en: "Let's have a look together.", pl: "Spójrzmy na to razem." },
+  ],
+  "How do you say it in English?": [
+    { kto: "Ty", en: "How do you say it in English?", pl: "Jak to jest po angielsku?" },
+    { kto: "kolega", en: "That's a ruler!", pl: "To jest „ruler” — linijka!" },
+  ],
+  "What does it mean?": [
+    { kto: "nauczycielka", en: "Put it in your tray.", pl: "Włóż to do swojej szufladki." },
+    { kto: "Ty", en: "What does it mean?", pl: "Co to znaczy?" },
+    { kto: "nauczycielka", en: "This box here. Look.", pl: "Ta szufladka, o tu. Patrz." },
+  ],
+  "Can you say that again, please?": [
+    { kto: "nauczycielka", en: "Bring your book tomorrow.", pl: "Przynieś jutro książkę." },
+    { kto: "Ty", en: "Can you say that again, please?", pl: "Możesz powtórzyć?" },
+    { kto: "nauczycielka", en: "Your book. Tomorrow. OK?", pl: "Książkę. Jutro. Dobrze?" },
+  ],
+  // --- Dzień w szkole ---
+  "Is it home time?": [
+    { kto: "Ty", en: "Is it home time?", pl: "Czy to już koniec lekcji?" },
+    { kto: "nauczycielka", en: "Nearly! Five more minutes.", pl: "Prawie! Jeszcze pięć minut." },
+  ],
+  "When is lunch?": [
+    { kto: "Ty", en: "When is lunch?", pl: "Kiedy jest obiad?" },
+    { kto: "nauczycielka", en: "After maths. Not long now.", pl: "Po matematyce. Już niedługo." },
+  ],
+  "Where do we go now?": [
+    { kto: "Ty", en: "Where do we go now?", pl: "Dokąd teraz idziemy?" },
+    { kto: "kolega", en: "To the hall. Follow me!", pl: "Na salę. Chodź za mną!" },
   ],
 };
 
@@ -399,6 +441,10 @@ const NIUANSE: Record<string, string> = {
     "Mówi się przy PODAWANIU czegoś — to nie jest „tu jesteś”. Dziecko usłyszy też „There you go” — to samo.",
   "See you tomorrow.":
     "Popularne jest też „See you later!” — nie znaczy, że zobaczą się jeszcze tego dnia. To po prostu „na razie”.",
+  "I'm stuck.":
+    "Klasowe słowo na „utknąłem w zadaniu” — nauczycielki wręcz uczą dzieci mówić „I'm stuck” zamiast siedzieć cicho nad zeszytem. Zupełnie nie wstyd go używać.",
+  "How do you say it in English?":
+    "Najważniejsze pytanie dziecka uczącego się języka: zamienia każdą rozmowę w lekcję. Warto, żeby weszło w nawyk — dzieci chętnie odpowiadają i lubią rolę nauczyciela.",
 };
 
 /** Zdanie przykładowe dla słowa albo null. */
