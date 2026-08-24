@@ -93,11 +93,24 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
   const [stage, setStage] = useState<"intro" | "running" | "done">("intro");
   const [mode, setMode] = useState<SessionMode>("parent");
   const [screens, setScreens] = useState<Screen[]>([]);
+  /**
+   * Dwa liczniki zamiast jednego, bo sesję można teraz PRZEGLĄDAĆ wstecz:
+   * `frontier` to pierwszy nieukończony ekran (tylko on jest "na żywo"),
+   * `index` to ekran właśnie oglądany (0..frontier). Wszystko przed frontier
+   * renderuje się jako powtórka — do posłuchania, bez ponownego punktowania.
+   */
+  const [frontier, setFrontier] = useState(0);
   const [index, setIndex] = useState(0);
   const [outcome, setOutcome] = useState<SessionOutcome | null>(null);
   const [pytanieOWyjscie, setPytanieOWyjscie] = useState(false);
 
-  const attemptsRef = useRef<PendingAttempt[]>([]);
+  /**
+   * Wynik per ekran, zapisywany przy PIERWSZEJ odpowiedzi (nie przy przejściu
+   * dalej). Dzięki temu naprawa błędu i cofanie się nie mają wpływu na ocenę:
+   * pierwszy wybór jest ostateczny, a mapa nie przyjmie drugiego wpisu.
+   */
+  const attemptsByIndexRef = useRef(new Map<number, PendingAttempt>());
+  const frontierRef = useRef(0);
   const startedTsRef = useRef(0);
 
   useEffect(() => primeSpeech(), []);
@@ -109,13 +122,23 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
       unlockAudio();
       setMode(chosenMode);
       setScreens(buildScreens(lesson, role));
-      attemptsRef.current = [];
+      attemptsByIndexRef.current = new Map();
+      frontierRef.current = 0;
       startedTsRef.current = Date.now();
+      setFrontier(0);
       setIndex(0);
       setOutcome(null);
       setStage("running");
     },
     [lesson, role],
+  );
+
+  const zebraneProby = useCallback(
+    () =>
+      [...attemptsByIndexRef.current.entries()]
+        .sort(([a], [b]) => a - b)
+        .map(([, attempt]) => attempt),
+    [],
   );
 
   const zapisz = useCallback(
@@ -126,9 +149,9 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
         device: role,
         startedTs: startedTsRef.current,
         endedTs: Date.now(),
-        attempts: attemptsRef.current,
+        attempts: zebraneProby(),
       }),
-    [commitSession, mode, role, sound.id],
+    [commitSession, mode, role, sound.id, zebraneProby],
   );
 
   const finish = useCallback(() => {
@@ -136,19 +159,29 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
     setStage("done");
   }, [zapisz]);
 
-  const handleAttempt = useCallback((attempt: PendingAttempt) => {
-    attemptsRef.current = [...attemptsRef.current, attempt];
-    setIndex((previous) => previous + 1);
+  /** Ocena ekranu — wołane przy pierwszym wyborze; kolejne wpisy się nie liczą. */
+  const onAnswer = useCallback((attempt: PendingAttempt) => {
+    const map = attemptsByIndexRef.current;
+    if (!map.has(frontierRef.current)) map.set(frontierRef.current, attempt);
+  }, []);
+
+  /** Ekran ukończony (dobra odpowiedź albo naprawiony błąd) — idziemy dalej. */
+  const onNext = useCallback(() => {
+    const nastepny = frontierRef.current + 1;
+    frontierRef.current = nastepny;
+    setFrontier(nastepny);
+    setIndex(nastepny);
   }, []);
 
   // Ostatni ekran przerobiony → zamykamy sesję i zapisujemy postęp.
   useEffect(() => {
-    if (stage === "running" && screens.length > 0 && index >= screens.length) {
+    if (stage === "running" && screens.length > 0 && frontier >= screens.length) {
       finish();
     }
-  }, [stage, index, screens.length, finish]);
+  }, [stage, frontier, screens.length, finish]);
 
   const screen = screens[index];
+  const powtorka = index < frontier;
 
   if (stage === "intro") {
     return <IntroScreen sound={sound} lesson={lesson} heroId={lesson.heroId} onStart={start} role={role} />;
@@ -169,9 +202,13 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
     <div className={role === "desktop" ? "grid grid-cols-[1fr_320px] gap-6" : "flex flex-col gap-4"}>
       {pytanieOWyjscie && (
         <InterruptDialog
-          zrobione={index}
+          zrobione={frontier}
           wszystkich={screens.length}
-          ocenianych={attemptsRef.current.filter((attempt) => attempt.correct !== null).length}
+          ocenianych={
+            [...attemptsByIndexRef.current.values()].filter(
+              (attempt) => attempt.correct !== null,
+            ).length
+          }
           onZapisz={zapisz}
           onWroc={() => setPytanieOWyjscie(false)}
         />
@@ -187,36 +224,63 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
             ← Przerwij
           </button>
           <StepDots total={screens.length} current={index} />
-          <span className="font-reading rounded-full bg-white/10 px-3 py-1 text-sm font-bold">
-            {sound.grapheme}
-          </span>
+          <div className="flex items-center gap-2">
+            {/* Cofanie po ukończonych ekranach — powtórka, nie druga próba. */}
+            {index > 0 && (
+              <button
+                type="button"
+                onClick={() => setIndex((previous) => Math.max(0, previous - 1))}
+                aria-label="Poprzedni ekran"
+                title="Wróć do poprzedniego ekranu"
+                className="flex min-h-9 min-w-9 items-center justify-center rounded-full bg-white/10 text-lg"
+              >
+                ↩
+              </button>
+            )}
+            <span className="font-reading rounded-full bg-white/10 px-3 py-1 text-sm font-bold">
+              {sound.grapheme}
+            </span>
+          </div>
         </header>
 
-        {screen?.kind === "listen" && (
+        {powtorka && screen && (
+          <PowtorkaEkranu
+            key={`powtorka-${index}`}
+            screen={screen}
+            sound={sound}
+            attempt={attemptsByIndexRef.current.get(index)}
+            onDalej={() => setIndex((previous) => previous + 1)}
+          />
+        )}
+
+        {!powtorka && screen?.kind === "listen" && (
           <ListenScreen
             key={`listen-${index}`}
             item={screen.item}
             sound={sound}
             mode={mode}
-            onDone={handleAttempt}
+            onAnswer={onAnswer}
+            onNext={onNext}
           />
         )}
-        {screen?.kind === "blend" && (
+        {!powtorka && screen?.kind === "blend" && (
           <BlendScreen
             key={`blend-${index}`}
             card={screen.card}
             sound={sound}
             mode={mode}
-            onDone={handleAttempt}
+            onAnswer={onAnswer}
+            onNext={onNext}
           />
         )}
-        {screen?.kind === "choice" && (
+        {!powtorka && screen?.kind === "choice" && (
           <ChoiceScreen
             key={`choice-${index}`}
             round={screen.round}
             sound={sound}
             mode={mode}
-            onDone={handleAttempt}
+            onAnswer={onAnswer}
+            onNext={onNext}
           />
         )}
       </div>
@@ -324,16 +388,22 @@ function ListenScreen({
   item,
   sound,
   mode,
-  onDone,
+  onAnswer,
+  onNext,
 }: {
   item: ListenItem;
   sound: Sound;
   mode: SessionMode;
-  onDone: (attempt: PendingAttempt) => void;
+  onAnswer: (attempt: PendingAttempt) => void;
+  onNext: () => void;
 }) {
   const [answer, setAnswer] = useState<boolean | null>(null);
+  /** Po błędzie dziecko musi samo stuknąć dobrą odpowiedź — patrz useEffect niżej. */
+  const [naprawione, setNaprawione] = useState(false);
   const [needsTap, setNeedsTap] = useState(false);
   const startRef = useRef(Date.now());
+
+  const correct = answer !== null && answer === item.hasTarget;
 
   useEffect(() => {
     // Gdy przeglądarka zablokuje automatyczne odtworzenie (iOS bez wcześniejszego
@@ -343,28 +413,36 @@ function ListenScreen({
 
   useEffect(() => {
     if (answer === null) return;
-    const correct = answer === item.hasTarget;
     playFeedbackTone(correct ? "good" : "try-again");
-    if (!correct) void playWord(item.word);
+    if (correct) {
+      const timer = setTimeout(onNext, 1100);
+      return () => clearTimeout(timer);
+    }
+    // Po błędzie NIE idziemy dalej sami: słowo gra jeszcze raz, wyjaśnienie
+    // zostaje na ekranie, a przejście wymaga stuknięcia poprawnej odpowiedzi.
+    // Ostatni ruch dziecka ma być tym właściwym (jak w RWI: pokaz → powtórka),
+    // a bierna pauza tego nie gwarantowała — dało się ją po prostu przeczekać.
+    void playWord(item.word);
+  }, [answer, correct, item.word, onNext]);
 
-    // Po błędzie dłuższa pauza: słowo gra jeszcze raz, a dziecko ma zdążyć
-    // je usłyszeć ZANIM ekran zniknie. 2 sekundy było za mało.
-    const timer = setTimeout(
-      () =>
-        onDone({
-          ts: Date.now(),
-          soundId: sound.id,
-          exercise: "listen",
-          item: item.word,
-          correct,
-          responseMs: Date.now() - startRef.current,
-        }),
-      correct ? 1100 : 3200,
-    );
+  useEffect(() => {
+    if (!naprawione) return;
+    playFeedbackTone("good");
+    const timer = setTimeout(onNext, 900);
     return () => clearTimeout(timer);
-  }, [answer, item, sound.id, onDone]);
+  }, [naprawione, onNext]);
 
-  const correct = answer !== null && answer === item.hasTarget;
+  function pick(choice: boolean) {
+    setAnswer(choice);
+    onAnswer({
+      ts: Date.now(),
+      soundId: sound.id,
+      exercise: "listen",
+      item: item.word,
+      correct: choice === item.hasTarget,
+      responseMs: Date.now() - startRef.current,
+    });
+  }
 
   return (
     <Card className="no-select flex flex-col items-center gap-5 text-center">
@@ -386,16 +464,18 @@ function ListenScreen({
 
       {answer === null ? (
         <div className="flex w-full max-w-md gap-3">
-          <BigButton tone="yes" onClick={() => setAnswer(true)} full>
+          <BigButton tone="yes" onClick={() => pick(true)} full>
             TAK
           </BigButton>
-          <BigButton tone="no" onClick={() => setAnswer(false)} full>
+          <BigButton tone="no" onClick={() => pick(false)} full>
             NIE
           </BigButton>
         </div>
       ) : (
-        <div className="animate-pop-in flex flex-col items-center gap-1">
-          <p className="text-3xl font-black">{correct ? "🎉 Tak jest!" : "🙂 Posłuchaj jeszcze raz"}</p>
+        <div className="animate-pop-in flex flex-col items-center gap-2">
+          <p className="text-3xl font-black">
+            {correct || naprawione ? "🎉 Tak jest!" : "🙂 Posłuchaj jeszcze raz"}
+          </p>
           <p className="text-xl font-bold text-hero-cyan">
             <span className="font-reading">{item.word}</span> — {item.pl}
           </p>
@@ -404,6 +484,18 @@ function ListenScreen({
               ? `W tym słowie SŁYCHAĆ „${sound.grapheme}”.`
               : `W tym słowie NIE SŁYCHAĆ „${sound.grapheme}”.`}
           </p>
+          {!correct && !naprawione && (
+            <div className="mt-2 flex w-full max-w-md flex-col items-center gap-2">
+              <div className="animate-pulse-ring rounded-blob">
+                <BigButton tone="yes" onClick={() => setNaprawione(true)} full>
+                  {item.hasTarget ? "TAK — słychać!" : "NIE — nie słychać"}
+                </BigButton>
+              </div>
+              <p className="text-xs text-paper/60">
+                Stuknij dobrą odpowiedź, żeby iść dalej.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -422,12 +514,14 @@ function BlendScreen({
   card,
   sound,
   mode,
-  onDone,
+  onAnswer,
+  onNext,
 }: {
   card: WordCard;
   sound: Sound;
   mode: SessionMode;
-  onDone: (attempt: PendingAttempt) => void;
+  onAnswer: (attempt: PendingAttempt) => void;
+  onNext: () => void;
 }) {
   const [tapped, setTapped] = useState<number[]>([]);
   const [revealed, setRevealed] = useState(false);
@@ -436,8 +530,10 @@ function BlendScreen({
 
   const allTapped = tapped.length === card.graphemes.length;
 
+  // Czytanie na głos ocenia rodzic, więc bramki naprawy tu nie ma — korekta
+  // dzieje się w rozmowie, nie na ekranie.
   function report(correct: boolean | null) {
-    onDone({
+    onAnswer({
       ts: Date.now(),
       soundId: sound.id,
       exercise: "blend",
@@ -445,6 +541,7 @@ function BlendScreen({
       correct,
       responseMs: Date.now() - startRef.current,
     });
+    onNext();
   }
 
   return (
@@ -537,18 +634,23 @@ function ChoiceScreen({
   round,
   sound,
   mode,
-  onDone,
+  onAnswer,
+  onNext,
 }: {
   round: ChoiceRound;
   sound: Sound;
   mode: SessionMode;
-  onDone: (attempt: PendingAttempt) => void;
+  onAnswer: (attempt: PendingAttempt) => void;
+  onNext: () => void;
 }) {
   const [picked, setPicked] = useState<string | null>(null);
+  const [naprawione, setNaprawione] = useState(false);
   const [needsTap, setNeedsTap] = useState(false);
   const startRef = useRef(Date.now());
 
   const options = useMemo(() => round.options, [round]);
+  const correct = picked !== null && picked === round.answer;
+  const wNaprawie = picked !== null && !correct && !naprawione;
 
   useEffect(() => {
     void playWord(round.answer).then((result) =>
@@ -558,26 +660,36 @@ function ChoiceScreen({
 
   useEffect(() => {
     if (picked === null) return;
-    const correct = picked === round.answer;
     playFeedbackTone(correct ? "good" : "try-again");
-    // Po błędzie: słowo jeszcze raz, przy podświetlonej poprawnej odpowiedzi —
-    // dziecko łączy dźwięk z właściwym zapisem, a nie tylko widzi "źle".
-    if (!correct) void playWord(round.answer);
+    if (correct) {
+      const timer = setTimeout(onNext, 1100);
+      return () => clearTimeout(timer);
+    }
+    // Po błędzie: słowo gra jeszcze raz przy podświetlonym poprawnym zapisie,
+    // a dalej idzie się dopiero PO STUKNIĘCIU tego zapisu. Dziecko ma wykonać
+    // poprawny ruch, nie obejrzeć go — bierne 3 sekundy dało się przeczekać
+    // bez patrzenia na ekran.
+    void playWord(round.answer);
+  }, [picked, correct, round.answer, onNext]);
 
-    const timer = setTimeout(
-      () =>
-        onDone({
-          ts: Date.now(),
-          soundId: sound.id,
-          exercise: "choice",
-          item: round.answer,
-          correct,
-          responseMs: Date.now() - startRef.current,
-        }),
-      correct ? 1100 : 3200,
-    );
+  useEffect(() => {
+    if (!naprawione) return;
+    playFeedbackTone("good");
+    const timer = setTimeout(onNext, 900);
     return () => clearTimeout(timer);
-  }, [picked, round, sound.id, onDone]);
+  }, [naprawione, onNext]);
+
+  function pick(option: string) {
+    setPicked(option);
+    onAnswer({
+      ts: Date.now(),
+      soundId: sound.id,
+      exercise: "choice",
+      item: round.answer,
+      correct: option === round.answer,
+      responseMs: Date.now() - startRef.current,
+    });
+  }
 
   return (
     <Card className="no-select flex flex-col items-center gap-5 text-center">
@@ -607,13 +719,14 @@ function ChoiceScreen({
             <button
               key={option}
               type="button"
-              disabled={picked !== null}
-              onClick={() => setPicked(option)}
+              // W naprawie klikalna jest wyłącznie poprawna odpowiedź.
+              disabled={picked !== null && !(wNaprawie && isAnswer)}
+              onClick={() => (wNaprawie ? setNaprawione(true) : pick(option))}
               className={`font-reading rounded-blob px-4 py-6 text-3xl font-black transition active:translate-y-1 ${
                 state === "idle"
                   ? "bg-white/15 text-paper shadow-[0_6px_0_rgba(0,0,0,0.3)]"
                   : state === "correct"
-                    ? "bg-hero-lime text-night"
+                    ? `bg-hero-lime text-night ${wNaprawie ? "animate-pulse-ring" : ""}`
                     : state === "wrong"
                       ? "bg-hero-pink text-night"
                       : "bg-white/5 text-paper/40"
@@ -624,6 +737,12 @@ function ChoiceScreen({
           );
         })}
       </div>
+
+      {wNaprawie && (
+        <p className="text-sm font-bold text-hero-gold">
+          👆 Posłuchaj i stuknij dobre słowo, żeby iść dalej.
+        </p>
+      )}
 
       {picked !== null && (
         <div className="animate-pop-in flex flex-col items-center gap-1">
@@ -794,5 +913,109 @@ function RewardScreen({
         wycisz muzykę
       </button>
     </div>
+  );
+}
+
+// --- Powtórka ukończonego ekranu --------------------------------------------
+
+/**
+ * Widok ekranu, który już był — wejście strzałką ↩ w nagłówku sesji.
+ *
+ * To świadomie POWTÓRKA, a nie druga próba: wynik zapadł przy pierwszej
+ * odpowiedzi i cofanie go nie zmienia (inaczej dałoby się wymazywać błędy,
+ * a reguły adaptacji straciłyby dane, na których pracują). Za to wszystko,
+ * co dźwiękowe, jest tu klikalne — po to się dziecko cofa: jeszcze raz
+ * usłyszeć słowo albo postukać w literki.
+ */
+function PowtorkaEkranu({
+  screen,
+  sound,
+  attempt,
+  onDalej,
+}: {
+  screen: Screen;
+  sound: Sound;
+  attempt: PendingAttempt | undefined;
+  onDalej: () => void;
+}) {
+  const wynik =
+    attempt === undefined || attempt.correct === null
+      ? null
+      : attempt.correct
+        ? ("dobrze" as const)
+        : ("do-powtorki" as const);
+
+  return (
+    <Card className="no-select flex flex-col items-center gap-5 text-center">
+      <div className="flex items-center gap-2 text-sm font-bold text-paper/60">
+        <span className="rounded-full bg-white/10 px-3 py-1">↩ Powtórka — to już było</span>
+        {wynik === "dobrze" && (
+          <span className="rounded-full bg-hero-lime/20 px-3 py-1 text-hero-lime">✓ dobrze</span>
+        )}
+        {wynik === "do-powtorki" && (
+          <span className="rounded-full bg-hero-gold/20 px-3 py-1 text-hero-gold">
+            🙂 warto poćwiczyć
+          </span>
+        )}
+      </div>
+
+      {screen.kind === "listen" && (
+        <>
+          <div className="text-8xl" aria-hidden>
+            {screen.item.emoji}
+          </div>
+          <p className="text-xl font-bold text-hero-cyan">
+            <span className="font-reading">{screen.item.word}</span> — {screen.item.pl}
+          </p>
+          <WordSpeaker word={screen.item.word} label="Posłuchaj" size="lg" />
+          <p className="text-sm text-paper/70">
+            {screen.item.hasTarget
+              ? `W tym słowie SŁYCHAĆ „${sound.grapheme}”.`
+              : `W tym słowie NIE SŁYCHAĆ „${sound.grapheme}”.`}
+          </p>
+        </>
+      )}
+
+      {screen.kind === "blend" && (
+        <>
+          <div className="flex flex-wrap justify-center gap-3">
+            {screen.card.graphemes.map((grapheme, position) => (
+              <button
+                key={`${grapheme}-${position}`}
+                type="button"
+                onClick={() => void playPhonemeStrict(chipSoundId(grapheme, sound.id))}
+                className={`font-reading min-w-20 rounded-2xl px-5 py-4 text-4xl font-black transition active:translate-y-1 ${
+                  position === screen.card.targetIndex
+                    ? "bg-hero-gold text-night shadow-[0_6px_0_#c99a1f]"
+                    : "bg-white/15 text-paper shadow-[0_6px_0_rgba(0,0,0,0.3)]"
+                }`}
+              >
+                {grapheme}
+              </button>
+            ))}
+          </div>
+          <div className="text-6xl" aria-hidden>
+            {screen.card.emoji}
+          </div>
+          <p className="text-xl font-bold text-hero-cyan">
+            <span className="font-reading">{screen.card.word}</span> — {screen.card.pl}
+          </p>
+          <WordSpeaker word={screen.card.word} label="Całe słowo" />
+        </>
+      )}
+
+      {screen.kind === "choice" && (
+        <>
+          <div className="text-7xl" aria-hidden>
+            {screen.round.emoji}
+          </div>
+          <p className="font-reading text-4xl font-black">{screen.round.answer}</p>
+          <p className="text-xl text-hero-cyan">{screen.round.pl}</p>
+          <WordSpeaker word={screen.round.answer} label="Posłuchaj" size="lg" />
+        </>
+      )}
+
+      <BigButton onClick={onDalej}>Dalej ▸</BigButton>
+    </Card>
   );
 }

@@ -177,11 +177,19 @@ export function VocabRunner({ topic }: { topic: Topic }) {
   const [stage, setStage] = useState<"intro" | "running" | "done">("intro");
   const [mode, setMode] = useState<SessionMode>("parent");
   const [screens, setScreens] = useState<Screen[]>([]);
+  /**
+   * Jak w torze 1: `frontier` to pierwszy nieukończony ekran (jedyny „na
+   * żywo"), `index` to ekran oglądany (0..frontier) — wszystko wcześniejsze
+   * renderuje się jako powtórka, do posłuchania, bez ponownego punktowania.
+   */
+  const [frontier, setFrontier] = useState(0);
   const [index, setIndex] = useState(0);
   const [outcome, setOutcome] = useState<SessionOutcome | null>(null);
   const [pytanieOWyjscie, setPytanieOWyjscie] = useState(false);
 
-  const attemptsRef = useRef<PendingAttempt[]>([]);
+  /** Wynik per ekran, zapisany przy PIERWSZEJ odpowiedzi — patrz tor 1. */
+  const attemptsByIndexRef = useRef(new Map<number, PendingAttempt>());
+  const frontierRef = useRef(0);
   const startedTsRef = useRef(0);
 
   useEffect(() => primeSpeech(), []);
@@ -193,8 +201,10 @@ export function VocabRunner({ topic }: { topic: Topic }) {
       unlockAudio();
       setMode(chosenMode);
       setScreens(buildScreens(topic, role));
-      attemptsRef.current = [];
+      attemptsByIndexRef.current = new Map();
+      frontierRef.current = 0;
       startedTsRef.current = Date.now();
+      setFrontier(0);
       setIndex(0);
       setOutcome(null);
       setStage("running");
@@ -211,7 +221,9 @@ export function VocabRunner({ topic }: { topic: Topic }) {
         device: role,
         startedTs: startedTsRef.current,
         endedTs: Date.now(),
-        attempts: attemptsRef.current,
+        attempts: [...attemptsByIndexRef.current.entries()]
+          .sort(([a], [b]) => a - b)
+          .map(([, attempt]) => attempt),
       }),
     [commitSession, mode, role, topic.id],
   );
@@ -221,19 +233,28 @@ export function VocabRunner({ topic }: { topic: Topic }) {
     setStage("done");
   }, [zapisz]);
 
-  /** Ekran bez oceny (np. poznanie słowa) woła to bez próby. */
-  const next = useCallback((attempt?: PendingAttempt) => {
-    if (attempt) attemptsRef.current = [...attemptsRef.current, attempt];
-    setIndex((previous) => previous + 1);
+  /** Ocena ekranu — pierwszy wybór jest ostateczny, kolejne wpisy się nie liczą. */
+  const onAnswer = useCallback((attempt: PendingAttempt) => {
+    const map = attemptsByIndexRef.current;
+    if (!map.has(frontierRef.current)) map.set(frontierRef.current, attempt);
+  }, []);
+
+  /** Ekran ukończony — dalej. Ekrany bez oceny (poznanie słowa) wołają tylko to. */
+  const onNext = useCallback(() => {
+    const nastepny = frontierRef.current + 1;
+    frontierRef.current = nastepny;
+    setFrontier(nastepny);
+    setIndex(nastepny);
   }, []);
 
   useEffect(() => {
-    if (stage === "running" && screens.length > 0 && index >= screens.length) {
+    if (stage === "running" && screens.length > 0 && frontier >= screens.length) {
       finish();
     }
-  }, [stage, index, screens.length, finish]);
+  }, [stage, frontier, screens.length, finish]);
 
   const screen = screens[index];
+  const powtorka = index < frontier;
 
   if (stage === "intro") {
     return <IntroScreen topic={topic} onStart={start} role={role} />;
@@ -254,9 +275,13 @@ export function VocabRunner({ topic }: { topic: Topic }) {
     <div className={role === "desktop" ? "grid grid-cols-[1fr_320px] gap-6" : "flex flex-col gap-4"}>
       {pytanieOWyjscie && (
         <InterruptDialog
-          zrobione={index}
+          zrobione={frontier}
           wszystkich={screens.length}
-          ocenianych={attemptsRef.current.filter((attempt) => attempt.correct !== null).length}
+          ocenianych={
+            [...attemptsByIndexRef.current.values()].filter(
+              (attempt) => attempt.correct !== null,
+            ).length
+          }
           onZapisz={zapisz}
           onWroc={() => setPytanieOWyjscie(false)}
         />
@@ -272,59 +297,87 @@ export function VocabRunner({ topic }: { topic: Topic }) {
             ← Przerwij
           </button>
           <StepDots total={screens.length} current={index} />
-          <span className="rounded-full bg-white/10 px-3 py-1 text-sm font-bold">
-            <span aria-hidden>{topic.emoji}</span> {topic.titlePl}
-          </span>
+          <div className="flex items-center gap-2">
+            {/* Cofanie po ukończonych ekranach — powtórka, nie druga próba. */}
+            {index > 0 && (
+              <button
+                type="button"
+                onClick={() => setIndex((previous) => Math.max(0, previous - 1))}
+                aria-label="Poprzedni ekran"
+                title="Wróć do poprzedniego ekranu"
+                className="flex min-h-9 min-w-9 items-center justify-center rounded-full bg-white/10 text-lg"
+              >
+                ↩
+              </button>
+            )}
+            <span className="rounded-full bg-white/10 px-3 py-1 text-sm font-bold">
+              <span aria-hidden>{topic.emoji}</span> {topic.titlePl}
+            </span>
+          </div>
         </header>
 
-        {screen?.kind === "meet" && (
-          <MeetScreen key={`meet-${index}`} word={screen.word} onNext={() => next()} />
+        {powtorka && screen && (
+          <PowtorkaEkranu
+            key={`powtorka-${index}`}
+            screen={screen}
+            attempt={attemptsByIndexRef.current.get(index)}
+            onDalej={() => setIndex((previous) => previous + 1)}
+          />
         )}
-        {screen?.kind === "vocab" && (
+
+        {!powtorka && screen?.kind === "meet" && (
+          <MeetScreen key={`meet-${index}`} word={screen.word} onNext={onNext} />
+        )}
+        {!powtorka && screen?.kind === "vocab" && (
           <VocabScreen
             key={`vocab-${index}`}
             word={screen.word}
             options={screen.options}
             topicId={topic.id}
-            onDone={next}
+            onAnswer={onAnswer}
+            onNext={onNext}
           />
         )}
-        {screen?.kind === "phrase" && (
+        {!powtorka && screen?.kind === "phrase" && (
           <PhraseScreen
             key={`phrase-${index}`}
             phrase={screen.phrase}
             options={screen.options}
             topicId={topic.id}
             mode={mode}
-            onDone={next}
+            onAnswer={onAnswer}
+            onNext={onNext}
           />
         )}
-        {screen?.kind === "command" && (
+        {!powtorka && screen?.kind === "command" && (
           <CommandScreen
             key={`command-${index}`}
             command={screen.command}
             options={screen.options}
             topicId={topic.id}
-            onDone={next}
+            onAnswer={onAnswer}
+            onNext={onNext}
           />
         )}
-        {screen?.kind === "collocation" && (
+        {!powtorka && screen?.kind === "collocation" && (
           <CollocationScreen
             key={`collocation-${index}`}
             collocation={screen.collocation}
             options={screen.options}
             topicId={topic.id}
             mode={mode}
-            onDone={next}
+            onAnswer={onAnswer}
+            onNext={onNext}
           />
         )}
-        {screen?.kind === "say" && (
+        {!powtorka && screen?.kind === "say" && (
           <SayScreen
             key={`say-${index}`}
             phrase={screen.phrase}
             topicId={topic.id}
             mode={mode}
-            onDone={next}
+            onAnswer={onAnswer}
+            onNext={onNext}
           />
         )}
       </div>
@@ -447,16 +500,22 @@ function VocabScreen({
   word,
   options,
   topicId,
-  onDone,
+  onAnswer,
+  onNext,
 }: {
   word: VocabWord;
   options: VocabWord[];
   topicId: string;
-  onDone: (attempt: PendingAttempt) => void;
+  onAnswer: (attempt: PendingAttempt) => void;
+  onNext: () => void;
 }) {
   const [picked, setPicked] = useState<string | null>(null);
+  const [naprawione, setNaprawione] = useState(false);
   const [needsTap, setNeedsTap] = useState(false);
   const startRef = useRef(Date.now());
+
+  const correct = picked !== null && picked === word.en;
+  const wNaprawie = picked !== null && !correct && !naprawione;
 
   useEffect(() => {
     void playWord(word.en).then((result) => setNeedsTap(result.source === "unavailable"));
@@ -464,24 +523,34 @@ function VocabScreen({
 
   useEffect(() => {
     if (picked === null) return;
-    const correct = picked === word.en;
     playFeedbackTone(correct ? "good" : "try-again");
-    if (!correct) void playWord(word.en);
+    if (correct) {
+      const timer = setTimeout(onNext, 1100);
+      return () => clearTimeout(timer);
+    }
+    // Po błędzie dalej idzie się dopiero po stuknięciu dobrej odpowiedzi —
+    // dziecko ma ją wykonać, nie przeczekać. Punktuje się pierwszy wybór.
+    void playWord(word.en);
+  }, [picked, correct, word.en, onNext]);
 
-    const timer = setTimeout(
-      () =>
-        onDone({
-          ts: Date.now(),
-          soundId: topicId,
-          exercise: "vocab",
-          item: word.en,
-          correct,
-          responseMs: Date.now() - startRef.current,
-        }),
-      correct ? 1100 : 3200,
-    );
+  useEffect(() => {
+    if (!naprawione) return;
+    playFeedbackTone("good");
+    const timer = setTimeout(onNext, 900);
     return () => clearTimeout(timer);
-  }, [picked, word, topicId, onDone]);
+  }, [naprawione, onNext]);
+
+  function pick(option: string) {
+    setPicked(option);
+    onAnswer({
+      ts: Date.now(),
+      soundId: topicId,
+      exercise: "vocab",
+      item: word.en,
+      correct: option === word.en,
+      responseMs: Date.now() - startRef.current,
+    });
+  }
 
   return (
     <Card className="no-select flex flex-col items-center gap-5 text-center">
@@ -505,13 +574,13 @@ function VocabScreen({
             <button
               key={option.en}
               type="button"
-              disabled={picked !== null}
-              onClick={() => setPicked(option.en)}
+              disabled={picked !== null && !(wNaprawie && isAnswer)}
+              onClick={() => (wNaprawie ? setNaprawione(true) : pick(option.en))}
               className={`flex flex-col items-center gap-1 rounded-blob px-4 py-5 transition active:translate-y-1 ${
                 state === "idle"
                   ? "bg-white/15 text-paper shadow-[0_6px_0_rgba(0,0,0,0.3)]"
                   : state === "correct"
-                    ? "bg-hero-lime text-night"
+                    ? `bg-hero-lime text-night ${wNaprawie ? "animate-pulse-ring" : ""}`
                     : state === "wrong"
                       ? "bg-hero-pink text-night"
                       : "bg-white/5 text-paper/40"
@@ -525,6 +594,12 @@ function VocabScreen({
           );
         })}
       </div>
+
+      {wNaprawie && (
+        <p className="text-sm font-bold text-hero-gold">
+          👆 Posłuchaj i stuknij dobry obrazek, żeby iść dalej.
+        </p>
+      )}
 
       {picked !== null && (
         <p className="animate-pop-in text-xl font-bold text-hero-cyan">
@@ -542,16 +617,22 @@ function PhraseScreen({
   options,
   topicId,
   mode,
-  onDone,
+  onAnswer,
+  onNext,
 }: {
   phrase: Phrase;
   options: Phrase[];
   topicId: string;
   mode: SessionMode;
-  onDone: (attempt: PendingAttempt) => void;
+  onAnswer: (attempt: PendingAttempt) => void;
+  onNext: () => void;
 }) {
   const [picked, setPicked] = useState<string | null>(null);
+  const [naprawione, setNaprawione] = useState(false);
   const startRef = useRef(Date.now());
+
+  const correct = picked !== null && picked === phrase.en;
+  const wNaprawie = picked !== null && !correct && !naprawione;
 
   useEffect(() => {
     void playPhrase(phrase.en);
@@ -559,24 +640,32 @@ function PhraseScreen({
 
   useEffect(() => {
     if (picked === null) return;
-    const correct = picked === phrase.en;
     playFeedbackTone(correct ? "good" : "try-again");
-    if (!correct) void playPhrase(phrase.en);
+    if (correct) {
+      const timer = setTimeout(onNext, 1200);
+      return () => clearTimeout(timer);
+    }
+    void playPhrase(phrase.en);
+  }, [picked, correct, phrase.en, onNext]);
 
-    const timer = setTimeout(
-      () =>
-        onDone({
-          ts: Date.now(),
-          soundId: topicId,
-          exercise: "phrase",
-          item: phrase.en,
-          correct,
-          responseMs: Date.now() - startRef.current,
-        }),
-      correct ? 1200 : 3600,
-    );
+  useEffect(() => {
+    if (!naprawione) return;
+    playFeedbackTone("good");
+    const timer = setTimeout(onNext, 900);
     return () => clearTimeout(timer);
-  }, [picked, phrase, topicId, onDone]);
+  }, [naprawione, onNext]);
+
+  function pick(option: string) {
+    setPicked(option);
+    onAnswer({
+      ts: Date.now(),
+      soundId: topicId,
+      exercise: "phrase",
+      item: phrase.en,
+      correct: option === phrase.en,
+      responseMs: Date.now() - startRef.current,
+    });
+  }
 
   return (
     <Card className="no-select flex flex-col items-center gap-5 text-center">
@@ -592,13 +681,13 @@ function PhraseScreen({
             <button
               key={option.en}
               type="button"
-              disabled={picked !== null}
-              onClick={() => setPicked(option.en)}
+              disabled={picked !== null && !(wNaprawie && isAnswer)}
+              onClick={() => (wNaprawie ? setNaprawione(true) : pick(option.en))}
               className={`flex items-center gap-4 rounded-blob px-5 py-4 text-left transition active:translate-y-1 ${
                 state === "idle"
                   ? "bg-white/15 text-paper shadow-[0_6px_0_rgba(0,0,0,0.3)]"
                   : state === "correct"
-                    ? "bg-hero-lime text-night"
+                    ? `bg-hero-lime text-night ${wNaprawie ? "animate-pulse-ring" : ""}`
                     : state === "wrong"
                       ? "bg-hero-pink text-night"
                       : "bg-white/5 text-paper/40"
@@ -612,6 +701,12 @@ function PhraseScreen({
           );
         })}
       </div>
+
+      {wNaprawie && (
+        <p className="text-sm font-bold text-hero-gold">
+          👆 Posłuchaj i stuknij dobrą sytuację, żeby iść dalej.
+        </p>
+      )}
 
       {picked !== null && (
         <p className="animate-pop-in text-lg text-hero-cyan">
@@ -634,15 +729,21 @@ function CommandScreen({
   command,
   options,
   topicId,
-  onDone,
+  onAnswer,
+  onNext,
 }: {
   command: Command;
   options: Command[];
   topicId: string;
-  onDone: (attempt: PendingAttempt) => void;
+  onAnswer: (attempt: PendingAttempt) => void;
+  onNext: () => void;
 }) {
   const [picked, setPicked] = useState<string | null>(null);
+  const [naprawione, setNaprawione] = useState(false);
   const startRef = useRef(Date.now());
+
+  const correct = picked !== null && picked === command.en;
+  const wNaprawie = picked !== null && !correct && !naprawione;
 
   useEffect(() => {
     void playPhrase(command.en);
@@ -650,24 +751,32 @@ function CommandScreen({
 
   useEffect(() => {
     if (picked === null) return;
-    const correct = picked === command.en;
     playFeedbackTone(correct ? "good" : "try-again");
-    if (!correct) void playPhrase(command.en);
+    if (correct) {
+      const timer = setTimeout(onNext, 1200);
+      return () => clearTimeout(timer);
+    }
+    void playPhrase(command.en);
+  }, [picked, correct, command.en, onNext]);
 
-    const timer = setTimeout(
-      () =>
-        onDone({
-          ts: Date.now(),
-          soundId: topicId,
-          exercise: "command",
-          item: command.en,
-          correct,
-          responseMs: Date.now() - startRef.current,
-        }),
-      correct ? 1200 : 3600,
-    );
+  useEffect(() => {
+    if (!naprawione) return;
+    playFeedbackTone("good");
+    const timer = setTimeout(onNext, 900);
     return () => clearTimeout(timer);
-  }, [picked, command, topicId, onDone]);
+  }, [naprawione, onNext]);
+
+  function pick(option: string) {
+    setPicked(option);
+    onAnswer({
+      ts: Date.now(),
+      soundId: topicId,
+      exercise: "command",
+      item: command.en,
+      correct: option === command.en,
+      responseMs: Date.now() - startRef.current,
+    });
+  }
 
   return (
     <Card className="no-select flex flex-col items-center gap-5 text-center">
@@ -683,13 +792,13 @@ function CommandScreen({
             <button
               key={option.en}
               type="button"
-              disabled={picked !== null}
-              onClick={() => setPicked(option.en)}
+              disabled={picked !== null && !(wNaprawie && isAnswer)}
+              onClick={() => (wNaprawie ? setNaprawione(true) : pick(option.en))}
               className={`flex items-center gap-4 rounded-blob px-5 py-4 text-left transition active:translate-y-1 ${
                 state === "idle"
                   ? "bg-white/15 text-paper shadow-[0_6px_0_rgba(0,0,0,0.3)]"
                   : state === "correct"
-                    ? "bg-hero-lime text-night"
+                    ? `bg-hero-lime text-night ${wNaprawie ? "animate-pulse-ring" : ""}`
                     : state === "wrong"
                       ? "bg-hero-pink text-night"
                       : "bg-white/5 text-paper/40"
@@ -703,6 +812,12 @@ function CommandScreen({
           );
         })}
       </div>
+
+      {wNaprawie && (
+        <p className="text-sm font-bold text-hero-gold">
+          👆 Posłuchaj i stuknij, co trzeba zrobić, żeby iść dalej.
+        </p>
+      )}
 
       {picked !== null && (
         <p className="animate-pop-in text-lg text-hero-cyan">
@@ -724,39 +839,56 @@ function CollocationScreen({
   options,
   topicId,
   mode,
-  onDone,
+  onAnswer,
+  onNext,
 }: {
   collocation: Collocation;
   options: string[];
   topicId: string;
   mode: SessionMode;
-  onDone: (attempt: PendingAttempt) => void;
+  onAnswer: (attempt: PendingAttempt) => void;
+  onNext: () => void;
 }) {
   const [picked, setPicked] = useState<string | null>(null);
+  const [naprawione, setNaprawione] = useState(false);
   const startRef = useRef(Date.now());
+
+  const correct = picked !== null && picked === collocation.answer;
+  const wNaprawie = picked !== null && !correct && !naprawione;
 
   useEffect(() => {
     if (picked === null) return;
-    const correct = picked === collocation.answer;
     playFeedbackTone(correct ? "good" : "try-again");
     // Ostatnie, co dziecko słyszy, ma być POPRAWNĄ całością — także po błędzie.
     // Odtworzenie samego wybranego słowa utrwalałoby kalkę.
     void playPhrase(collocation.en);
+    if (correct) {
+      const timer = setTimeout(onNext, 1600);
+      return () => clearTimeout(timer);
+    }
+  }, [picked, correct, collocation.en, onNext]);
 
-    const timer = setTimeout(
-      () =>
-        onDone({
-          ts: Date.now(),
-          soundId: topicId,
-          exercise: "collocation",
-          item: collocation.en,
-          correct,
-          responseMs: Date.now() - startRef.current,
-        }),
-      correct ? 1600 : 3800,
-    );
+  useEffect(() => {
+    if (!naprawione) return;
+    playFeedbackTone("good");
+    // Naprawa = stuknięcie dobrego słowa; całość gra jeszcze raz, żeby klocek
+    // wszedł do ucha w komplecie.
+    void playPhrase(collocation.en);
+    const timer = setTimeout(onNext, 1600);
     return () => clearTimeout(timer);
-  }, [picked, collocation, topicId, onDone]);
+  }, [naprawione, collocation.en, onNext]);
+
+  function pick(option: string) {
+    setPicked(option);
+    onAnswer({
+      ts: Date.now(),
+      soundId: topicId,
+      exercise: "collocation",
+      item: collocation.en,
+      correct: option === collocation.answer,
+      responseMs: Date.now() - startRef.current,
+    });
+  }
 
   const [before, after] = collocation.gap.split("___");
 
@@ -789,16 +921,16 @@ function CollocationScreen({
             <button
               key={option}
               type="button"
-              disabled={picked !== null}
+              disabled={picked !== null && !(wNaprawie && isAnswer)}
               // Celowo bez odtwarzania stukniętego słowa: i tak przerwałoby je
               // pełne wyrażenie z efektu (jeden współdzielony element audio),
               // a po błędzie ostatnie, co słychać, ma być poprawną całością.
-              onClick={() => setPicked(option)}
+              onClick={() => (wNaprawie ? setNaprawione(true) : pick(option))}
               className={`font-reading rounded-blob px-4 py-6 text-3xl font-black transition active:translate-y-1 ${
                 state === "idle"
                   ? "bg-white/15 text-paper shadow-[0_6px_0_rgba(0,0,0,0.3)]"
                   : state === "correct"
-                    ? "bg-hero-lime text-night"
+                    ? `bg-hero-lime text-night ${wNaprawie ? "animate-pulse-ring" : ""}`
                     : state === "wrong"
                       ? "bg-hero-pink text-night"
                       : "bg-white/5 text-paper/40"
@@ -809,6 +941,12 @@ function CollocationScreen({
           );
         })}
       </div>
+
+      {wNaprawie && (
+        <p className="text-sm font-bold text-hero-gold">
+          👆 Stuknij słowo, które pasuje, żeby iść dalej.
+        </p>
+      )}
 
       {mode === "parent" && picked !== null && collocation.whyPl && (
         <p className="max-w-md rounded-2xl border border-hero-cyan/40 bg-hero-cyan/10 p-3 text-xs text-paper/85">
@@ -826,12 +964,14 @@ function SayScreen({
   phrase,
   topicId,
   mode,
-  onDone,
+  onAnswer,
+  onNext,
 }: {
   phrase: Phrase;
   topicId: string;
   mode: SessionMode;
-  onDone: (attempt: PendingAttempt) => void;
+  onAnswer: (attempt: PendingAttempt) => void;
+  onNext: () => void;
 }) {
   const startRef = useRef(Date.now());
 
@@ -839,8 +979,10 @@ function SayScreen({
     void playPhrase(phrase.en);
   }, [phrase.en]);
 
+  // Mówienie ocenia rodzic — bramki naprawy nie ma, korekta dzieje się w
+  // rozmowie ("posłuchaj i powtórz"), nie na ekranie.
   function report(correct: boolean | null) {
-    onDone({
+    onAnswer({
       ts: Date.now(),
       soundId: topicId,
       exercise: "say",
@@ -848,6 +990,7 @@ function SayScreen({
       correct,
       responseMs: Date.now() - startRef.current,
     });
+    onNext();
   }
 
   return (
@@ -995,5 +1138,102 @@ function RewardScreen({
         wycisz muzykę
       </button>
     </div>
+  );
+}
+
+// --- Powtórka ukończonego ekranu --------------------------------------------
+
+/**
+ * Widok ekranu, który już był — wejście strzałką ↩ w nagłówku sesji.
+ * Zasada jak w torze 1: powtórka, nie druga próba. Wynik zapadł przy pierwszej
+ * odpowiedzi; tutaj wszystko da się jeszcze raz USŁYSZEĆ, niczego nie da się
+ * przepunktować.
+ */
+function PowtorkaEkranu({
+  screen,
+  attempt,
+  onDalej,
+}: {
+  screen: Screen;
+  attempt: PendingAttempt | undefined;
+  onDalej: () => void;
+}) {
+  const wynik =
+    attempt === undefined || attempt.correct === null
+      ? null
+      : attempt.correct
+        ? ("dobrze" as const)
+        : ("do-powtorki" as const);
+
+  const tresc = (() => {
+    switch (screen.kind) {
+      case "meet":
+      case "vocab":
+        return {
+          emoji: screen.word.emoji,
+          en: screen.word.en,
+          pl: screen.word.pl,
+          audio: <WordSpeaker word={screen.word.en} label="Posłuchaj" size="lg" />,
+          opis: null,
+        };
+      case "phrase":
+      case "say":
+        return {
+          emoji: screen.phrase.emoji,
+          en: screen.phrase.en,
+          pl: screen.phrase.pl,
+          audio: <PhraseSpeaker text={screen.phrase.en} label="Posłuchaj" size="lg" showText={false} />,
+          opis: screen.phrase.situationPl,
+        };
+      case "command":
+        return {
+          emoji: screen.command.emoji,
+          en: screen.command.en,
+          pl: screen.command.pl,
+          audio: <PhraseSpeaker text={screen.command.en} label="Posłuchaj" size="lg" showText={false} />,
+          opis: screen.command.actionPl,
+        };
+      case "collocation":
+        return {
+          emoji: screen.collocation.emoji,
+          en: screen.collocation.en,
+          pl: screen.collocation.pl,
+          audio: (
+            <PhraseSpeaker
+              text={screen.collocation.en}
+              label="Posłuchaj"
+              size="lg"
+              showText={false}
+            />
+          ),
+          opis: null,
+        };
+    }
+  })();
+
+  return (
+    <Card className="no-select flex flex-col items-center gap-5 text-center">
+      <div className="flex items-center gap-2 text-sm font-bold text-paper/60">
+        <span className="rounded-full bg-white/10 px-3 py-1">↩ Powtórka — to już było</span>
+        {wynik === "dobrze" && (
+          <span className="rounded-full bg-hero-lime/20 px-3 py-1 text-hero-lime">✓ dobrze</span>
+        )}
+        {wynik === "do-powtorki" && (
+          <span className="rounded-full bg-hero-gold/20 px-3 py-1 text-hero-gold">
+            🙂 warto poćwiczyć
+          </span>
+        )}
+      </div>
+
+      <div className="text-7xl" aria-hidden>
+        {tresc.emoji}
+      </div>
+      <p className="font-reading max-w-md text-3xl font-black">{tresc.en}</p>
+      <p className="text-xl text-hero-cyan">{tresc.pl}</p>
+      {tresc.opis && <p className="max-w-md text-sm text-paper/70">{tresc.opis}</p>}
+      {tresc.audio}
+
+      <BigButton onClick={onDalej}>Dalej ▸</BigButton>
+    </Card>
   );
 }
