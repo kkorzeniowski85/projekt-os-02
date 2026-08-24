@@ -16,6 +16,7 @@ import { LESSONS, chipSoundId } from "../lib/curriculum/lessons.ts";
 import { SOUNDS, getSound } from "../lib/curriculum/sounds.ts";
 import { HEROES_BY_ID } from "../lib/heroes.ts";
 import { TOPICS, audioSlug, vocabPhrases, vocabWords } from "../lib/curriculum/vocab.ts";
+import { parentPhrases, phraseScene, wordExample } from "../lib/curriculum/vocabParent.ts";
 
 const root = path.join(fileURLToPath(new URL("../", import.meta.url)));
 const wordsDir = path.join(root, "public", "audio", "words");
@@ -350,11 +351,25 @@ for (const topic of TOPICS) {
 // Nagrania toru 2 nie są warunkiem działania (bez pliku czyta syntezator), więc
 // ich brak to UWAGA, nie BŁĄD.
 const vWords = vocabWords();
-const vPhrases = vocabPhrases();
+// Pula zwrotow obejmuje tez kwestie scenek i zdania przykladowe trybu
+// z rodzicem - graja tym samym mechanizmem, wiec obowiazuje ta sama kontrola.
+const vPhrases = [...new Set([...vocabPhrases(), ...parentPhrases()])].sort();
 const brakSlow = vWords.filter((word) => !wordFiles.has(audioSlug(word)));
 const brakZwrotow = vPhrases.filter((phrase) => !phraseFiles.has(audioSlug(phrase)));
 if (brakSlow.length > 0) {
   note("UWAGA", "audio tor 2", `${brakSlow.length} słów bez nagrania: ${brakSlow.slice(0, 8).join(", ")}${brakSlow.length > 8 ? "…" : ""}`);
+}
+const slowaBezPrzykladu = [...new Set(TOPICS.flatMap((t) => t.words.map((w) => w.en)))].filter(
+  (w) => !wordExample(w),
+);
+if (slowaBezPrzykladu.length > 0) {
+  note("UWAGA", "tryb z rodzicem", `${slowaBezPrzykladu.length} słów bez zdania przykładowego: ${slowaBezPrzykladu.slice(0, 6).join(", ")}${slowaBezPrzykladu.length > 6 ? "…" : ""}`);
+}
+const zwrotyBezScenki = [...new Set(TOPICS.flatMap((t) => t.phrases.map((p) => p.en)))].filter(
+  (p) => phraseScene(p).length === 0,
+);
+if (zwrotyBezScenki.length > 0) {
+  note("UWAGA", "tryb z rodzicem", `${zwrotyBezScenki.length} zwrotów bez scenki: ${zwrotyBezScenki.slice(0, 6).join(", ")}${zwrotyBezScenki.length > 6 ? "…" : ""}`);
 }
 if (brakZwrotow.length > 0) {
   note("UWAGA", "audio tor 2", `${brakZwrotow.length} zwrotów bez nagrania (czyta syntezator) — uruchom: npm run audio`);

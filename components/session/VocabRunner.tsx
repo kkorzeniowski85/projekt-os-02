@@ -55,6 +55,7 @@ import {
   type Topic,
   type VocabWord,
 } from "@/lib/curriculum/vocab";
+import { phraseNote, phraseScene, wordExample } from "@/lib/curriculum/vocabParent";
 import { getHero } from "@/lib/heroes";
 import { useProgress, type PendingAttempt, type SessionOutcome } from "@/lib/progress/store";
 import type { DeviceRole, SessionMode, TopicStatus } from "@/lib/progress/types";
@@ -321,12 +322,13 @@ export function VocabRunner({ topic }: { topic: Topic }) {
             key={`powtorka-${index}`}
             screen={screen}
             attempt={attemptsByIndexRef.current.get(index)}
+            mode={mode}
             onDalej={() => setIndex((previous) => previous + 1)}
           />
         )}
 
         {!powtorka && screen?.kind === "meet" && (
-          <MeetScreen key={`meet-${index}`} word={screen.word} onNext={onNext} />
+          <MeetScreen key={`meet-${index}`} word={screen.word} mode={mode} onNext={onNext} />
         )}
         {!powtorka && screen?.kind === "vocab" && (
           <VocabScreen
@@ -334,6 +336,7 @@ export function VocabRunner({ topic }: { topic: Topic }) {
             word={screen.word}
             options={screen.options}
             topicId={topic.id}
+            mode={mode}
             onAnswer={onAnswer}
             onNext={onNext}
           />
@@ -470,7 +473,15 @@ function IntroScreen({
 
 // --- Ćwiczenie 1: poznaj słowo ---------------------------------------------
 
-function MeetScreen({ word, onNext }: { word: VocabWord; onNext: () => void }) {
+function MeetScreen({
+  word,
+  mode,
+  onNext,
+}: {
+  word: VocabWord;
+  mode: SessionMode;
+  onNext: () => void;
+}) {
   useEffect(() => {
     void playWord(word.en);
   }, [word.en]);
@@ -489,6 +500,7 @@ function MeetScreen({ word, onNext }: { word: VocabWord; onNext: () => void }) {
           {word.notePl}
         </p>
       )}
+      {mode === "parent" && <ZdanieZeSlowem slowo={word.en} />}
       <BigButton onClick={onNext}>Dalej</BigButton>
     </Card>
   );
@@ -500,12 +512,14 @@ function VocabScreen({
   word,
   options,
   topicId,
+  mode,
   onAnswer,
   onNext,
 }: {
   word: VocabWord;
   options: VocabWord[];
   topicId: string;
+  mode: SessionMode;
   onAnswer: (attempt: PendingAttempt) => void;
   onNext: () => void;
 }) {
@@ -606,6 +620,8 @@ function VocabScreen({
           <span className="font-reading">{word.en}</span> — {word.pl}
         </p>
       )}
+
+      {mode === "parent" && picked !== null && <ZdanieZeSlowem slowo={word.en} />}
     </Card>
   );
 }
@@ -713,6 +729,12 @@ function PhraseScreen({
           <span className="font-reading font-bold">{phrase.en}</span> — {phrase.pl}
         </p>
       )}
+
+      {/* Scenka pokazuje się, gdy przepływ i tak stoi (naprawa po błędzie) —
+          po poprawnej odpowiedzi ekran za chwilę idzie dalej i nie byłoby
+          czasu jej odegrać. Scenka jest też zawsze w powtórce (strzałka ↩)
+          i na ekranie mówienia. */}
+      {mode === "parent" && wNaprawie && <Scenka zwrot={phrase.en} />}
 
       {mode === "parent" && picked === null && (
         <p className="text-xs text-paper/50">
@@ -1003,6 +1025,8 @@ function SayScreen({
       <PhraseSpeaker text={phrase.en} label="Posłuchaj wzoru" size="lg" />
       <p className="text-lg text-hero-cyan">{phrase.pl}</p>
 
+      {mode === "parent" && <Scenka zwrot={phrase.en} />}
+
       {mode === "parent" ? (
         <>
           <div className="flex w-full max-w-md flex-col gap-3 sm:flex-row">
@@ -1152,10 +1176,12 @@ function RewardScreen({
 function PowtorkaEkranu({
   screen,
   attempt,
+  mode,
   onDalej,
 }: {
   screen: Screen;
   attempt: PendingAttempt | undefined;
+  mode: SessionMode;
   onDalej: () => void;
 }) {
   const wynik =
@@ -1233,7 +1259,126 @@ function PowtorkaEkranu({
       {tresc.opis && <p className="max-w-md text-sm text-paper/70">{tresc.opis}</p>}
       {tresc.audio}
 
+      {/* Powtórka to najlepszy moment na materiał rodzica: nic nie tyka,
+          można spokojnie odegrać scenkę albo posłuchać słowa w zdaniu. */}
+      {mode === "parent" && (screen.kind === "meet" || screen.kind === "vocab") && (
+        <ZdanieZeSlowem slowo={screen.word.en} />
+      )}
+      {mode === "parent" && (screen.kind === "phrase" || screen.kind === "say") && (
+        <Scenka zwrot={screen.phrase.en} />
+      )}
+
       <BigButton onClick={onDalej}>Dalej ▸</BigButton>
     </Card>
+  );
+}
+
+// --- Materiał trybu „z rodzicem" --------------------------------------------
+
+/** Mały głośnik do kwestii scenki — celowo nie WordSpeaker, żeby nie krzyczał. */
+function MalyGlosnik({ tekst }: { tekst: string }) {
+  return (
+    <button
+      type="button"
+      onClick={() => void playPhrase(tekst)}
+      aria-label={`Posłuchaj: ${tekst}`}
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-hero-gold/25 text-base transition active:translate-y-0.5"
+    >
+      🔊
+    </button>
+  );
+}
+
+/**
+ * Zdanie przykładowe do słowa — tryb z rodzicem.
+ *
+ * Po co: samo słowo z obrazkiem to etykieta; dziecko musi je jeszcze USŁYSZEĆ
+ * wewnątrz zdania, bo w szkole nigdy nie przyjdzie samo. Rodzic odtwarza
+ * zdanie, dziecko łapie znajome słowo w środku — to najprostsze ćwiczenie
+ * rozumienia ze słuchu, jakie istnieje.
+ */
+function ZdanieZeSlowem({ slowo }: { slowo: string }) {
+  const zdanie = wordExample(slowo);
+  if (!zdanie) return null;
+
+  return (
+    <div className="w-full max-w-md rounded-2xl border border-hero-cyan/40 bg-hero-cyan/10 p-4 text-left">
+      <p className="mb-2 text-xs font-bold tracking-wide text-hero-cyan uppercase">
+        Dla rodzica — to słowo w zdaniu
+      </p>
+      <div className="flex items-center gap-3">
+        <MalyGlosnik tekst={zdanie.en} />
+        <div>
+          <p className="font-reading text-lg font-bold">{zdanie.en}</p>
+          <p className="text-sm text-paper/70">{zdanie.pl}</p>
+        </div>
+      </div>
+      <p className="mt-2 text-xs text-paper/50">
+        Odtwórz i zapytaj: „Usłyszałeś nasze słowo?” — dziecko ma je wyłapać ze środka
+        zdania.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Scenka do odegrania + niuans — tryb z rodzicem.
+ *
+ * To jest serce „modułu z rodzicem": zwrot odegrany w roli utrwala się lepiej
+ * niż zwrot wyjaśniony. Rodzic gra podpisaną rolę (nauczycielkę, kolegę, panią
+ * ze stołówki), dziecko odpowiada swoją kwestią — tą samą, którą właśnie
+ * ćwiczyło. Każdą kwestię można odsłuchać, żeby nie zgadywać wymowy.
+ */
+function Scenka({ zwrot }: { zwrot: string }) {
+  const kwestie = phraseScene(zwrot);
+  const niuans = phraseNote(zwrot);
+  if (kwestie.length === 0 && !niuans) return null;
+
+  return (
+    <div className="w-full max-w-xl rounded-2xl border border-hero-cyan/40 bg-hero-cyan/10 p-4 text-left">
+      {kwestie.length > 0 && (
+        <>
+          <p className="mb-2 text-xs font-bold tracking-wide text-hero-cyan uppercase">
+            Dla rodzica — odegrajcie scenkę
+          </p>
+          <div className="flex flex-col gap-2">
+            {kwestie.map((kwestia, numer) => {
+              const dziecko = kwestia.kto === "Ty";
+              return (
+                <div
+                  key={numer}
+                  className={`flex items-start gap-3 rounded-xl p-2 ${
+                    dziecko ? "bg-hero-gold/15" : "bg-black/20"
+                  }`}
+                >
+                  <MalyGlosnik tekst={kwestia.en} />
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold text-paper/50 uppercase">
+                      {dziecko ? "🌟 dziecko" : `Ty grasz: ${kwestia.kto}`}
+                    </p>
+                    <p className="font-reading font-bold">{kwestia.en}</p>
+                    <p className="text-xs text-paper/60">{kwestia.pl}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-xs text-paper/50">
+            Zamieńcie się potem rolami — dziecko lubi grać nauczycielkę, a pytanie uczy tak
+            samo jak odpowiedź.
+          </p>
+        </>
+      )}
+      {niuans && (
+        <p
+          className={`rounded-xl bg-black/20 p-3 text-xs leading-relaxed text-paper/80 ${
+            kwestie.length > 0 ? "mt-3" : ""
+          }`}
+        >
+          <strong className="text-hero-cyan">💡 Warto wiedzieć: </strong>
+          {niuans}
+        </p>
+      )}
+    </div>
   );
 }

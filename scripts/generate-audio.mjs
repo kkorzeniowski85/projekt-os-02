@@ -30,6 +30,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { lessonGraphemes, lessonWords } from "../lib/curriculum/lessons.ts";
 import { audioSlug, vocabPhrases, vocabWords } from "../lib/curriculum/vocab.ts";
+import { parentPhrases } from "../lib/curriculum/vocabParent.ts";
 import { IPA_BY_GRAPHEME } from "../lib/curriculum/ipa.ts";
 
 const args = process.argv.slice(2);
@@ -79,7 +80,8 @@ async function withRetry(label, run, attempts = 3) {
 // Oba tory naraz. Slowa toru 2 ida do tego samego katalogu co slowa lekcji,
 // wiec slowo wspolne dla obu torow ma jeden plik i generuje sie raz.
 const words = [...new Set([...lessonWords(), ...vocabWords()])].sort();
-const phrases = vocabPhrases();
+// Zwroty cwiczen + kwestie scenek i zdania przykladowe trybu z rodzicem.
+const phrases = [...new Set([...vocabPhrases(), ...parentPhrases()])].sort();
 const graphemes = lessonGraphemes().filter((grapheme) => {
   if (IPA_BY_GRAPHEME[grapheme]) return true;
   console.warn(`  ! brak zapisu IPA dla "${grapheme}" — pomijam`);
