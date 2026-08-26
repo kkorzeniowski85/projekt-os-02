@@ -51,6 +51,17 @@ type Screen =
   | { kind: "choice"; round: ChoiceRound }
   | { kind: "sentence"; sentence: LessonSentence };
 
+/**
+ * Czy ZAPIS słowa zawiera grafem lekcji. Służy do nazywania pułapek w
+ * ćwiczeniu słuchania: słowo z literą, której nie słychać („blue" przy „u"),
+ * i słowo z dźwiękiem pisanym inaczej („phone" przy „f"). Split digraphy
+ * (a-e) pomijamy — ich zapis nie jest ciągły, porównanie nie ma sensu.
+ */
+function literaWZapisie(word: string, grapheme: string): boolean {
+  if (grapheme.includes("-")) return false;
+  return word.toLowerCase().includes(grapheme.toLowerCase());
+}
+
 /** Fisher-Yates na kopii — wywoływane po kliknięciu startu, nigdy w renderze. */
 function shuffled<T>(items: readonly T[]): T[] {
   const copy = [...items];
@@ -516,6 +527,11 @@ function ListenScreen({
   const startRef = useRef(Date.now());
 
   const correct = answer !== null && answer === item.hasTarget;
+  // Słowo-pułapka (litera jest, dźwięku nie ma — albo odwrotnie) dostaje po
+  // odpowiedzi wyjaśnienie; przy poprawnej odpowiedzi ekran musi postać
+  // dłużej, bo 1 sekunda nie starcza nawet na zerknięcie na nie.
+  const maPulapke =
+    item.hasTarget !== literaWZapisie(item.word, sound.grapheme);
 
   useEffect(() => {
     // Gdy przeglądarka zablokuje automatyczne odtworzenie (iOS bez wcześniejszego
@@ -527,7 +543,7 @@ function ListenScreen({
     if (answer === null) return;
     playFeedbackTone(correct ? "good" : "try-again");
     if (correct) {
-      const timer = setTimeout(onNext, 1100);
+      const timer = setTimeout(onNext, maPulapke ? 2800 : 1100);
       return () => clearTimeout(timer);
     }
     // Po błędzie NIE idziemy dalej sami: słowo gra jeszcze raz, wyjaśnienie
@@ -535,7 +551,7 @@ function ListenScreen({
     // Ostatni ruch dziecka ma być tym właściwym (jak w RWI: pokaz → powtórka),
     // a bierna pauza tego nie gwarantowała — dało się ją po prostu przeczekać.
     void playWord(item.word);
-  }, [answer, correct, item.word, onNext]);
+  }, [answer, correct, maPulapke, item.word, onNext]);
 
   useEffect(() => {
     if (!naprawione) return;
@@ -596,6 +612,22 @@ function ListenScreen({
               ? `W tym słowie SŁYCHAĆ „${sound.grapheme}”.`
               : `W tym słowie NIE SŁYCHAĆ „${sound.grapheme}”.`}
           </p>
+          {/* Sedno ćwiczenia wypowiedziane wprost — bez tego słowo-pułapka
+              („blue" przy „u") wygląda na błąd aplikacji, a nie na lekcję
+              najważniejszej prawdy angielskiego: litera to nie dźwięk. */}
+          {!item.hasTarget && literaWZapisie(item.word, sound.grapheme) && (
+            <p className="max-w-md rounded-2xl bg-hero-gold/10 p-3 text-xs text-hero-gold">
+              ⚠️ Pułapka! W zapisie litera „{sound.grapheme}” JEST, ale czyta się tu
+              inaczej — dlatego jej nie słychać. W tym ćwiczeniu liczy się UCHO, nie
+              literki.
+            </p>
+          )}
+          {item.hasTarget && !literaWZapisie(item.word, sound.grapheme) && (
+            <p className="max-w-md rounded-2xl bg-hero-cyan/10 p-3 text-xs text-hero-cyan">
+              🕵️ Ciekawostka: dźwięk „{sound.grapheme}” słychać, choć pisze się go tu
+              inaczej. Ucho miało rację!
+            </p>
+          )}
           {!correct && !naprawione && (
             <div className="mt-2 flex w-full max-w-md flex-col items-center gap-2">
               <div className="animate-pulse-ring rounded-blob">
@@ -1085,6 +1117,11 @@ function PowtorkaEkranu({
               ? `W tym słowie SŁYCHAĆ „${sound.grapheme}”.`
               : `W tym słowie NIE SŁYCHAĆ „${sound.grapheme}”.`}
           </p>
+          {!screen.item.hasTarget && literaWZapisie(screen.item.word, sound.grapheme) && (
+            <p className="max-w-md rounded-2xl bg-hero-gold/10 p-3 text-xs text-hero-gold">
+              ⚠️ Pułapka: litera „{sound.grapheme}” w zapisie jest, ale czyta się inaczej.
+            </p>
+          )}
         </>
       )}
 
