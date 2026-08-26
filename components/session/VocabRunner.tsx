@@ -580,6 +580,12 @@ function VocabScreen({
 
   const correct = picked !== null && picked === word.en;
   const wNaprawie = picked !== null && !correct && !naprawione;
+  // W trybie z rodzicem pod odpowiedzią pojawia się zdanie przykładowe do
+  // odsłuchania — automatyczne przejście zabierało na to szansę (sekunda to
+  // za mało nawet na kliknięcie głośnika). Ekran czeka więc na „Dalej”.
+  // W trybie samodzielnym pudełka nie ma, tempo zostaje.
+  const czekaNaDalej = mode === "parent" && wordExample(word.en) !== null;
+  const rozstrzygniete = correct || naprawione;
 
   useEffect(() => {
     void playWord(word.en).then((result) => setNeedsTap(result.source === "unavailable"));
@@ -589,20 +595,22 @@ function VocabScreen({
     if (picked === null) return;
     playFeedbackTone(correct ? "good" : "try-again");
     if (correct) {
+      if (czekaNaDalej) return;
       const timer = setTimeout(onNext, 1100);
       return () => clearTimeout(timer);
     }
     // Po błędzie dalej idzie się dopiero po stuknięciu dobrej odpowiedzi —
     // dziecko ma ją wykonać, nie przeczekać. Punktuje się pierwszy wybór.
     void playWord(word.en);
-  }, [picked, correct, word.en, onNext]);
+  }, [picked, correct, czekaNaDalej, word.en, onNext]);
 
   useEffect(() => {
     if (!naprawione) return;
     playFeedbackTone("good");
+    if (czekaNaDalej) return;
     const timer = setTimeout(onNext, 900);
     return () => clearTimeout(timer);
-  }, [naprawione, onNext]);
+  }, [naprawione, czekaNaDalej, onNext]);
 
   function pick(option: string) {
     setPicked(option);
@@ -672,6 +680,10 @@ function VocabScreen({
       )}
 
       {mode === "parent" && picked !== null && <ZdanieZeSlowem slowo={word.en} />}
+
+      {czekaNaDalej && rozstrzygniete && (
+        <BigButton onClick={onNext}>Dalej ▸</BigButton>
+      )}
     </Card>
   );
 }
@@ -927,6 +939,10 @@ function CollocationScreen({
 
   const correct = picked !== null && picked === collocation.answer;
   const wNaprawie = picked !== null && !correct && !naprawione;
+  // Uwaga „dlaczego kalka nie działa” potrzebuje kilku sekund czytania —
+  // w trybie z rodzicem ekran czeka na „Dalej” zamiast uciekać po 1,6 s.
+  const czekaNaDalej = mode === "parent" && Boolean(collocation.whyPl);
+  const rozstrzygniete = correct || naprawione;
 
   useEffect(() => {
     if (picked === null) return;
@@ -934,11 +950,11 @@ function CollocationScreen({
     // Ostatnie, co dziecko słyszy, ma być POPRAWNĄ całością — także po błędzie.
     // Odtworzenie samego wybranego słowa utrwalałoby kalkę.
     void playPhrase(collocation.en);
-    if (correct) {
+    if (correct && !czekaNaDalej) {
       const timer = setTimeout(onNext, 1600);
       return () => clearTimeout(timer);
     }
-  }, [picked, correct, collocation.en, onNext]);
+  }, [picked, correct, czekaNaDalej, collocation.en, onNext]);
 
   useEffect(() => {
     if (!naprawione) return;
@@ -946,9 +962,10 @@ function CollocationScreen({
     // Naprawa = stuknięcie dobrego słowa; całość gra jeszcze raz, żeby klocek
     // wszedł do ucha w komplecie.
     void playPhrase(collocation.en);
+    if (czekaNaDalej) return;
     const timer = setTimeout(onNext, 1600);
     return () => clearTimeout(timer);
-  }, [naprawione, collocation.en, onNext]);
+  }, [naprawione, czekaNaDalej, collocation.en, onNext]);
 
   function pick(option: string) {
     setPicked(option);
@@ -1025,6 +1042,10 @@ function CollocationScreen({
           <strong className="text-hero-cyan">Dla rodzica: </strong>
           {collocation.whyPl}
         </p>
+      )}
+
+      {czekaNaDalej && rozstrzygniete && (
+        <BigButton onClick={onNext}>Dalej ▸</BigButton>
       )}
     </Card>
   );
