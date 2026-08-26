@@ -13,9 +13,11 @@
  * Dobór: wyłącznie teksty tradycyjne z domeny publicznej. Świadomie BEZ
  * „The Wheels on the Bus” (tekst z 1937 r., prawa wciąż niepewne).
  *
- * Nagranie to rytmiczne CZYTANIE (chant), nie śpiew — syntezator nie śpiewa,
- * a badania pokazują, że skandowanie działa u małych dzieci znakomicie.
- * Melodię dokłada rodzic: wskazówka przy każdej rymowance mówi, jak.
+ * Nagranie jest ŚPIEWNIE MODULOWANE, choć to nie śpiew: syntezator nie umie
+ * śpiewać, więc melodyjność budujemy sami — frazy sklejane z segmentów o
+ * naprzemiennej wysokości głosu, "E-I-E-I-O" jako drabinka pojedynczych
+ * liter, odgłosy zwierząt wolniej i niżej (szczegóły w generatorze nagrań).
+ * Prawdziwą melodię dokłada rodzic: wskazówka przy każdej rymowance mówi, jak.
  *
  * Bez importów — generator nagrań czyta ten plik z Node.
  */

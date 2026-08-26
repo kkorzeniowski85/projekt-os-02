@@ -31,7 +31,7 @@ import { fileURLToPath } from "node:url";
 import { lessonGraphemes, lessonWords } from "../lib/curriculum/lessons.ts";
 import { audioSlug, vocabPhrases, vocabWords } from "../lib/curriculum/vocab.ts";
 import { parentPhrases } from "../lib/curriculum/vocabParent.ts";
-import { RHYMES, rhymeText } from "../lib/curriculum/rhymes.ts";
+import { RHYMES } from "../lib/curriculum/rhymes.ts";
 import { sentenceTexts } from "../lib/curriculum/sentences.ts";
 import { IPA_BY_GRAPHEME } from "../lib/curriculum/ipa.ts";
 
@@ -54,10 +54,10 @@ mkdirSync(rhymesDir, { recursive: true });
  * Nowe połączenie na każdy plik. Usługa zamyka websocket po syntezie, a
  * ponowne użycie tej samej instancji kończy się urwanym audio.
  */
-async function synthesize(ssmlOrText, rate) {
+async function synthesize(ssmlOrText, rate, pitch) {
   const tts = new MsEdgeTTS();
   await tts.setMetadata(VOICE, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
-  const { audioStream } = tts.toStream(ssmlOrText, { rate });
+  const { audioStream } = tts.toStream(ssmlOrText, pitch ? { rate, pitch } : { rate });
   const chunks = [];
   for await (const chunk of audioStream) chunks.push(chunk);
   tts.close?.();
@@ -142,22 +142,89 @@ for (const phrase of phrases) {
 }
 
 /**
- * Rymowanki — jeden plik na cala rymowanke, czytana wolno (-30%): to chant
- * do klaskania, nie lektorat. Melodie doklada rodzic.
+ * Rymowanki — jeden plik na rymowanke, SKLEJANY z segmentow o roznej
+ * wysokosci i tempie glosu.
+ *
+ * Dlaczego tak: endpoint Edge odrzuca SSML w tekscie (prosody/break konczy
+ * sie zerwanym strumieniem — sprawdzone), ale honoruje pitch/rate na poziomie
+ * calego zapytania. Wiec spiewnosc budujemy po naszej stronie: kazda fraza to
+ * osobna synteza z innym pitch (huśtawka +16%/+6% daje spiewna intonacje
+ * zamiast lektorskiej prozy), a pliki MP3 (staly bitrate) skleja sie przez
+ * zwykla konkatenacje ramek.
+ *
+ * Dwa przypadki specjalne, wprost z uwag rodzica:
+ *  - "E-I-E-I-O" czytane jako wyraz brzmialo jak literowanie robota - teraz
+ *    to piec OSOBNYCH liter na opadajaco-wznoszacej drabince wysokosci,
+ *    jak w piosence;
+ *  - odglosy zwierzat ("Baa", frazy z "moo") byly wypowiadane jak zwykle
+ *    slowa - teraz sa wolniejsze i nizsze, zeby brzmialy jak zwierze,
+ *    nie jak lektor.
  */
+const OWCA = { rate: "-45%", pitch: "-10%" };
+const KROWA = { rate: "-34%", pitch: "-12%" };
+const HUSTAWKA = ["+16%", "+6%"];
+
+function rhymeSegments(rhyme) {
+  const segments = [];
+  let krok = 0;
+  const fraza = (text, opts) => {
+    if (!text.trim()) return;
+    segments.push({ text: text.trim(), opts });
+  };
+  const zwykla = (text) => {
+    fraza(text, { rate: "-22%", pitch: HUSTAWKA[krok % HUSTAWKA.length] });
+    krok++;
+  };
+
+  for (const line of rhyme.lines) {
+    // frazy po przecinkach — huśtawka wysokosci dziala miedzy frazami
+    const frazy = line.en.split(/(?<=,)\s+/);
+    for (const czesc of frazy) {
+      // E-I-E-I-O: drabinka pojedynczych liter, jak w piosence
+      if (/E-I-E-I-O/.test(czesc)) {
+        const [przed, po] = czesc.split(/E-I-E-I-O[!.]?/);
+        if (przed) zwykla(przed);
+        const drabinka = ["+30%", "+20%", "+30%", "+20%", "+4%"];
+        ["E!", "I!", "E!", "I!", "O!"].forEach((litera, i) =>
+          fraza(litera, { rate: "-10%", pitch: drabinka[i] }),
+        );
+        if (po) zwykla(po);
+        continue;
+      }
+      // odglosy zwierzat: wolniej i nizej, zeby nie brzmialy jak lektor
+      if (/^Baa[,!.]?$/i.test(czesc.trim())) {
+        fraza(czesc, OWCA);
+        continue;
+      }
+      if (/moo/i.test(czesc)) {
+        fraza(czesc, KROWA);
+        continue;
+      }
+      zwykla(czesc);
+    }
+  }
+  return segments;
+}
+
 for (const rhyme of RHYMES) {
   const target = path.join(rhymesDir, `${rhyme.id}.mp3`);
   if (!force && existsSync(target)) {
     skipped++;
     continue;
   }
-  const buffer = await withRetry(`rymowanka "${rhyme.titleEn}"`, () =>
-    synthesize(rhymeText(rhyme), "-30%"),
-  );
+  const buffer = await withRetry(`rymowanka "${rhyme.titleEn}"`, async () => {
+    const czesci = [];
+    for (const segment of rhymeSegments(rhyme)) {
+      const audio = await synthesize(segment.text, segment.opts.rate, segment.opts.pitch);
+      if (!audio || audio.length === 0) throw new Error(`pusty segment: ${segment.text}`);
+      czesci.push(audio);
+    }
+    return Buffer.concat(czesci);
+  });
   if (buffer) {
     writeFileSync(target, buffer);
     created++;
-    console.log(`  ✓ rhymes/${rhyme.id}.mp3 (${buffer.length} B)`);
+    console.log(`  ✓ rhymes/${rhyme.id}.mp3 (${buffer.length} B, spiewnie)`);
   } else {
     failed++;
   }

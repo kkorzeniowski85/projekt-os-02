@@ -8,8 +8,8 @@
  * wspierają zapamiętywanie u dzieci w tym wieku lepiej niż recytacja, a te
  * konkretne teksty dziecko usłyszy w brytyjskiej szkole w pierwszym tygodniu.
  *
- * Nagranie to rytmiczne czytanie (chant) — melodię dokłada rodzic; wskazówka
- * przy każdej rymowance mówi, skąd ją wziąć.
+ * Nagranie jest śpiewnie modulowane (frazy na huśtawce wysokości głosu) —
+ * pełną melodię dokłada rodzic; wskazówka przy każdej mówi, skąd ją wziąć.
  */
 
 import Link from "next/link";
@@ -55,8 +55,8 @@ export default function RhymesPage() {
       <Card className="text-sm text-paper/70">
         <p>
           Te rymowanki śpiewa się w brytyjskiej szkole, na urodzinach i w bajkach. Nagranie
-          czyta je rytmicznie — <strong>melodię dodajcie sami</strong> (wskazówka przy każdej
-          mówi jak). Klaskanie i tupanie w rytm jest jak najbardziej wskazane.
+          jest śpiewne, ale to wciąż lektorka — <strong>prawdziwą melodię dodajcie sami</strong>{" "}
+          (wskazówka przy każdej mówi jak). Klaskanie i tupanie w rytm jak najbardziej wskazane.
         </p>
       </Card>
 
