@@ -14,6 +14,7 @@ import { BigButton, Card } from "@/components/ui";
 import {
   auditClips,
   getVoiceStatus,
+  playRhyme,
   phonemeClipBase,
   phraseClipBase,
   phraseClipPath,
@@ -28,7 +29,10 @@ import { PhonemeRecorder } from "@/components/PhonemeRecorder";
 import { lessonGraphemes, lessonWords } from "@/lib/curriculum/lessons";
 import { IPA_BY_GRAPHEME, trickyHint } from "@/lib/curriculum/ipa";
 import { getSound } from "@/lib/curriculum/sounds";
+import { RHYMES } from "@/lib/curriculum/rhymes";
+import { sentenceTexts } from "@/lib/curriculum/sentences";
 import { getTopic, TOPICS, vocabPhrases, vocabWords } from "@/lib/curriculum/vocab";
+import { parentPhrases } from "@/lib/curriculum/vocabParent";
 import { importRecordingFiles, listRecordings } from "@/lib/recordings";
 import { QrCode } from "@/components/QrCode";
 import { RECORDINGS_CHANGED } from "@/lib/progress/recordingsSync";
@@ -143,12 +147,12 @@ function PhraseClipList({
   return (
     <div className="mb-4">
       <p className="mb-2 text-sm font-bold text-paper/80">
-        Zwroty i polecenia{" "}
+        Zwroty, scenki i czytanki{" "}
         <span className="font-normal text-paper/50">
           {availableCount === null ? "" : `(${availableCount}/${phrases.length} nagrań)`}
         </span>
       </p>
-      <div className="flex flex-col gap-1">
+      <div className="flex max-h-96 flex-col gap-1 overflow-y-auto pr-1">
         {phrases.map((phrase) => {
           const path = resolved?.[phraseClipBase(phrase)] ?? null;
           return (
@@ -202,7 +206,13 @@ export default function ParentPage() {
     () => vocabWords().filter((word) => !words.includes(word)),
     [words],
   );
-  const phrases = useMemo(vocabPhrases, []);
+  // Pełna pula wypowiedzi do odsłuchu — ta sama, którą zna generator i audyt:
+  // ćwiczenia toru 2 + scenki/przykłady trybu z rodzicem + mini-czytanki.
+  // Rodzic ma móc przesłuchać KAŻDE zdanie, zanim usłyszy je dziecko.
+  const phrases = useMemo(
+    () => [...new Set([...vocabPhrases(), ...parentPhrases(), ...sentenceTexts()])].sort(),
+    [],
+  );
 
   const report = useMemo(() => buildMarkdownReport(state), [state]);
   const recommendation = recommendNext(state);
@@ -872,6 +882,23 @@ export default function ParentPage() {
             title="Słowa (tor 2: słownictwo)"
           />
           <PhraseClipList phrases={phrases} resolved={resolved} />
+
+          <div className="mb-4">
+            <p className="mb-2 text-sm font-bold text-paper/80">Rymowanki</p>
+            <div className="flex flex-wrap gap-2">
+              {RHYMES.map((rhyme) => (
+                <button
+                  key={rhyme.id}
+                  type="button"
+                  onClick={() => void playRhyme(rhyme.id)}
+                  className="rounded-xl bg-white/15 px-3 py-2 text-sm text-paper hover:bg-white/25"
+                >
+                  <span aria-hidden>▶ </span>
+                  <span className="font-reading font-bold">{rhyme.titleEn}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <p className="mt-4 text-xs text-paper/50">

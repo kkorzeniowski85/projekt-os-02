@@ -13,7 +13,13 @@ const CACHE = "liga-dzwiekow-v1";
 // Mapa tematów toru 2 jest w powłoce, żeby offline działała od pierwszego
 // otwarcia; poszczególne sesje (/slownictwo/<id>/) trafiają do cache przy
 // pierwszej wizycie, jak każda nawigacja.
-const APP_SHELL = [`${BASE}/`, `${BASE}/rodzic/`, `${BASE}/slownictwo/`, `${BASE}/icon.svg`];
+const APP_SHELL = [
+  `${BASE}/`,
+  `${BASE}/rodzic/`,
+  `${BASE}/slownictwo/`,
+  `${BASE}/rymowanki/`,
+  `${BASE}/icon.svg`,
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

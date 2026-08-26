@@ -2028,11 +2028,6 @@ export function allRedWords(): string[] {
   return [...words].sort();
 }
 
-/** Ile pytań ma sesja — potrzebne do paska postępu i do statystyk. */
-export function lessonLength(lesson: Lesson): number {
-  return lesson.listen.length + lesson.blend.length + lesson.choice.length;
-}
-
 /**
  * Wszystkie słowa występujące w przygotowanych lekcjach.
  * Jedno źródło prawdy dla generatora nagrań i dla panelu rodzica.

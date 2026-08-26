@@ -64,7 +64,7 @@ Claude nie może go wykonać, bo wymaga zalogowania na konto Google rodzica.
    RWI, łącznie z pojedynczymi literami Set 1).
 3. **Red words jako osobne ćwiczenie** — teraz tylko pokazują się na końcu
    sesji. Zasługują na własny, krótki tryb („rozpoznaj w 5 sekund”).
-4. ~~**Tor 2: słuchanie i słownictwo**~~ — **zrobione**: 10 tematów
+4. ~~**Tor 2: słuchanie i słownictwo**~~ — **zrobione**: 11 tematów
    (słowa, zwroty, polecenia nauczyciela, kolokacje), osobny typ sesji, bez
    czytania. Patrz [slownictwo.md](slownictwo.md).
 5. **Backend + synchronizacja** — dopiero gdy dziecko realnie używa aplikacji na

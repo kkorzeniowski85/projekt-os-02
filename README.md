@@ -91,7 +91,7 @@ Wynik ląduje w `angielski/out/` jako czysta statyka.
 
 ### Tor 2 — słownictwo, zwroty i kolokacje
 
-- **10 tematów** (`/slownictwo`), w kolejności PILNOŚCI, nie trudności: pierwsze
+- **11 tematów** (`/slownictwo`), w kolejności PILNOŚCI, nie trudności: pierwsze
   cztery to przetrwanie w szkole (zwroty ratunkowe, polecenia nauczyciela,
   zagadanie do dzieci, grzeczność), dalej rutyna dnia, stołówka, „boli mnie”,
   ubranie i pogoda, uczucia, przybory szkolne.
