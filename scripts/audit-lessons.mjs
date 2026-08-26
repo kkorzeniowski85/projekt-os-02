@@ -17,6 +17,7 @@ import { SOUNDS, getSound } from "../lib/curriculum/sounds.ts";
 import { HEROES_BY_ID } from "../lib/heroes.ts";
 import { TOPICS, audioSlug, vocabPhrases, vocabWords } from "../lib/curriculum/vocab.ts";
 import { parentPhrases, phraseScene, wordExample } from "../lib/curriculum/vocabParent.ts";
+import { allSentences, sentenceTexts } from "../lib/curriculum/sentences.ts";
 
 const root = path.join(fileURLToPath(new URL("../", import.meta.url)));
 const wordsDir = path.join(root, "public", "audio", "words");
@@ -359,6 +360,92 @@ const brakZwrotow = vPhrases.filter((phrase) => !phraseFiles.has(audioSlug(phras
 if (brakSlow.length > 0) {
   note("UWAGA", "audio tor 2", `${brakSlow.length} słów bez nagrania: ${brakSlow.slice(0, 8).join(", ")}${brakSlow.length > 8 ? "…" : ""}`);
 }
+// --- Mini-czytanki: kontrola dekodowalnosci wg pozycji w sekwencji ----------
+//
+// Zdanie lekcji N moze uzywac WYLACZNIE grafemow dzwiekow 1..N oraz red words
+// poznanych do lekcji N wlacznie. Zlamanie tej zasady to BLAD: dziecko
+// dostaloby slowo, ktorego nie ma prawa umiec przeczytac.
+//
+// Dekodowalnosc liczymy programowaniem dynamicznym po dozwolonych grafemach,
+// z jedna poprawka: split digraph (a-e w "cake") rozpoznajemy wzorcem
+// samogloska-spolgloska-e i sciagamy konczace "e" przed rozkladem.
+{
+  const zdaniaWg = allSentences();
+  const kolejnosc = SOUNDS.map((sound) => sound.id);
+  const grafemyNarastajaco = [];
+  const redNarastajaco = [];
+  let dotychczasGrafemy = [];
+  let dotychczasRed = new Set();
+  for (const soundId of kolejnosc) {
+    dotychczasGrafemy = [...dotychczasGrafemy, ...SOUNDS.filter((s) => s.id === soundId).map((s) => s.grapheme.toLowerCase())];
+    for (const w of LESSONS[soundId]?.redWords ?? []) dotychczasRed.add(w.toLowerCase());
+    grafemyNarastajaco.push([...new Set(dotychczasGrafemy)]);
+    redNarastajaco.push(new Set(dotychczasRed));
+  }
+
+  const daSieZlozyc = (slowo, tokeny) => {
+    const n = slowo.length;
+    const dp = new Array(n + 1).fill(false);
+    dp[0] = true;
+    for (let i = 0; i < n; i++) {
+      if (!dp[i]) continue;
+      for (const token of tokeny) {
+        if (slowo.startsWith(token, i)) dp[i + token.length] = true;
+      }
+    }
+    return dp[n];
+  };
+
+  const dekodowalne = (surowe, grafemy, redy) => {
+    const slowo = surowe.toLowerCase().replace(/[^a-z]/g, "");
+    if (!slowo) return true;
+    if (redy.has(slowo)) return true;
+    // tokeny ciagle: grafemy bez split digraphow (te maja myslnik w id, ale
+    // grapheme moze byc np. "a-e" — token ciagly to wersja bez myslnika nie
+    // istnieje, wiec filtrujemy)
+    const ciagle = grafemy.filter((g) => !g.includes("-"));
+    if (daSieZlozyc(slowo, ciagle)) return true;
+    // split digraph: ...V C e  -> sciagnij "e", wymagaj tokenu "V-e"
+    const m = slowo.match(/^(.*)([aiou])([bcdfghjklmnprstvwz])e$/);
+    if (m && grafemy.includes(`${m[2]}-e`)) {
+      return daSieZlozyc(`${m[1]}${m[2]}${m[3]}`, ciagle);
+    }
+    return false;
+  };
+
+  for (const [soundId, zdania] of Object.entries(zdaniaWg)) {
+    const pozycja = kolejnosc.indexOf(soundId);
+    if (pozycja < 0) {
+      note("BŁĄD", "czytanki", `zdanie dla nieznanego dźwięku "${soundId}"`);
+      continue;
+    }
+    const grafemy = grafemyNarastajaco[pozycja];
+    const redy = redNarastajaco[pozycja];
+    for (const zdanie of zdania) {
+      for (const slowo of zdanie.en.split(/\s+/)) {
+        if (!dekodowalne(slowo, grafemy, redy)) {
+          note(
+            "BŁĄD",
+            "czytanki",
+            `lekcja "${soundId}": słowo "${slowo}" w zdaniu "${zdanie.en}" wyprzedza sekwencję (niedekodowalne na tym etapie)`,
+          );
+        }
+      }
+    }
+  }
+
+  const lekcjeBezCzytanki = kolejnosc.filter(
+    (soundId) => LESSONS[soundId] && (zdaniaWg[soundId] ?? []).length === 0,
+  );
+  if (lekcjeBezCzytanki.length > 0) {
+    note("UWAGA", "czytanki", `${lekcjeBezCzytanki.length} lekcji bez mini-czytanki: ${lekcjeBezCzytanki.slice(0, 8).join(", ")}`);
+  }
+  const zdanBezAudio = sentenceTexts().filter((t) => !phraseFiles.has(audioSlug(t)));
+  if (zdanBezAudio.length > 0) {
+    note("UWAGA", "czytanki", `${zdanBezAudio.length} zdań bez nagrania — uruchom: npm run audio`);
+  }
+}
+
 const slowaBezPrzykladu = [...new Set(TOPICS.flatMap((t) => t.words.map((w) => w.en)))].filter(
   (w) => !wordExample(w),
 );

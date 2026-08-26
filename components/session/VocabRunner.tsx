@@ -67,7 +67,8 @@ type Screen =
   | { kind: "phrase"; phrase: Phrase; options: Phrase[] }
   | { kind: "command"; command: Command; options: Command[] }
   | { kind: "collocation"; collocation: Collocation; options: string[] }
-  | { kind: "say"; phrase: Phrase };
+  | { kind: "say"; phrase: Phrase }
+  | { kind: "act"; command: Command };
 
 /** Fisher-Yates na kopii — wywoływane po kliknięciu startu, nigdy w renderze. */
 function shuffled<T>(items: readonly T[]): T[] {
@@ -122,7 +123,7 @@ const ALL_COMMANDS = TOPICS.flatMap((topic) => topic.commands);
  * z tego samego tematu przerabia inne słowa i inne zwroty; przy ośmiu słowach i
  * pięciu zwrotach temat wystarcza na kilka różnych sesji.
  */
-function buildScreens(topic: Topic, role: DeviceRole): Screen[] {
+function buildScreens(topic: Topic, role: DeviceRole, mode: SessionMode): Screen[] {
   const short = role === "phone";
   const ile = (pelne: number, krotkie: number) => (short ? krotkie : pelne);
 
@@ -162,6 +163,15 @@ function buildScreens(topic: Topic, role: DeviceRole): Screen[] {
       })),
   ];
 
+  // „Pokaż ruchem!”: dziecko WYKONUJE polecenie ciałem, rodzic potwierdza.
+  // Badania na 8-latkach: ruch i gest wzmacniają pamięć słów na miesiące
+  // (Andrä 2020; metaanaliza TPR). Tylko w trybie z rodzicem — w trybie
+  // samodzielnym nie ma komu ocenić, a udawany przycisk uczyłby klikania.
+  if (mode === "parent") {
+    const doPokazania = shuffled(topic.commands).slice(0, ile(2, 1));
+    screens.push(...doPokazania.map<Screen>((command) => ({ kind: "act", command })));
+  }
+
   // Mówienie na koniec: dziecko powtarza zwrot, który przed chwilą słyszało
   // kilka razy, więc ma się od czego odbić.
   const doPowiedzenia = shuffled(topic.phrases).slice(0, ile(2, 1));
@@ -192,6 +202,8 @@ export function VocabRunner({ topic }: { topic: Topic }) {
   const attemptsByIndexRef = useRef(new Map<number, PendingAttempt>());
   const frontierRef = useRef(0);
   const startedTsRef = useRef(0);
+  /** Indeks pierwszego ekranu rundy bonusowej; null = bonus jeszcze nie ruszyl. */
+  const bonusStartRef = useRef<number | null>(null);
 
   useEffect(() => primeSpeech(), []);
 
@@ -201,9 +213,10 @@ export function VocabRunner({ topic }: { topic: Topic }) {
       // pozwala „odblokować" audio na resztę sesji.
       unlockAudio();
       setMode(chosenMode);
-      setScreens(buildScreens(topic, role));
+      setScreens(buildScreens(topic, role, chosenMode));
       attemptsByIndexRef.current = new Map();
       frontierRef.current = 0;
+      bonusStartRef.current = null;
       startedTsRef.current = Date.now();
       setFrontier(0);
       setIndex(0);
@@ -236,6 +249,8 @@ export function VocabRunner({ topic }: { topic: Topic }) {
 
   /** Ocena ekranu — pierwszy wybór jest ostateczny, kolejne wpisy się nie liczą. */
   const onAnswer = useCallback((attempt: PendingAttempt) => {
+    // Runda bonusowa nie zapisuje prób — patrz komentarz przy jej starcie.
+    if (bonusStartRef.current !== null && frontierRef.current >= bonusStartRef.current) return;
     const map = attemptsByIndexRef.current;
     if (!map.has(frontierRef.current)) map.set(frontierRef.current, attempt);
   }, []);
@@ -248,11 +263,31 @@ export function VocabRunner({ topic }: { topic: Topic }) {
     setIndex(nastepny);
   }, []);
 
+  // Ostatni ekran przerobiony → runda bonusowa albo koniec.
+  //
+  // RUNDA BONUSOWA (efekt testowania): pozycje, które w tej sesji poszły źle,
+  // wracają na końcu jeszcze raz — drugie aktywne przypomnienie tuż po nauce
+  // to jedna z najlepiej udokumentowanych dźwigni zapamiętywania. Bez
+  // punktacji: wynik zapadł przy pierwszym podejściu, a bonus jest po to,
+  // żeby ostatni kontakt z trudnym materiałem był udany, nie po to, by
+  // poprawiać statystyki.
   useEffect(() => {
-    if (stage === "running" && screens.length > 0 && frontier >= screens.length) {
-      finish();
+    if (stage !== "running" || screens.length === 0 || frontier < screens.length) return;
+
+    if (bonusStartRef.current === null) {
+      const nieudane = [...attemptsByIndexRef.current.entries()]
+        .filter(([, attempt]) => attempt.correct === false)
+        .slice(0, 3)
+        .map(([i]) => screens[i])
+        .filter(Boolean);
+      if (nieudane.length > 0) {
+        bonusStartRef.current = screens.length;
+        setScreens((previous) => [...previous, ...nieudane]);
+        return; // frontier zostaje — sesja biegnie dalej po dodanych ekranach
+      }
     }
-  }, [stage, frontier, screens.length, finish]);
+    finish();
+  }, [stage, frontier, screens, finish]);
 
   const screen = screens[index];
   const powtorka = index < frontier;
@@ -317,6 +352,12 @@ export function VocabRunner({ topic }: { topic: Topic }) {
           </div>
         </header>
 
+        {bonusStartRef.current !== null && index >= bonusStartRef.current && (
+          <p className="rounded-2xl border border-hero-gold/40 bg-hero-gold/10 p-3 text-center text-sm font-bold text-hero-gold">
+            ⭐ Runda bonusowa — złap te, które uciekły! (bez punktów, sama chwała)
+          </p>
+        )}
+
         {powtorka && screen && (
           <PowtorkaEkranu
             key={`powtorka-${index}`}
@@ -369,6 +410,15 @@ export function VocabRunner({ topic }: { topic: Topic }) {
             options={screen.options}
             topicId={topic.id}
             mode={mode}
+            onAnswer={onAnswer}
+            onNext={onNext}
+          />
+        )}
+        {!powtorka && screen?.kind === "act" && (
+          <ActScreen
+            key={`act-${index}`}
+            command={screen.command}
+            topicId={topic.id}
             onAnswer={onAnswer}
             onNext={onNext}
           />
@@ -1212,6 +1262,7 @@ function PowtorkaEkranu({
           opis: screen.phrase.situationPl,
         };
       case "command":
+      case "act":
         return {
           emoji: screen.command.emoji,
           en: screen.command.en,
@@ -1380,5 +1431,81 @@ function Scenka({ zwrot }: { zwrot: string }) {
         </p>
       )}
     </div>
+  );
+}
+
+// --- Ćwiczenie: pokaż ruchem (TPR) ------------------------------------------
+
+/**
+ * Dziecko słyszy polecenie i WYKONUJE je ciałem — wstaje, podnosi rękę, dosuwa
+ * krzesło. Rodzic potwierdza, aplikacja niczego nie mierzy.
+ *
+ * Dlaczego to osobne ćwiczenie: ruch sprzężony ze słowem wzmacnia pamięć
+ * u dzieci w tym wieku na miesiące (Andrä i in. 2020 — badanie na 8-latkach;
+ * metaanalizy TPR). To też najbliższe prawdziwej szkole użycie poleceń:
+ * nauczycielka mówi — dziecko robi, nie odpowiada.
+ *
+ * Tylko w trybie z rodzicem (buildScreens pomija w samodzielnym): bez dorosłego
+ * nie ma komu zobaczyć ruchu, a przycisk „zrobiłem” bez świadka uczyłby
+ * klikania, nie reagowania.
+ */
+function ActScreen({
+  command,
+  topicId,
+  onAnswer,
+  onNext,
+}: {
+  command: Command;
+  topicId: string;
+  onAnswer: (attempt: PendingAttempt) => void;
+  onNext: () => void;
+}) {
+  const startRef = useRef(Date.now());
+
+  useEffect(() => {
+    void playPhrase(command.en);
+  }, [command.en]);
+
+  function report(correct: boolean) {
+    onAnswer({
+      ts: Date.now(),
+      soundId: topicId,
+      exercise: "act",
+      item: command.en,
+      correct,
+      responseMs: Date.now() - startRef.current,
+    });
+    onNext();
+  }
+
+  return (
+    <Card className="no-select flex flex-col items-center gap-5 text-center">
+      <h2 className="text-2xl font-bold">
+        <span className="text-hero-cyan">Pokaż ruchem!</span>
+      </h2>
+      <div className="animate-pop-in text-8xl" aria-hidden>
+        {command.emoji}
+      </div>
+      <PhraseSpeaker text={command.en} label="Posłuchaj" size="lg" showText={false} />
+      <p className="max-w-md text-lg text-paper/80">
+        Usłyszałeś polecenie? <strong>Zrób to naprawdę</strong> — całym ciałem, jak w szkole.
+      </p>
+
+      <div className="flex w-full max-w-md flex-col gap-3 sm:flex-row">
+        <BigButton tone="yes" onClick={() => report(true)} full>
+          Pokazał sam
+        </BigButton>
+        <BigButton tone="no" onClick={() => report(false)} full>
+          Z podpowiedzią
+        </BigButton>
+      </div>
+      <p className="text-xs text-paper/50">
+        Ty potwierdzasz — aplikacja nie widzi ruchu. Jeśli dziecko się waha, pokaż ruch
+        razem z nim i odtwórzcie polecenie jeszcze raz.
+      </p>
+      <p className="animate-pop-in text-lg text-hero-cyan">
+        <span className="font-reading font-bold">{command.en}</span> — {command.pl}
+      </p>
+    </Card>
   );
 }

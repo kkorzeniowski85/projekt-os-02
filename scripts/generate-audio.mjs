@@ -31,6 +31,8 @@ import { fileURLToPath } from "node:url";
 import { lessonGraphemes, lessonWords } from "../lib/curriculum/lessons.ts";
 import { audioSlug, vocabPhrases, vocabWords } from "../lib/curriculum/vocab.ts";
 import { parentPhrases } from "../lib/curriculum/vocabParent.ts";
+import { RHYMES, rhymeText } from "../lib/curriculum/rhymes.ts";
+import { sentenceTexts } from "../lib/curriculum/sentences.ts";
 import { IPA_BY_GRAPHEME } from "../lib/curriculum/ipa.ts";
 
 const args = process.argv.slice(2);
@@ -42,9 +44,11 @@ const root = path.join(fileURLToPath(new URL("../", import.meta.url)));
 const wordsDir = path.join(root, "public", "audio", "words");
 const phonemesDir = path.join(root, "public", "audio", "phonemes");
 const phrasesDir = path.join(root, "public", "audio", "phrases");
+const rhymesDir = path.join(root, "public", "audio", "rhymes");
 mkdirSync(wordsDir, { recursive: true });
 mkdirSync(phonemesDir, { recursive: true });
 mkdirSync(phrasesDir, { recursive: true });
+mkdirSync(rhymesDir, { recursive: true });
 
 /**
  * Nowe połączenie na każdy plik. Usługa zamyka websocket po syntezie, a
@@ -81,7 +85,7 @@ async function withRetry(label, run, attempts = 3) {
 // wiec slowo wspolne dla obu torow ma jeden plik i generuje sie raz.
 const words = [...new Set([...lessonWords(), ...vocabWords()])].sort();
 // Zwroty cwiczen + kwestie scenek i zdania przykladowe trybu z rodzicem.
-const phrases = [...new Set([...vocabPhrases(), ...parentPhrases()])].sort();
+const phrases = [...new Set([...vocabPhrases(), ...parentPhrases(), ...sentenceTexts()])].sort();
 const graphemes = lessonGraphemes().filter((grapheme) => {
   if (IPA_BY_GRAPHEME[grapheme]) return true;
   console.warn(`  ! brak zapisu IPA dla "${grapheme}" — pomijam`);
@@ -132,6 +136,28 @@ for (const phrase of phrases) {
     writeFileSync(target, buffer);
     created++;
     console.log(`  ✓ phrases/${slug}.mp3 (${buffer.length} B)`);
+  } else {
+    failed++;
+  }
+}
+
+/**
+ * Rymowanki — jeden plik na cala rymowanke, czytana wolno (-30%): to chant
+ * do klaskania, nie lektorat. Melodie doklada rodzic.
+ */
+for (const rhyme of RHYMES) {
+  const target = path.join(rhymesDir, `${rhyme.id}.mp3`);
+  if (!force && existsSync(target)) {
+    skipped++;
+    continue;
+  }
+  const buffer = await withRetry(`rymowanka "${rhyme.titleEn}"`, () =>
+    synthesize(rhymeText(rhyme), "-30%"),
+  );
+  if (buffer) {
+    writeFileSync(target, buffer);
+    created++;
+    console.log(`  ✓ rhymes/${rhyme.id}.mp3 (${buffer.length} B)`);
   } else {
     failed++;
   }

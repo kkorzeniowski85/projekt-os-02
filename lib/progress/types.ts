@@ -38,7 +38,9 @@ export type ExerciseKind =
   | "phrase"
   | "command"
   | "collocation"
-  | "say";
+  | "say"
+  | "act"
+  | "sentence";
 
 /** Tryb pracy: dziecko samo vs. wspólnie z rodzicem. */
 export type SessionMode = "solo" | "parent";

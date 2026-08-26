@@ -139,6 +139,9 @@ export default function HomePage() {
             <BigButton href="/slownictwo" tone="quiet">
               Wszystkie tematy
             </BigButton>
+            <BigButton href="/rymowanki" tone="quiet">
+              🎵 Rymowanki
+            </BigButton>
           </div>
         </Card>
 

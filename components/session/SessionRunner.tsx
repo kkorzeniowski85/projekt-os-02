@@ -15,10 +15,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Celebration } from "@/components/Celebration";
 import { InterruptDialog } from "@/components/session/InterruptDialog";
 import { HeroAvatar } from "@/components/HeroAvatar";
-import { BigButton, Card, ParentTip, PhonemeSpeaker, StepDots, WordSpeaker } from "@/components/ui";
+import { BigButton, Card, ParentTip, PhonemeSpeaker, PhraseSpeaker, StepDots, WordSpeaker } from "@/components/ui";
 import {
+  chantAvailable,
+  playChantWithBeat,
   playFeedbackTone,
   playPhonemeStrict,
+  playPhrase,
   playStarDing,
   playVictoryFanfare,
   playWord,
@@ -34,6 +37,7 @@ import {
   type ListenItem,
   type WordCard,
 } from "@/lib/curriculum/lessons";
+import { getSentences, type LessonSentence } from "@/lib/curriculum/sentences";
 import type { Sound } from "@/lib/curriculum/sounds";
 import { getHero, HEROES_BY_ID } from "@/lib/heroes";
 import { useProgress, type PendingAttempt, type SessionOutcome } from "@/lib/progress/store";
@@ -44,7 +48,8 @@ type Screen =
   | { kind: "listen"; item: ListenItem }
   | { kind: "blend"; card: WordCard }
   | { kind: "redword"; answer: string; options: string[] }
-  | { kind: "choice"; round: ChoiceRound };
+  | { kind: "choice"; round: ChoiceRound }
+  | { kind: "sentence"; sentence: LessonSentence };
 
 /** Fisher-Yates na kopii — wywoływane po kliknięciu startu, nigdy w renderze. */
 function shuffled<T>(items: readonly T[]): T[] {
@@ -95,11 +100,20 @@ function buildScreens(lesson: Lesson, role: DeviceRole): Screen[] {
       ]),
     }));
 
+  // Mini-czytanka na sam koniec: zdanie z już poznanych dźwięków — słowo
+  // osadzone w zdaniu zapada głębiej niż słowo na fiszce, a RWI kończy
+  // lekcję dokładnie tak samo (ditty). Audyt pilnuje, żeby zdanie nigdy
+  // nie wyprzedzało sekwencji.
+  const sentences = shuffled(getSentences(lesson.soundId))
+    .slice(0, 1)
+    .map<Screen>((sentence) => ({ kind: "sentence", sentence }));
+
   return [
     ...listen.map<Screen>((item) => ({ kind: "listen", item })),
     ...blend.map<Screen>((card) => ({ kind: "blend", card })),
     ...redwords,
     ...choice.map<Screen>((round) => ({ kind: "choice", round })),
+    ...sentences,
   ];
 }
 
@@ -130,6 +144,8 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
   const attemptsByIndexRef = useRef(new Map<number, PendingAttempt>());
   const frontierRef = useRef(0);
   const startedTsRef = useRef(0);
+  /** Indeks pierwszego ekranu rundy bonusowej; null = bonus jeszcze nie ruszyl. */
+  const bonusStartRef = useRef<number | null>(null);
 
   useEffect(() => primeSpeech(), []);
 
@@ -142,6 +158,7 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
       setScreens(buildScreens(lesson, role));
       attemptsByIndexRef.current = new Map();
       frontierRef.current = 0;
+      bonusStartRef.current = null;
       startedTsRef.current = Date.now();
       setFrontier(0);
       setIndex(0);
@@ -179,6 +196,8 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
 
   /** Ocena ekranu — wołane przy pierwszym wyborze; kolejne wpisy się nie liczą. */
   const onAnswer = useCallback((attempt: PendingAttempt) => {
+    // Runda bonusowa nie zapisuje prób — patrz komentarz przy jej starcie.
+    if (bonusStartRef.current !== null && frontierRef.current >= bonusStartRef.current) return;
     const map = attemptsByIndexRef.current;
     if (!map.has(frontierRef.current)) map.set(frontierRef.current, attempt);
   }, []);
@@ -191,12 +210,31 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
     setIndex(nastepny);
   }, []);
 
-  // Ostatni ekran przerobiony → zamykamy sesję i zapisujemy postęp.
+  // Ostatni ekran przerobiony → runda bonusowa albo koniec.
+  //
+  // RUNDA BONUSOWA (efekt testowania): pozycje, które w tej sesji poszły źle,
+  // wracają na końcu jeszcze raz — drugie aktywne przypomnienie tuż po nauce
+  // to jedna z najlepiej udokumentowanych dźwigni zapamiętywania. Bez
+  // punktacji: wynik zapadł przy pierwszym podejściu, a bonus jest po to,
+  // żeby ostatni kontakt z trudnym materiałem był udany, nie po to, by
+  // poprawiać statystyki.
   useEffect(() => {
-    if (stage === "running" && screens.length > 0 && frontier >= screens.length) {
-      finish();
+    if (stage !== "running" || screens.length === 0 || frontier < screens.length) return;
+
+    if (bonusStartRef.current === null) {
+      const nieudane = [...attemptsByIndexRef.current.entries()]
+        .filter(([, attempt]) => attempt.correct === false)
+        .slice(0, 3)
+        .map(([i]) => screens[i])
+        .filter(Boolean);
+      if (nieudane.length > 0) {
+        bonusStartRef.current = screens.length;
+        setScreens((previous) => [...previous, ...nieudane]);
+        return; // frontier zostaje — sesja biegnie dalej po dodanych ekranach
+      }
     }
-  }, [stage, frontier, screens.length, finish]);
+    finish();
+  }, [stage, frontier, screens, finish]);
 
   const screen = screens[index];
   const powtorka = index < frontier;
@@ -261,6 +299,12 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
           </div>
         </header>
 
+        {bonusStartRef.current !== null && index >= bonusStartRef.current && (
+          <p className="rounded-2xl border border-hero-gold/40 bg-hero-gold/10 p-3 text-center text-sm font-bold text-hero-gold">
+            ⭐ Runda bonusowa — złap te, które uciekły! (bez punktów, sama chwała)
+          </p>
+        )}
+
         {powtorka && screen && (
           <PowtorkaEkranu
             key={`powtorka-${index}`}
@@ -296,6 +340,16 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
             key={`redword-${index}`}
             answer={screen.answer}
             options={screen.options}
+            sound={sound}
+            mode={mode}
+            onAnswer={onAnswer}
+            onNext={onNext}
+          />
+        )}
+        {!powtorka && screen?.kind === "sentence" && (
+          <SentenceScreen
+            key={`sentence-${index}`}
+            sentence={screen.sentence}
             sound={sound}
             mode={mode}
             onAnswer={onAnswer}
@@ -359,6 +413,18 @@ function IntroScreen({
 }) {
   const hero = getHero(heroId);
   const phone = role === "phone";
+  const [chantMozliwy, setChantMozliwy] = useState(false);
+  const [chantGra, setChantGra] = useState(false);
+
+  // Chant z bitem wymaga nagrania czystej głoski — bez niego przycisk się
+  // nie pokazuje (syntezator przeczytałby nazwę litery).
+  useEffect(() => {
+    let aktywny = true;
+    void chantAvailable(sound.id).then((jest) => aktywny && setChantMozliwy(jest));
+    return () => {
+      aktywny = false;
+    };
+  }, [sound.id]);
 
   const parentTip = (
     <div className="w-full max-w-xl">
@@ -389,6 +455,23 @@ function IntroScreen({
       <p className="font-reading text-2xl font-bold tracking-widest text-hero-lime">
         {lesson.chant}
       </p>
+
+      {/* Rytmiczne skandowanie wspiera pamięć i wymowę u dzieci w tym wieku
+          lepiej niż zwykłe powtarzanie — a dziecko może klaskać albo tupać. */}
+      {chantMozliwy && (
+        <button
+          type="button"
+          disabled={chantGra}
+          onClick={() => {
+            unlockAudio();
+            setChantGra(true);
+            void playChantWithBeat(sound.id).finally(() => setChantGra(false));
+          }}
+          className="flex items-center gap-2 rounded-blob bg-hero-cyan/20 px-5 py-3 text-lg font-bold text-hero-cyan transition active:translate-y-1 disabled:opacity-50"
+        >
+          🥁 {chantGra ? "Gra… klaszcz do rytmu!" : "Chant z bitem"}
+        </button>
+      )}
 
       {/* Na telefonie przyciski startu muszą być nad zgięciem — wskazówka dla
           rodzica ląduje pod nimi, bo to dorosły ją czyta, nie dziecko. */}
@@ -1033,6 +1116,14 @@ function PowtorkaEkranu({
         </>
       )}
 
+      {screen.kind === "sentence" && (
+        <>
+          <p className="font-reading max-w-xl text-3xl font-black">{screen.sentence.en}</p>
+          <p className="text-lg text-hero-cyan">{screen.sentence.pl}</p>
+          <PhraseSpeaker text={screen.sentence.en} label="Posłuchaj" showText={false} />
+        </>
+      )}
+
       {screen.kind === "redword" && (
         <>
           <p className="font-reading text-4xl font-black text-hero-pink">{screen.answer}</p>
@@ -1185,6 +1276,107 @@ function RedWordScreen({
         <p className="text-xs text-paper/50">
           Nie sklejajcie tego słowa z dźwięków — dziecko ma je poznać „z twarzy”, jak
           znajomego. Pomaga zdanie: „to jest słowo-łobuz, nie gra według zasad”.
+        </p>
+      )}
+    </Card>
+  );
+}
+
+// --- Mini-czytanka: przeczytaj zdanie ----------------------------------------
+
+/**
+ * Zwieńczenie lekcji: dziecko czyta CAŁE zdanie złożone wyłącznie z dźwięków,
+ * które już zna, plus red words lekcji (te świecą na różowo — sygnał „nie
+ * sklejaj, przeczytaj z pamięci”). Dokładnie tak kończy lekcję RWI.
+ *
+ * Kolejność jest nieprzypadkowa: najpierw dziecko czyta SAMO, dopiero potem
+ * gra nagranie — odwrotnie ćwiczylibyśmy powtarzanie ze słuchu, nie czytanie.
+ * Ocenia rodzic (jak przy sklejaniu); w trybie samodzielnym bez punktacji.
+ */
+function SentenceScreen({
+  sentence,
+  sound,
+  mode,
+  onAnswer,
+  onNext,
+}: {
+  sentence: LessonSentence;
+  sound: Sound;
+  mode: SessionMode;
+  onAnswer: (attempt: PendingAttempt) => void;
+  onNext: () => void;
+}) {
+  const [odsluchane, setOdsluchane] = useState(false);
+  const startRef = useRef(Date.now());
+  const czerwone = useMemo(() => new Set(allRedWords().map((word) => word.toLowerCase())), []);
+
+  function report(correct: boolean | null) {
+    onAnswer({
+      ts: Date.now(),
+      soundId: sound.id,
+      exercise: "sentence",
+      item: sentence.en,
+      correct,
+      responseMs: Date.now() - startRef.current,
+    });
+    onNext();
+  }
+
+  const slowa = sentence.en.split(/\s+/);
+
+  return (
+    <Card className="no-select flex flex-col items-center gap-5 text-center">
+      <h2 className="text-2xl font-bold">📖 Przeczytaj zdanie!</h2>
+
+      <p className="font-reading flex max-w-2xl flex-wrap justify-center gap-x-3 gap-y-1 text-4xl font-black">
+        {slowa.map((slowo, numer) => {
+          const golo = slowo.toLowerCase().replace(/[^a-z]/g, "");
+          const red = czerwone.has(golo);
+          return (
+            <span key={numer} className={red ? "text-hero-pink" : undefined}>
+              {slowo}
+            </span>
+          );
+        })}
+      </p>
+      <p className="text-xs text-paper/50">
+        Różowe słowa to red words — nie sklejaj ich, przeczytaj w całości.
+      </p>
+
+      {!odsluchane ? (
+        <BigButton
+          onClick={() => {
+            setOdsluchane(true);
+            void playPhrase(sentence.en);
+          }}
+          tone="quiet"
+        >
+          Przeczytałem — sprawdź nagraniem 🔊
+        </BigButton>
+      ) : (
+        <div className="animate-pop-in flex flex-col items-center gap-3">
+          <p className="text-lg text-hero-cyan">{sentence.pl}</p>
+          <PhraseSpeaker text={sentence.en} label="Jeszcze raz" showText={false} />
+
+          {mode === "parent" ? (
+            <div className="flex w-full max-w-md flex-col gap-3 sm:flex-row">
+              <BigButton tone="yes" onClick={() => report(true)} full>
+                Przeczytał sam
+              </BigButton>
+              <BigButton tone="no" onClick={() => report(false)} full>
+                Z pomocą
+              </BigButton>
+            </div>
+          ) : (
+            <BigButton onClick={() => report(null)}>Dalej</BigButton>
+          )}
+        </div>
+      )}
+
+      {mode === "parent" && !odsluchane && (
+        <p className="text-xs text-paper/50">
+          Najpierw dziecko czyta samo (Fred Talk przy trudnym słowie), potem sprawdzacie
+          nagraniem.
         </p>
       )}
     </Card>

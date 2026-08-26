@@ -640,3 +640,106 @@ export async function auditClips(
     bases.map(async (base) => ({ base, path: await findClip(base) })),
   );
 }
+
+// --- Rymowanki ---------------------------------------------------------------
+
+/** Ścieżka nagrania rymowanki (jeden plik MP3 na całą rymowankę). */
+export function rhymeClipPath(id: string): string {
+  return `${CLIP_BASE}/rhymes/${id}.mp3`;
+}
+
+/** Odtwarza rymowankę z nagrania. Zwraca false, gdy pliku brak. */
+export async function playRhyme(id: string): Promise<boolean> {
+  const path = rhymeClipPath(id);
+  if (!(await clipExists(path))) return false;
+  return (await playUrl(path)) === "ok";
+}
+
+// --- Chant z bitem -----------------------------------------------------------
+
+/** Zdekodowane głoski pod chant — dekodowanie za każdym razem szarpałoby rytm. */
+const chantBuffers = new Map<string, Promise<AudioBuffer | null>>();
+
+function chantBuffer(context: AudioContext, soundId: string): Promise<AudioBuffer | null> {
+  let pending = chantBuffers.get(soundId);
+  if (!pending) {
+    pending = (async () => {
+      const clip = await findClip(phonemeClipBase(soundId));
+      if (!clip) return null;
+      const response = await fetch(clip);
+      return await context.decodeAudioData(await response.arrayBuffer());
+    })().catch(() => null);
+    chantBuffers.set(soundId, pending);
+  }
+  return pending;
+}
+
+/** Stopa perkusyjna: opadający sinus — ta sama technika co w fanfarach. */
+function scheduleKick(context: AudioContext, at: number, vol: number): void {
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(150, at);
+  oscillator.frequency.exponentialRampToValueAtTime(52, at + 0.12);
+  gain.gain.setValueAtTime(vol, at);
+  gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.16);
+  oscillator.connect(gain).connect(context.destination);
+  oscillator.start(at);
+  oscillator.stop(at + 0.2);
+}
+
+let chantBusy = false;
+
+/**
+ * Chant lekcji z bitem: nagranie CZYSTEJ GŁOSKI grane rytmicznie na tle
+ * prostej stopy perkusyjnej — wzór jak w chantach RWI: „X… X… X-X-X!”.
+ *
+ * Po co: rytmiczne skandowanie wspiera u dzieci w tym wieku zapamiętywanie
+ * i wymowę lepiej niż zwykłe powtarzanie (badania nad chantami u młodych
+ * uczniów), a przy okazji zamienia suchy trening głoski w zabawę.
+ *
+ * Gra wyłącznie z nagrania głoski (własnego rodzica albo wyciętego z
+ * brytyjskiego słowa) — syntezator przeczytałby nazwę litery, więc bez
+ * nagrania funkcja uczciwie odmawia i przycisk się nie pokazuje.
+ */
+export async function playChantWithBeat(soundId: string): Promise<boolean> {
+  const context = getToneContext();
+  if (!context || chantBusy) return false;
+
+  try {
+    chantBusy = true;
+    if (context.state === "suspended") await context.resume();
+    const buffer = await chantBuffer(context, soundId);
+    if (!buffer) return false;
+
+    const beat = 0.5; // 120 BPM — tempo marszu, dzieci naturalnie tupią
+    const start = context.currentTime + 0.12;
+
+    // Perkusja: dwa takty po cztery uderzenia, mocniejsza „jedynka”.
+    for (let i = 0; i < 8; i++) {
+      scheduleKick(context, start + i * beat, i % 4 === 0 ? 0.4 : 0.22);
+    }
+
+    // Głoska: „X… X… X-X-X!” — dwa spokojne wejścia i szybka trójka.
+    const glosWchodzi = [0, 2, 4, 4.5, 5].map((step) => start + step * beat);
+    for (const at of glosWchodzi) {
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.connect(context.destination);
+      source.start(at);
+    }
+
+    const totalMs = (8 * beat + buffer.duration) * 1000;
+    await new Promise((resolve) => setTimeout(resolve, totalMs));
+    return true;
+  } catch {
+    return false;
+  } finally {
+    chantBusy = false;
+  }
+}
+
+/** Czy chant z bitem jest dostępny (= czy jest nagranie czystej głoski). */
+export async function chantAvailable(soundId: string): Promise<boolean> {
+  return (await findClip(phonemeClipBase(soundId))) !== null;
+}
