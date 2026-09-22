@@ -9,7 +9,11 @@
  */
 
 const BASE = self.location.pathname.replace(/\/sw\.js$/, "");
-const CACHE = "liga-dzwiekow-v1";
+// Pamięć podręczna jest wspólna dla CAŁEJ domeny kkorzeniowski85.github.io —
+// stoją tu też Akademia Ligi i inne projekty. Sprzątamy wyłącznie własne
+// wersje (ten przedrostek); skasowanie cudzych zabierałoby im tryb offline.
+const PREFIX = "liga-dzwiekow-";
+const CACHE = `${PREFIX}v1`;
 // Mapa tematów toru 2 jest w powłoce, żeby offline działała od pierwszego
 // otwarcia; poszczególne sesje (/slownictwo/<id>/) trafiają do cache przy
 // pierwszej wizycie, jak każda nawigacja.
@@ -37,7 +41,11 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))),
+        Promise.all(
+          keys
+            .filter((key) => key.startsWith(PREFIX) && key !== CACHE)
+            .map((key) => caches.delete(key)),
+        ),
       )
       .then(() => self.clients.claim()),
   );

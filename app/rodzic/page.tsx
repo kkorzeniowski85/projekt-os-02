@@ -1048,11 +1048,22 @@ export default function ParentPage() {
           <BigButton
             tone="quiet"
             onClick={async () => {
+              // Tylko WŁASNY service worker i WŁASNA pamięć podręczna: na tej
+              // samej domenie stoi Akademia Ligi i inne projekty, a
+              // getRegistrations() i caches.keys() zwracają rzeczy całej domeny.
               try {
-                const rejestracje = await navigator.serviceWorker?.getRegistrations();
-                await Promise.all((rejestracje ?? []).map((r) => r.unregister()));
+                const zakres = new URL(
+                  `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/`,
+                  window.location.origin,
+                ).href;
+                const rejestracje = (await navigator.serviceWorker?.getRegistrations()) ?? [];
+                await Promise.all(
+                  rejestracje.filter((r) => r.scope === zakres).map((r) => r.unregister()),
+                );
                 const klucze = await caches.keys();
-                await Promise.all(klucze.map((k) => caches.delete(k)));
+                await Promise.all(
+                  klucze.filter((k) => k.startsWith("liga-dzwiekow-")).map((k) => caches.delete(k)),
+                );
               } catch {
                 // Nawet jeśli sprzątanie się nie uda, przeładowanie i tak pomoże.
               }
