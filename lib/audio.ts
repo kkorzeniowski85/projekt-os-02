@@ -76,7 +76,12 @@ export function phonemeClipPath(soundId: string): string {
 
 const clipAvailability = new Map<string, Promise<boolean>>();
 
-/** Sprawdza (raz na ścieżkę, potem z cache), czy nagranie w ogóle istnieje. */
+/**
+ * Sprawdza (raz na ścieżkę, potem z pamięci), czy nagranie istnieje.
+ * Zapamiętujemy tylko pewne odpowiedzi serwera. Błąd sieci to nie „brak
+ * pliku": nie utrwalamy go (chwilowy brak zasięgu oznaczałby nagranie jako
+ * brakujące do przeładowania strony), a offline pytamy pamięć service workera.
+ */
 export function clipExists(path: string): Promise<boolean> {
   if (typeof window === "undefined") return Promise.resolve(false);
 
@@ -84,7 +89,14 @@ export function clipExists(path: string): Promise<boolean> {
   if (!pending) {
     pending = fetch(path, { method: "HEAD" })
       .then((response) => response.ok)
-      .catch(() => false);
+      .catch(async () => {
+        clipAvailability.delete(path);
+        try {
+          return "caches" in window && Boolean(await caches.match(path));
+        } catch {
+          return false;
+        }
+      });
     clipAvailability.set(path, pending);
   }
   return pending;
@@ -103,6 +115,9 @@ export function findClip(base: string): Promise<string | null> {
         const path = `${base}.${extension}`;
         if (await clipExists(path)) return path;
       }
+      // Brak może wynikać z chwilowego braku sieci — nie utrwalamy go
+      // (pewne 404 i tak siedzą już w pamięci clipExists).
+      resolvedClips.delete(base);
       return null;
     })();
     resolvedClips.set(base, pending);
