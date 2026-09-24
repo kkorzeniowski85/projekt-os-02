@@ -1,5 +1,7 @@
 /**
- * Service worker Ligi Dźwięków: instalowalna PWA + działanie bez internetu.
+ * Service worker Ligi (działy Dźwięki i Akademia): instalowalna PWA + działanie
+ * bez internetu. Jeden na całą aplikację — sw.js Akademii Ligi był jego
+ * kopią z innym przedrostkiem i inną powłoką; tu powłoka obejmuje oba działy.
  *
  * Świadomie prosty. Bez powiadomień push, bez synchronizacji w tle — te rzeczy
  * dochodzą dopiero razem z backendem, jeśli w ogóle będą potrzebne.
@@ -8,11 +10,18 @@
  * siedzi w podkatalogu (/projekt-os-02/), a lokalnie w korzeniu.
  *
  * UWAGA — wspólna domena: pamięć podręczna (CacheStorage) jest wspólna dla
- * CAŁEJ domeny kkorzeniowski85.github.io — stoją tu też Akademia Ligi i inne
- * projekty. Kasujemy wyłącznie własne cache (przedrostek PREFIX); skasowanie
- * cudzych zabierałoby im tryb offline. Starsze aplikacje na tej domenie
- * potrafią skasować CAŁY CacheStorage, więc po każdej udanej nawigacji online
- * powłoka się uzupełnia (ensureShell), zamiast czekać na następną instalację.
+ * CAŁEJ domeny kkorzeniowski85.github.io — stoją tu też Akademia Ligi,
+ * wersja testowa tej aplikacji i inne projekty. Kasujemy wyłącznie własne
+ * cache (przedrostek PREFIX); skasowanie cudzych zabierałoby im tryb offline.
+ * Starsze aplikacje na tej domenie potrafią skasować CAŁY CacheStorage, więc
+ * po każdej udanej nawigacji online powłoka się uzupełnia (ensureShell),
+ * zamiast czekać na następną instalację.
+ *
+ * PRZEDROSTEK CACHE zależy od zakresu (cachePrefixFor): pod /projekt-os-02/ i
+ * lokalnie zostaje „liga-dzwiekow-" — nagrania zapisane na urządzeniach przez
+ * dawną Ligę Dźwięków zostają ważne. Każdy inny adres (np. wersja testowa pod
+ * /projekt-os-05/) ma własny przedrostek, więc jego SW nie rusza cache
+ * prawdziwej aplikacji, a SW prawdziwej aplikacji — jego.
  *
  * WDROŻENIA: build zapisuje public/deploy.json (scripts/deploy-manifest.mjs):
  * znacznik wersji i krótki hash każdego nagrania. Przy aktywacji i przy
@@ -32,16 +41,35 @@
  */
 
 const BASE = self.location.pathname.replace(/\/sw\.js$/, "");
-const PREFIX = "liga-dzwiekow-";
+
+/**
+ * Przedrostek własnych cache dla danego zakresu. MUSI zgadzać się z
+ * lib/cachePrefix.ts (przycisk „Pobierz najnowszą wersję" w panelu rodzica).
+ * Poza pierwszym przypadkiem: same litery i cyfry adresu + „-", więc
+ * przedrostek jednej instalacji nigdy nie jest początkiem przedrostka innej.
+ */
+function cachePrefixFor(base) {
+  if (base === "" || base === "/projekt-os-02") return "liga-dzwiekow-";
+  const slug = base.replace(/^\/projekt-/, "").replace(/[^A-Za-z0-9]/g, "").toLowerCase();
+  return `liga-test-${slug || "x"}-`;
+}
+
+const PREFIX = cachePrefixFor(BASE);
 const CACHE = `${PREFIX}v1`;
-// Mapa tematów toru 2 jest w powłoce, żeby offline działała od pierwszego
-// otwarcia; poszczególne sesje (/slownictwo/<id>/) trafiają do cache przy
-// pierwszej wizycie, jak każda nawigacja.
+// Huby obu działów są w powłoce, żeby offline działały od pierwszego
+// otwarcia; poszczególne sesje (/sesja/<id>/, /slownictwo/<id>/, lekcje
+// Akademii) trafiają do cache przy pierwszej wizycie, jak każda nawigacja.
 const APP_SHELL = [
   `${BASE}/`,
   `${BASE}/rodzic/`,
   `${BASE}/slownictwo/`,
   `${BASE}/rymowanki/`,
+  `${BASE}/tabliczka/`,
+  `${BASE}/tabliczka/trening/`,
+  `${BASE}/tabliczka/test/`,
+  `${BASE}/matematyka/`,
+  `${BASE}/czytanie/`,
+  `${BASE}/polecenia/`,
   `${BASE}/icon.svg`,
 ];
 /** Tyle czekamy na sieć przy starcie, gdy w pamięci jest już kopia strony. */

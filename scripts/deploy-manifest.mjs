@@ -3,7 +3,8 @@
  * package.json, więc `npm run build` w deploy.yml też go wywołuje).
  *
  * Zapisuje public/deploy.json: znacznik wersji i krótki hash treści każdego
- * nagrania z public/audio. Service worker (public/sw.js) porównuje go z
+ * nagrania z public/audio — całego drzewa, więc także nagrań działu Akademia
+ * (public/audio/akademia/). Service worker (public/sw.js) porównuje go z
  * zapamiętanym przy aktywacji i przy nawigacji online. Nowa wersja = odświeża
  * powłokę offline, sprząta stare pliki _next/static i usuwa z pamięci
  * nagrania podmienione albo skasowane. Na HEAD nagrań odpowiada z manifestu,

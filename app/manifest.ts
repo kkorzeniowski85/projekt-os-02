@@ -7,12 +7,17 @@ const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 /** Build statyczny (output: export) wymaga tego wprost dla tras generowanych. */
 export const dynamic = "force-static";
 
+/**
+ * Bez pola `id`, jak w dawnej Lidze Dźwięków: tożsamość instalacji liczy się
+ * wtedy ze start_url, więc aplikacja zainstalowana na tablecie przed
+ * połączeniem działów zostaje tą samą aplikacją — tylko z nową nazwą.
+ */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Liga Dźwięków — angielski przez phonics",
-    short_name: "Liga Dźwięków",
+    name: "Liga",
+    short_name: "Liga",
     description:
-      "Nauka czytania po angielsku metodą synthetic phonics (sekwencja Read Write Inc.)",
+      "Dźwięki: czytanie po angielsku metodą phonics (sekwencja Read Write Inc.) i słownictwo. Akademia: tabliczka mnożenia, matematyka po angielsku, czytanie ze zrozumieniem i język klasy.",
     start_url: `${base}/`,
     scope: `${base}/`,
     display: "standalone",
