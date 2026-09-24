@@ -3,6 +3,7 @@ import { Andika } from "next/font/google";
 import { ProgressProvider as LigaProgressProvider } from "@/lib/progress/store";
 import { ProgressProvider as AkademiaProgressProvider } from "@/lib/akademia/progress/store";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
+import { SyncBridge } from "@/components/SyncBridge";
 import "./globals.css";
 
 /**
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-dvh antialiased">
         <LigaProgressProvider>
           <AkademiaProgressProvider>
+            <SyncBridge />
             <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-8">{children}</main>
           </AkademiaProgressProvider>
         </LigaProgressProvider>
