@@ -9,7 +9,11 @@
 import type { Hero } from "@/lib/heroes";
 
 type Props = {
-  hero: Hero;
+  /**
+   * Tylko to, co rysujemy — bohaterowie Akademii (lib/akademia/heroes.ts) nie
+   * mają warunku odblokowania, a wyglądają tak samo.
+   */
+  hero: Pick<Hero, "codename" | "colors" | "emblem">;
   /** Znak na piersi — zwykle grafem aktualnego dźwięku. */
   emblem?: string;
   size?: number;

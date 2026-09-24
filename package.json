@@ -9,7 +9,9 @@
     "start": "next start",
     "audio": "tsx scripts/generate-audio.mjs",
     "audio:phonemes": "tsx scripts/extract-phonemes.mjs",
-    "audit": "tsx scripts/audit-lessons.mjs"
+    "audio:akademia": "tsx scripts/akademia/generate-audio.mjs",
+    "audit": "tsx scripts/audit-lessons.mjs",
+    "audit:akademia": "tsx scripts/akademia/audit-content.mjs"
   },
   "dependencies": {
     "next": "16.2.12",

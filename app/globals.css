@@ -59,6 +59,12 @@ body {
   outline-offset: 2px;
 }
 
+/* Przypadkowy zoom dwuklikiem przy szybkim stukaniu — wyłączony także tam,
+   gdzie przeglądarka ignoruje blokadę z viewport (Safari na iOS). Z Akademii. */
+html {
+  touch-action: manipulation;
+}
+
 /* Dziecko na tablecie/telefonie nie powinno przypadkiem zaznaczać tekstu
    podczas szybkiego stukania w karty. Panel rodzica ma zaznaczanie włączone. */
 .no-select {
@@ -102,6 +108,20 @@ body {
   }
 }
 
+/* Potrząśnięcie przy złej odpowiedzi (Akademia). */
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-8px);
+  }
+  75% {
+    transform: translateX(8px);
+  }
+}
+
 @keyframes spin-slow {
   to {
     transform: rotate(360deg);
@@ -120,6 +140,10 @@ body {
   animation: pulse-ring 1600ms ease-out infinite;
 }
 
+.animate-shake {
+  animation: shake 350ms ease-in-out;
+}
+
 /* Promienie za bohaterem na ekranie zwycięstwa. */
 .animate-spin-slow {
   animation: spin-slow 16s linear infinite;
@@ -129,6 +153,7 @@ body {
   .animate-pop-in,
   .animate-cheer,
   .animate-pulse-ring,
+  .animate-shake,
   .animate-spin-slow {
     animation: none;
   }

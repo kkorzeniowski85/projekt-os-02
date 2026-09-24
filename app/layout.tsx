@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Andika } from "next/font/google";
-import { ProgressProvider } from "@/lib/progress/store";
+import { ProgressProvider as LigaProgressProvider } from "@/lib/progress/store";
+import { ProgressProvider as AkademiaProgressProvider } from "@/lib/akademia/progress/store";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import "./globals.css";
 
@@ -18,9 +19,10 @@ const andika = Andika({
 });
 
 export const metadata: Metadata = {
-  title: "Liga Dźwięków",
-  description: "Nauka czytania po angielsku metodą phonics (Read Write Inc.)",
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Liga Dźwięków" },
+  title: { default: "Liga", template: "%s · Liga" },
+  description:
+    "Liga: czytanie po angielsku metodą phonics i słownictwo (dział Dźwięki) oraz tabliczka mnożenia, matematyka po angielsku, czytanie ze zrozumieniem i język klasy (dział Akademia)",
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Liga" },
 };
 
 export const viewport: Viewport = {
@@ -31,13 +33,21 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+/**
+ * Jedna aplikacja, dwa silniki: dział Dźwięki (dawna Liga Dźwięków) i dział
+ * Akademia (dawna Akademia Ligi) mają własne magazyny postępu, własną
+ * synchronizację i własne klucze w localStorage — dokładnie te same co w
+ * osobnych aplikacjach, więc powrót do nich niczego nie gubi (docs/polaczenie.md).
+ */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pl" className={`h-full ${andika.variable}`}>
       <body className="min-h-dvh antialiased">
-        <ProgressProvider>
-          <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-8">{children}</main>
-        </ProgressProvider>
+        <LigaProgressProvider>
+          <AkademiaProgressProvider>
+            <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-8">{children}</main>
+          </AkademiaProgressProvider>
+        </LigaProgressProvider>
         <ServiceWorkerRegistrar />
       </body>
     </html>
