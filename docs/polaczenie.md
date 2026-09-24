@@ -72,9 +72,13 @@ Kroki biorą się z rekomendacji obu silników — moduł tylko je wybiera:
    a w pozostałe dni trening. Stan „zrobione” liczy mission.ts. W dzień lekcji
    krokiem jest sama lekcja (trening nie jest wtedy obowiązkowy, zostaje w
    hubie Tabliczki) — misja ma dwa kroki, nie trzy.
-3. **Dla chętnych** — dział Akademii, który najdłużej czekał (rotacja z
-   mission.ts), wyraźnie oznaczony „⭐ Dla chętnych — nieobowiązkowe”. Misja
-   jest wykonana po krokach 1 i 2.
+3. **Dla chętnych** — więcej czytania: druga sesja dźwięków tego dnia
+   (przed krokiem 1 powtórka najdawniej widzianego dźwięku, po nim to, co
+   poleca Liga — zwykle następny dźwięk), wyraźnie oznaczona „⭐ Dla chętnych
+   — nieobowiązkowe”. Misja jest wykonana po krokach 1 i 2. Do 24.09.2026 był
+   tu dział Akademii; rodzic zmienił to po sprawdzianie czytania (dziecko dużo
+   rozumie ze słuchu, a składanie liter w słowa dopiero się zaczyna). Działy
+   Akademii są dalej pod ręką w sekcji Akademia.
 
 Na ekranach dziecka nie ma dat, odliczania ani wzmianek o szkole w Anglii,
 Year 4 czy czerwcu — plan z datami jest tylko w panelu rodzica (zakładka

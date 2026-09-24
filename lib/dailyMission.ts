@@ -10,8 +10,12 @@
  *     lekcja „Liczymy co N", gdy misja Akademii ją stawia (zasada „lekcja
  *     przed nowymi faktami"), a inaczej codzienny trening. Stan „zrobione"
  *     liczy mission.ts, bez zmian.
- *  3. Dla chętnych — dział Akademii, który najdłużej czekał (rotacja z
- *     mission.ts). Nieobowiązkowy: misja jest wykonana po krokach 1 i 2.
+ *  3. Dla chętnych — więcej czytania: druga sesja dźwięków tego dnia
+ *     (readingBonus niżej). Nieobowiązkowy: misja jest wykonana po krokach 1
+ *     i 2. Decyzja rodzica (24.09.2026): dziecko dużo rozumie ze słuchu, ale
+ *     czytanie (składanie liter w słowa) dopiero się zaczyna — chętny dzień
+ *     ma dawać więcej czytania, a nie kolejny dział Akademii (działy są dalej
+ *     pod ręką w sekcji Akademia na stronie głównej).
  *
  * Tu jest tylko rama: oba silniki liczą swoje rekomendacje jak dotąd, a ten
  * moduł wybiera z nich kroki. Bez dat i odliczania — to ekran dziecka.
@@ -19,6 +23,7 @@
 
 import { dailyMission as akademiaMission, type MissionStep as AkademiaStep } from "@/lib/akademia/mission";
 import type { ProgressState as AkademiaState } from "@/lib/akademia/progress/types";
+import { hasLesson } from "@/lib/curriculum/lessons";
 import { getSound } from "@/lib/curriculum/sounds";
 import { getTopic } from "@/lib/curriculum/vocab";
 import { recommendNext, recommendNextTopic, RULES } from "@/lib/progress/rules";
@@ -41,7 +46,7 @@ export type MissionStepView = {
 export type Mission = {
   /** Kroki obowiązkowe (1: Dźwięki, 2: Tabliczka). */
   steps: MissionStepView[];
-  /** Krok dla chętnych (inny dział Akademii) albo null. */
+  /** Krok dla chętnych (druga sesja dźwięków) albo null. */
   bonus: MissionStepView | null;
   /** Oba kroki obowiązkowe zrobione dziś. */
   done: boolean;
@@ -70,15 +75,19 @@ function ligaSessionCounts(state: LigaState, session: SessionRecord): boolean {
   return tasks >= RULES.minScoredForStatus;
 }
 
-function soundsStep(state: LigaState, now: number): MissionStepView {
-  const doneToday = state.sessions
+/** Dzisiejsze sesje Ligi, które naprawdę coś zrobiły (dźwięki i słowa), od najnowszej. */
+function countedToday(state: LigaState, now: number): SessionRecord[] {
+  return state.sessions
     .filter((session) => isToday(session.endedTs, now) && ligaSessionCounts(state, session))
-    .reduce<SessionRecord | undefined>(
-      (latest, session) => (!latest || session.endedTs >= latest.endedTs ? session : latest),
-      undefined,
-    );
+    .sort((a, b) => b.endedTs - a.endedTs);
+}
 
-  // Zrobione dziś zostaje na liście z ✅ — ostatnia zaliczona sesja.
+function soundsStep(state: LigaState, now: number): MissionStepView {
+  const counted = countedToday(state, now);
+  const doneToday = counted[counted.length - 1];
+
+  // Zrobione dziś zostaje na liście z ✅ — pierwsza zaliczona sesja dnia (to
+  // ona odhaczyła krok; kolejne sesje dźwięków pokazuje bonus).
   if (doneToday) {
     if (trackOf(doneToday) === "vocab") {
       return {
@@ -135,6 +144,71 @@ function soundsStep(state: LigaState, now: number): MissionStepView {
   };
 }
 
+/**
+ * Dla chętnych: więcej czytania — druga sesja dźwięków tego dnia.
+ *  - krok 1 jeszcze niezrobiony: powtórka dźwięku, który dziecko już ćwiczyło
+ *    i widziało najdawniej (inny niż dźwięk z kroku 1). Na samym początku
+ *    nauki nie ma czego powtarzać — wtedy bonusu nie ma;
+ *  - krok 1 zrobiony: to, co Liga poleca teraz (recommendNext) — zwykle
+ *    następny dźwięk, bo sesja przed chwilą przesunęła rekomendację;
+ *  - zaliczony, gdy dziś jest sesja dźwięków INNA niż ta, która zaliczyła
+ *    krok 1 (pierwsza sesja dnia). Sesja słów po kroku 1 bonusu nie zalicza —
+ *    to nie jest czytanie.
+ */
+function readingBonus(state: LigaState, step: MissionStepView, now: number): MissionStepView | null {
+  const today = countedToday(state, now);
+  const stepSession = today[today.length - 1];
+  const extra = today.find((session) => session !== stepSession && trackOf(session) === "phonics");
+  if (extra) {
+    return {
+      emoji: "📖",
+      title: "Dźwięk",
+      titleReading: getSound(extra.soundId)?.grapheme ?? extra.soundId,
+      subtitle: "Dźwięki · więcej czytania",
+      href: `/sesja/${extra.soundId}`,
+      done: true,
+    };
+  }
+
+  if (!step.done) {
+    const firstSound = step.href.startsWith("/sesja/") ? step.href.slice("/sesja/".length) : null;
+    const oldest = Object.values(state.sounds)
+      .filter((sound) => sound.soundId !== firstSound && sound.lastSeenTs !== null && hasLesson(sound.soundId))
+      .sort((a, b) => (a.lastSeenTs ?? 0) - (b.lastSeenTs ?? 0))[0];
+    const sound = oldest ? getSound(oldest.soundId) : undefined;
+    if (!oldest || !sound) return null;
+    return {
+      emoji: "📖",
+      title: "Powtórka",
+      titleReading: sound.grapheme,
+      subtitle: "Dźwięki · więcej czytania",
+      href: `/sesja/${oldest.soundId}`,
+      done: false,
+    };
+  }
+
+  const recommendation = recommendNext(state, now);
+  const sound = getSound(recommendation.soundId);
+  if (recommendation.reason === "all-done" || !sound) return null;
+  const title =
+    recommendation.reason === "new-sound"
+      ? "Jeszcze jeden dźwięk"
+      : recommendation.reason === "continue"
+        ? "Dokończ"
+        : recommendation.reason === "refresh"
+          ? "Przypomnij sobie"
+          : "Powtórka";
+  return {
+    emoji: "📖",
+    title,
+    titleReading: sound.grapheme,
+    subtitle: "Dźwięki · więcej czytania",
+    href: `/sesja/${recommendation.soundId}`,
+    done: false,
+    note: recommendation.labelPl,
+  };
+}
+
 function fromAkademia(step: AkademiaStep): MissionStepView {
   return {
     emoji: step.emoji,
@@ -148,15 +222,15 @@ function fromAkademia(step: AkademiaStep): MissionStepView {
 export function combinedMission(liga: LigaState, akademia: AkademiaState, now = Date.now()): Mission {
   const akademiaSteps = akademiaMission(akademia, now);
   // mission.ts: najpierw lekcja (gdy jest), potem trening — oba z działu
-  // tabliczki; pierwszy z nich to krok 2. Dalej dział „który najdłużej czekał".
+  // tabliczki; pierwszy z nich to krok 2.
   const tables = akademiaSteps.find((step) => step.module === "tables");
-  const other = akademiaSteps.find((step) => step.module !== "tables");
 
-  const steps = [soundsStep(liga, now)];
+  const sounds = soundsStep(liga, now);
+  const steps = [sounds];
   if (tables) steps.push(fromAkademia(tables));
   return {
     steps,
-    bonus: other ? fromAkademia(other) : null,
+    bonus: readingBonus(liga, sounds, now),
     done: steps.every((step) => step.done),
   };
 }
