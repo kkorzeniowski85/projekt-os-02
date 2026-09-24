@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { TEST_MODE } from "@/lib/testMode";
 
 // Na GitHub Pages aplikacja stoi w podkatalogu — adresy w manifeście muszą to
 // uwzględniać, inaczej instalacja na telefonie prowadzi do pustej strony.
@@ -14,8 +15,9 @@ export const dynamic = "force-static";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Liga",
-    short_name: "Liga",
+    // Wersja testowa (lib/testMode.ts) ma się odróżniać już na ekranie głównym.
+    name: TEST_MODE ? "Liga (test)" : "Liga",
+    short_name: TEST_MODE ? "Liga (test)" : "Liga",
     description:
       "Dźwięki: czytanie po angielsku metodą phonics (sekwencja Read Write Inc.) i słownictwo. Akademia: tabliczka mnożenia, matematyka po angielsku, czytanie ze zrozumieniem i język klasy.",
     start_url: `${base}/`,

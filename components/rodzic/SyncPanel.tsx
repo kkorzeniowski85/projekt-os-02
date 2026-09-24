@@ -52,15 +52,57 @@ import {
   subscribeSync,
   type SyncStatus,
 } from "@/lib/progress/sync";
+import { discardBetaCopy, TEST_MODE } from "@/lib/testMode";
 import { resetDate, sessionsWord } from "./plural";
+
+/**
+ * Kopie z wersji testowej mają w nazwie „TEST-" — żeby nie pomylić ich z
+ * prawdziwymi przy wczytywaniu w prawdziwej Lidze.
+ */
+const BACKUP_NAME_PREFIX = TEST_MODE ? "TEST-" : "";
 
 export function SyncPanel() {
   return (
     <div className="flex flex-col gap-6">
-      <FamilySyncCard />
+      {TEST_MODE ? <TestModeSyncCard /> : <FamilySyncCard />}
       <BackupsCard />
       <VersionCard />
     </div>
+  );
+}
+
+/** Wersja testowa: synchronizacji nie ma (lib/testMode.ts) — zamiast karty wyjaśnienie. */
+function TestModeSyncCard() {
+  const [busy, setBusy] = useState(false);
+  return (
+    <Card>
+      <h2 className="mb-1 text-lg font-bold">Synchronizacja między urządzeniami</h2>
+      <p className="rounded-2xl bg-hero-pink/15 p-3 text-sm text-paper/85">
+        <strong>W wersji testowej synchronizacja jest wyłączona</strong> — w obu działach. Ta
+        wersja działa na kopii danych z tego urządzenia (zrobionej przy pierwszym uruchomieniu
+        wersji testowej) i nigdy nie łączy się ze skrzynką rodziny, więc nic stąd nie trafia do
+        prawdziwej Ligi ani Akademii.
+      </p>
+      <div className="mt-4 border-t border-white/10 pt-4">
+        <p className="mb-2 text-sm font-bold text-paper/70">Świeża kopia danych</p>
+        <p className="mb-3 text-xs text-paper/50">
+          Kasuje wyłącznie kopię testową (postęp obu działów i nagrania głosek wersji testowej)
+          i po przeładowaniu kopiuje od nowa aktualne dane prawdziwej Ligi z tego urządzenia.
+          Prawdziwych danych to nie dotyka.
+        </p>
+        <BigButton
+          tone="quiet"
+          onClick={async () => {
+            if (!window.confirm("Skasować kopię testową i zacząć od świeżej kopii prawdziwych danych?")) return;
+            setBusy(true);
+            await discardBetaCopy();
+            window.location.reload();
+          }}
+        >
+          {busy ? "Kopiuję…" : "Zacznij od świeżej kopii"}
+        </BigButton>
+      </div>
+    </Card>
   );
 }
 
@@ -449,6 +491,12 @@ function BackupsCard() {
         czyszczeniem danych przeglądarki albo przed „Wyczyść postęp”. Każdy dział ma własny
         plik: kopia Dźwięków nie zawiera Akademii i odwrotnie, więc zapisuj obie.
       </p>
+      {TEST_MODE && (
+        <p className="mb-4 rounded-2xl bg-hero-pink/15 p-3 text-sm text-paper/85">
+          Wersja testowa: kopie zapisane tutaj mają w nazwie „TEST-” i zawierają dane testowe —
+          nie wczytuj ich do prawdziwej Ligi.
+        </p>
+      )}
       <LigaBackup />
       <AkademiaBackup />
     </Card>
@@ -464,7 +512,7 @@ function LigaBackup() {
   useEffect(() => subscribeSync(setSync), []);
 
   function exportProgressFile() {
-    downloadFile(progressFileName(), buildProgressExport(state), "application/json");
+    downloadFile(`${BACKUP_NAME_PREFIX}${progressFileName()}`, buildProgressExport(state), "application/json");
   }
 
   async function onImportFile(event: React.ChangeEvent<HTMLInputElement>) {
@@ -704,7 +752,9 @@ function AkademiaBackup() {
       <div className="flex flex-wrap gap-3">
         <BigButton
           tone="quiet"
-          onClick={() => downloadFile(akademiaFileName(), buildAkademiaExport(state), "application/json")}
+          onClick={() =>
+            downloadFile(`${BACKUP_NAME_PREFIX}${akademiaFileName()}`, buildAkademiaExport(state), "application/json")
+          }
         >
           Zapisz kopię Akademii
         </BigButton>

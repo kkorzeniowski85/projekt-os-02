@@ -39,6 +39,10 @@ jobs:
           # Krótki znacznik wersji widoczny w trybie rodzica — pozwala od ręki
           # sprawdzić, czy urządzenie ma najnowszą wersję, czy starą z pamięci.
           NEXT_PUBLIC_BUILD_ID: ${{ github.sha }}
+          # Ten sam kod wdrożony do repozytorium projekt-os-05 buduje się jako
+          # wersja testowa: kopia danych, bez synchronizacji, pasek „Wersja
+          # testowa” (lib/testMode.ts, docs/polaczenie.md).
+          NEXT_PUBLIC_TEST_MODE: ${{ github.event.repository.name == 'projekt-os-05' && '1' || '' }}
 
       # Pages muszą być już włączone w ustawieniach repozytorium (źródło:
       # GitHub Actions). Token workflow nie ma prawa włączyć ich sam.

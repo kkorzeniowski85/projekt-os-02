@@ -39,6 +39,7 @@
 
 import { mergeProgress, parseProgressFile } from "./merge";
 import type { ProgressState } from "./types";
+import { TEST_MODE } from "@/lib/testMode";
 
 const ENDPOINT = "https://textdb.dev/api/data";
 const KEY_PREFIX = "liga-dzwiekow-";
@@ -109,6 +110,8 @@ function newCode(): string {
 }
 
 export function loadSyncCode(): string | null {
+  // Wersja testowa (lib/testMode.ts): bez synchronizacji — patrz TEST_MODE.
+  if (TEST_MODE) return null;
   try {
     // Kody poprzedniej usługi nie działają w tej — sprzątamy, żeby nie udawały
     // działającej synchronizacji.
@@ -139,6 +142,8 @@ function saveSyncCode(code: string | null): void {
  * wysyłka pojedzie w tle (i tak powtarza się co kilka minut).
  */
 export function enableSync(): string {
+  // Wersja testowa (lib/testMode.ts): bez synchronizacji — patrz TEST_MODE.
+  if (TEST_MODE) return "";
   const code = newCode();
   saveSyncCode(code);
   noteJoin(code);
@@ -155,6 +160,8 @@ export function disableSync(): void {
  * Zwraca true, gdy urządzenie właśnie zostało sparowane.
  */
 export function adoptFromHash(): boolean {
+  // Wersja testowa (lib/testMode.ts): bez synchronizacji — patrz TEST_MODE.
+  if (TEST_MODE) return false;
   if (typeof window === "undefined") return false;
   const match = window.location.hash.match(/[#&]sync=([a-zA-Z0-9-]{16,})/);
   if (!match) return false;
@@ -276,6 +283,8 @@ export function normalizeShortCode(wpisane: string): string {
 
 /** Zwraca 6-znakowy kod do przepisania albo null, gdy nie udało się go zapisać. */
 export async function createShortCode(): Promise<string | null> {
+  // Wersja testowa (lib/testMode.ts): bez synchronizacji — patrz TEST_MODE.
+  if (TEST_MODE) return null;
   if (!status.code) return null;
 
   for (let proba = 0; proba < 3; proba++) {
@@ -301,6 +310,8 @@ export async function createShortCode(): Promise<string | null> {
 
 /** Podłączenie tego urządzenia kodem przepisanym z drugiego ekranu. */
 export async function adoptShortCode(wpisane: string): Promise<boolean> {
+  // Wersja testowa (lib/testMode.ts): bez synchronizacji — patrz TEST_MODE.
+  if (TEST_MODE) return false;
   const short = normalizeShortCode(wpisane);
   if (short.length !== 6) return false;
 
@@ -325,6 +336,8 @@ export async function timeoutFetch(
   init: RequestInit = {},
   ms = 20000,
 ): Promise<Response> {
+  // Wersja testowa (lib/testMode.ts): bez synchronizacji — patrz TEST_MODE.
+  if (TEST_MODE) throw new TypeError("Wersja testowa: synchronizacja jest wyłączona");
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   try {

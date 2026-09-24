@@ -15,7 +15,11 @@
  * zwykłym plikiem aplikacji.
  */
 
-const DB_NAME = "liga-dzwiekow";
+import { BETA_RECORDINGS_DB, betaRecordingsReady, REAL_RECORDINGS_DB, TEST_MODE } from "@/lib/testMode";
+
+// Wersja testowa (lib/testMode.ts) pracuje na kopii nagrań w osobnej bazie;
+// prawdziwą bazę tylko raz czyta, kopiując jej zawartość.
+const DB_NAME = TEST_MODE ? BETA_RECORDINGS_DB : REAL_RECORDINGS_DB;
 const DB_VERSION = 1;
 const STORE = "phoneme-recordings";
 
@@ -29,6 +33,11 @@ export type RecordingMeta = {
 type RecordingRow = RecordingMeta & { blob: Blob };
 
 function openDb(): Promise<IDBDatabase> {
+  if (TEST_MODE) return betaRecordingsReady(STORE, DB_VERSION).then(openDbNow);
+  return openDbNow();
+}
+
+function openDbNow(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {

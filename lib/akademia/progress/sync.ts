@@ -48,6 +48,7 @@
 import { mergeProgress, parseProgressFile, progressVersionOf } from "./merge";
 import { PROGRESS_SCHEMA_VERSION } from "./types";
 import type { ProgressState } from "./types";
+import { TEST_MODE } from "@/lib/testMode";
 
 const ENDPOINT = "https://textdb.dev/api/data";
 /** Własna przestrzeń w usłudze — skrzynki Ligi mają przedrostek „liga-dzwiekow-". */
@@ -139,6 +140,8 @@ function newCode(): string {
 type SavedSync = { code?: string | null; fromLiga?: boolean; optOut?: boolean; codeChangedTs?: number };
 
 export function loadSyncCode(): string | null {
+  // Wersja testowa (lib/testMode.ts): bez synchronizacji — patrz TEST_MODE.
+  if (TEST_MODE) return null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
@@ -198,6 +201,8 @@ function isOptedOut(): boolean {
 
 /** Kod rodziny Ligi Dźwięków na tym urządzeniu (tylko odczyt). */
 export function ligaSyncCode(): string | null {
+  // Wersja testowa (lib/testMode.ts): bez synchronizacji — patrz TEST_MODE.
+  if (TEST_MODE) return null;
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(LIGA_SYNC_KEY);
@@ -223,6 +228,8 @@ export function ligaSyncCode(): string | null {
  * urządzenia i zostają na starym kodzie: stąd przypomnienie (codeChangedTs).
  */
 export function adoptFromLiga(): boolean {
+  // Wersja testowa (lib/testMode.ts): bez synchronizacji — patrz TEST_MODE.
+  if (TEST_MODE) return false;
   if (typeof window === "undefined") return false;
   const liga = ligaSyncCode();
   if (!liga) return false;
@@ -247,6 +254,8 @@ export function ligaCodeMismatch(): boolean {
 
 /** Przejście na kod rodziny z Ligi (decyzja rodzica po ostrzeżeniu). */
 export function switchToLigaCode(): boolean {
+  // Wersja testowa (lib/testMode.ts): bez synchronizacji — patrz TEST_MODE.
+  if (TEST_MODE) return false;
   const liga = ligaSyncCode();
   if (!liga) return false;
   const own = status.code;
@@ -262,6 +271,8 @@ export function switchToLigaCode(): boolean {
  * pojawić natychmiast, a pierwsza wysyłka pojedzie w tle.
  */
 export function enableSync(): string {
+  // Wersja testowa (lib/testMode.ts): bez synchronizacji — patrz TEST_MODE.
+  if (TEST_MODE) return "";
   const liga = ligaSyncCode();
   const code = liga ?? newCode();
   saveSyncCode(code, Boolean(liga));
@@ -279,6 +290,8 @@ export function disableSync(): void {
  * Zwraca true, gdy urządzenie właśnie zostało sparowane.
  */
 export function adoptFromHash(): boolean {
+  // Wersja testowa (lib/testMode.ts): bez synchronizacji — patrz TEST_MODE.
+  if (TEST_MODE) return false;
   if (typeof window === "undefined") return false;
   const match = window.location.hash.match(/[#&]sync=([a-zA-Z0-9-]{16,})/);
   if (!match) return false;
@@ -418,6 +431,8 @@ export function normalizeShortCode(wpisane: string): string {
 
 /** Zwraca 6-znakowy kod do przepisania albo null, gdy nie udało się go zapisać. */
 export async function createShortCode(): Promise<string | null> {
+  // Wersja testowa (lib/testMode.ts): bez synchronizacji — patrz TEST_MODE.
+  if (TEST_MODE) return null;
   // Kod rodziny z chwili kliknięcia — zmiana w tle (za Ligą) nie może podmienić
   // przekazki w połowie; panel i tak pokazuje krótki kod tylko dla tego kodu.
   const code = status.code;
@@ -462,6 +477,8 @@ export type ShortCodeResult = "ok" | "expired" | "not-found";
  * przekazkę sprzed ponad doby.
  */
 export async function expireShortCode(short: string): Promise<void> {
+  // Wersja testowa (lib/testMode.ts): bez synchronizacji — patrz TEST_MODE.
+  if (TEST_MODE) return;
   await writeMailbox(szufladaKodu(normalizeShortCode(short)), "");
 }
 
@@ -472,6 +489,8 @@ export async function expireShortCode(short: string): Promise<void> {
  * zapas na zegary (KOD_ZEGARY_MS) nie przyjmujemy.
  */
 export async function adoptShortCode(wpisane: string, now = Date.now()): Promise<ShortCodeResult> {
+  // Wersja testowa (lib/testMode.ts): bez synchronizacji — patrz TEST_MODE.
+  if (TEST_MODE) return "not-found";
   const short = normalizeShortCode(wpisane);
   if (short.length !== 6) return "not-found";
 
@@ -507,6 +526,8 @@ export async function timeoutFetch(
   init: RequestInit = {},
   ms = 20000,
 ): Promise<Response> {
+  // Wersja testowa (lib/testMode.ts): bez synchronizacji — patrz TEST_MODE.
+  if (TEST_MODE) throw new TypeError("Wersja testowa: synchronizacja jest wyłączona");
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   try {

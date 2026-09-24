@@ -4,6 +4,8 @@ import { ProgressProvider as LigaProgressProvider } from "@/lib/progress/store";
 import { ProgressProvider as AkademiaProgressProvider } from "@/lib/akademia/progress/store";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import { SyncBridge } from "@/components/SyncBridge";
+import { TEST_MODE } from "@/lib/testMode";
+import { BETA_STORAGE_SCRIPT } from "@/lib/testModeScript";
 import "./globals.css";
 
 /**
@@ -19,11 +21,13 @@ const andika = Andika({
   display: "swap",
 });
 
+const APP_NAME = TEST_MODE ? "Liga (test)" : "Liga";
+
 export const metadata: Metadata = {
-  title: { default: "Liga", template: "%s · Liga" },
+  title: { default: APP_NAME, template: `%s · ${APP_NAME}` },
   description:
     "Liga: czytanie po angielsku metodą phonics i słownictwo (dział Dźwięki) oraz tabliczka mnożenia, matematyka po angielsku, czytanie ze zrozumieniem i język klasy (dział Akademia)",
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Liga" },
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: APP_NAME },
 };
 
 export const viewport: Viewport = {
@@ -43,7 +47,24 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pl" className={`h-full ${andika.variable}`}>
+      {TEST_MODE && (
+        <head>
+          {/* Wersja testowa: izolacja localStorage i blokada synchronizacji,
+              zanim ruszy jakikolwiek kod aplikacji (lib/testModeScript.ts). */}
+          <script dangerouslySetInnerHTML={{ __html: BETA_STORAGE_SCRIPT }} />
+        </head>
+      )}
       <body className="min-h-dvh antialiased">
+        {TEST_MODE && (
+          <div
+            role="status"
+            className="sticky z-40 bg-hero-pink px-4 py-2 text-center text-sm font-bold text-night"
+            style={{ top: "env(safe-area-inset-top)" }}
+          >
+            Wersja testowa — działa na kopii danych; zmiany nie trafiają do prawdziwej Ligi ani
+            Akademii
+          </div>
+        )}
         <LigaProgressProvider>
           <AkademiaProgressProvider>
             <SyncBridge />
