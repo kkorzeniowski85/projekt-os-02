@@ -50,6 +50,7 @@ import {
   buildProgressExport,
   parseProgressFile,
   progressFileName,
+  withoutMarkers,
 } from "@/lib/progress/merge";
 import {
   buildAttemptsCsv,
@@ -61,22 +62,32 @@ import { accuracyOf, recommendNext, recommendNextTopic, RULES } from "@/lib/prog
 import { useProgress } from "@/lib/progress/store";
 import { trackOf, type SoundState } from "@/lib/progress/types";
 
-/** Polska odmiana: 1 sesję, 2-4 sesje, 5+ sesji (z wyjątkiem 12-14). */
-function sessionsWord(count: number): string {
-  if (count === 1) return "sesję";
+/** Polska odmiana liczebnika: 1 → one, 2-4 → few (z wyjątkiem 12-14), reszta i 0 → many. */
+function plural(count: number, one: string, few: string, many: string): string {
+  if (count === 1) return one;
   const lastDigit = count % 10;
   const lastTwo = count % 100;
-  if (lastDigit >= 2 && lastDigit <= 4 && !(lastTwo >= 12 && lastTwo <= 14)) return "sesje";
-  return "sesji";
+  if (lastDigit >= 2 && lastDigit <= 4 && !(lastTwo >= 12 && lastTwo <= 14)) return few;
+  return many;
+}
+
+/** Polska odmiana: 1 sesję, 2-4 sesje, 5+ sesji (z wyjątkiem 12-14). */
+function sessionsWord(count: number): string {
+  return plural(count, "sesję", "sesje", "sesji");
 }
 
 /** Polska odmiana: 1 głoskę, 2-4 głoski, 5+ głosek. */
 function soundsWord(count: number): string {
-  if (count === 1) return "głoskę";
-  const lastDigit = count % 10;
-  const lastTwo = count % 100;
-  if (lastDigit >= 2 && lastDigit <= 4 && !(lastTwo >= 12 && lastTwo <= 14)) return "głoski";
-  return "głosek";
+  return plural(count, "głoskę", "głoski", "głosek");
+}
+
+/** Data resetu w komunikatach dla rodzica, np. „23 września 2026". */
+function resetDate(ts: number): string {
+  return new Date(ts).toLocaleDateString("pl-PL", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 }
 
 const STATUS_LABEL: Record<SoundState["status"], string> = {
@@ -182,7 +193,8 @@ function PhraseClipList({
 }
 
 export default function ParentPage() {
-  const { state, importProgress, setChildName, resetAll, ready, requestSync } = useProgress();
+  const { state, importProgress, previewImport, setChildName, resetAll, ready, requestSync } =
+    useProgress();
   const [copied, setCopied] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [sync, setSync] = useState<SyncStatus | null>(null);
@@ -322,19 +334,94 @@ export default function ParentPage() {
       return;
     }
 
-    const incoming = parseProgressFile(text);
-    if (!incoming) {
+    const parsed = parseProgressFile(text);
+    if (!parsed) {
       setSyncMessage(
         `Plik „${file.name}” nie wygląda na plik postępu z tej aplikacji (albo pochodzi z innej jej wersji). Szukaj pliku o nazwie liga-dzwiekow-postep-….json.`,
       );
       return;
     }
-    const added = importProgress(incoming);
-    setSyncMessage(
-      added > 0
-        ? `Scalono postęp: dodano ${added} ${sessionsWord(added)}. Nic nie zostało nadpisane.`
-        : "Plik wczytany — wszystkie sesje z tego pliku już tu były. Nic się nie zmieniło.",
-    );
+    let incoming = parsed;
+    // Zanim scalimy: kopia sprzed „Wyczyść postęp" zostałaby po cichu pominięta,
+    // kopia z nowszym resetem po cichu skasowałaby sesje z tego urządzenia, a
+    // kopia z późniejszym przywróceniem po cichu zniosłaby reset zrobiony tutaj.
+    // We wszystkich przypadkach decyduje rodzic. Podgląd liczy store na
+    // najnowszym stanie — w trakcie odczytu pliku mogła przyjść synchronizacja.
+    const preview = previewImport(incoming);
+    const kiedy = resetDate(preview.cutoffTs);
+    let restore = false;
+    if (preview.localCutoffTs > preview.cutoffTs) {
+      const n = preview.revivedByFile;
+      const wczytac =
+        n > 0 &&
+        window.confirm(
+          `Ta kopia zawiera przywrócenie postępu z ${resetDate(parsed.restoreTs)}, późniejsze ` +
+            `niż wyczyszczenie postępu na tym urządzeniu (${resetDate(preview.localCutoffTs)}). ` +
+            `Wczytać razem z nim ${n} ${sessionsWord(n)} sprzed tego wyczyszczenia?\n\n` +
+            "OK — wczytaj" +
+            (sync?.enabled
+              ? n === 1
+                ? " (wróci też na pozostałych urządzeniach rodziny)"
+                : " (wrócą też na pozostałych urządzeniach rodziny)"
+              : "") +
+            ".\nAnuluj — wczytaj tylko sesje z czasu po wyczyszczeniu na tym urządzeniu.",
+        );
+      // Bez zgody (albo gdy plik i tak nie ma starszych sesji) wyczyszczenie
+      // zrobione tutaj zostaje w mocy.
+      if (!wczytac) incoming = withoutMarkers(parsed);
+    }
+    if (preview.olderInFile > 0) {
+      const n = preview.olderInFile;
+      restore = window.confirm(
+        `Ta kopia ma ${n} ${sessionsWord(n)} sprzed wyczyszczenia postępu (${kiedy}). ` +
+          `Przywrócić ${n === 1 ? "ją" : "je"}?\n\n` +
+          "OK — przywróć" +
+          (sync?.enabled
+            ? n === 1
+              ? " (wróci też na pozostałych urządzeniach rodziny)"
+              : " (wrócą też na pozostałych urządzeniach rodziny)"
+            : "") +
+          ".\nAnuluj — wczytaj tylko sesje z czasu po wyczyszczeniu.",
+      );
+    }
+    if (!restore && preview.removedLocal > 0) {
+      const m = preview.removedLocal;
+      const dalej = window.confirm(
+        `Ta kopia zawiera wyczyszczenie postępu z ${kiedy}. Wczytanie usunie z tego urządzenia ` +
+          `${m} ${sessionsWord(m)} sprzed tej daty` +
+          (sync?.enabled ? " (także z pozostałych urządzeń rodziny)" : "") +
+          ". Kontynuować?",
+      );
+      if (!dalej) {
+        setSyncMessage("Nie wczytano kopii — postęp na tym urządzeniu jest bez zmian.");
+        return;
+      }
+    }
+
+    const { added, removed } = importProgress(incoming, { restore });
+    const czesci: string[] = [];
+    if (added > 0) {
+      czesci.push(
+        restore
+          ? `Przywrócono postęp: dodano ${added} ${sessionsWord(added)}.`
+          : `Scalono postęp: dodano ${added} ${sessionsWord(added)}.`,
+      );
+    }
+    if (removed > 0) {
+      czesci.push(
+        `Usunięto ${removed} ${sessionsWord(removed)} sprzed wyczyszczenia postępu (${kiedy}).`,
+      );
+    }
+    if (czesci.length === 0) {
+      czesci.push(
+        (preview.olderInFile > 0 && !restore) || (incoming !== parsed && preview.revivedByFile > 0)
+          ? "Plik wczytany — sesje z tego pliku już tu były albo pochodzą sprzed wyczyszczenia postępu. Nic się nie zmieniło."
+          : "Plik wczytany — wszystkie sesje z tego pliku już tu były. Nic się nie zmieniło.",
+      );
+    } else if (removed === 0) {
+      czesci.push("Nic nie zostało nadpisane.");
+    }
+    setSyncMessage(czesci.join(" "));
   }
 
   return (
@@ -558,6 +645,19 @@ export default function ParentPage() {
                 <> Ostatnia synchronizacja: {new Date(sync.lastOkTs).toLocaleTimeString("pl-PL")}.</>
               )}
             </p>
+            {/* Dołączenie do rodziny, która wcześniej czyściła postęp: historia
+                tego urządzenia zostaje (przywróceniem) — rodzic powinien o tym
+                wiedzieć, bo trafi ona też na pozostałe urządzenia. */}
+            {sync.keptOnJoin && (
+              <p className="mb-3 rounded-2xl bg-black/25 p-3 text-sm text-paper/85">
+                To urządzenie miało {sync.keptOnJoin.sessions}{" "}
+                {sessionsWord(sync.keptOnJoin.sessions)} sprzed wyczyszczenia postępu w tej
+                rodzinie ({resetDate(sync.keptOnJoin.resetTs)}).{" "}
+                {sync.keptOnJoin.sessions === 1 ? "Została zachowana i trafi" : "Zostały zachowane i trafią"}{" "}
+                też na pozostałe urządzenia. Jeśli postęp ma zacząć się od zera, użyj „Wyczyść
+                postęp” w ustawieniach.
+              </p>
+            )}
             {sync.lastError && (
               <p className="mb-3 rounded-2xl bg-hero-pink/15 p-3 text-sm text-paper/85">
                 {sync.lastError === "brak-sieci" && (
@@ -740,7 +840,10 @@ export default function ParentPage() {
           <p className="mb-2 text-sm font-bold text-paper/70">Kopia zapasowa</p>
           <p className="mb-3 text-xs text-paper/50">
             Synchronizacja wystarcza na co dzień. Plik przydaje się jako zabezpieczenie —
-            np. przed czyszczeniem danych przeglądarki. Wczytanie scala, nic nie nadpisuje.
+            np. przed czyszczeniem danych przeglądarki albo przed „Wyczyść postęp”. Wczytanie
+            scala kopię z tym, co jest na urządzeniu. Gdy kopia ma sesje sprzed wyczyszczenia
+            postępu albo sama zawiera późniejsze wyczyszczenie (które usunęłoby starsze sesje
+            z tego urządzenia), aplikacja najpierw zapyta.
           </p>
           <div className="flex flex-wrap gap-3">
             <BigButton tone="quiet" onClick={exportProgressFile}>
@@ -1013,15 +1116,40 @@ export default function ParentPage() {
               // Dwa osobne potwierdzenia celowo: to działanie nieodwracalne,
               // a jedno okno łatwo zamknąć odruchowo. Drugie pokazuje, ile
               // konkretnie zostanie utracone, żeby nie było to tylko formalnością.
-              if (!window.confirm("Skasować cały postęp dziecka? Tego nie da się cofnąć.")) {
+              if (
+                !window.confirm(
+                  "Skasować cały postęp dziecka? Cofnąć to można tylko, wczytując " +
+                    "zapisaną wcześniej kopię — jeśli jej nie masz, anuluj i najpierw " +
+                    "użyj „Zapisz kopię”.",
+                )
+              ) {
                 return;
               }
+              const sessionCount = state.sessions.length;
               const masteredCount = Object.values(state.sounds).filter(
                 (sound) => sound.status === "mastered",
               ).length;
+              const masteredTopics = Object.values(state.topics).filter(
+                (topic) => topic.status === "mastered",
+              ).length;
               const potwierdzenie =
-                `Na pewno? Znikną wszystkie ${state.sessions.length} zapisanych sesji i ` +
-                `${masteredCount} opanowanych dźwięków. Tej operacji nie da się cofnąć.`;
+                `Na pewno? Skasujesz ${sessionCount} ` +
+                plural(sessionCount, "zapisaną sesję", "zapisane sesje", "zapisanych sesji") +
+                (masteredTopics > 0 ? ", " : " i ") +
+                `${masteredCount} ` +
+                plural(masteredCount, "opanowany dźwięk", "opanowane dźwięki", "opanowanych dźwięków") +
+                (masteredTopics > 0
+                  ? ` i ${masteredTopics} ` +
+                    plural(masteredTopics, "opanowany temat", "opanowane tematy", "opanowanych tematów")
+                  : "") +
+                "." +
+                // Reset rozchodzi się synchronizacją (resetTs) — rodzic musi to
+                // wiedzieć, zanim kliknie, a nie odkryć na tablecie.
+                (sync?.enabled
+                  ? " Synchronizacja jest włączona, więc postęp zniknie też na pozostałych " +
+                    "urządzeniach rodziny, gdy tylko się zsynchronizują."
+                  : "") +
+                " Bez zapisanej kopii tej operacji nie da się cofnąć.";
               if (window.confirm(potwierdzenie)) {
                 resetAll();
               }

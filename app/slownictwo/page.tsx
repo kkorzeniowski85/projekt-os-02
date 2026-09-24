@@ -10,7 +10,7 @@
  */
 
 import Link from "next/link";
-import { BigButton, Card } from "@/components/ui";
+import { BigButton, Card, ParentTip } from "@/components/ui";
 import { TOPICS, topicSize } from "@/lib/curriculum/vocab";
 import { recommendNextTopic } from "@/lib/progress/rules";
 import { useProgress } from "@/lib/progress/store";
@@ -75,11 +75,15 @@ export default function VocabHomePage() {
 
       <section className="flex flex-col gap-3">
         <h2 className="text-xl font-bold">Tematy</h2>
-        <p className="text-xs text-paper/60">
-          Kolejność to kolejność pilności, a nie trudności: pierwsze cztery tematy to
-          przetrwanie w szkole. Wszystkie są otwarte — jeśli dziecko jutro idzie do szkoły,
-          zacznijcie od „Ratunek!”, a resztę róbcie po kolei.
-        </p>
+        {/* Uwaga o pilności przed szkołą jest dla rodzica, nie dla dziecka —
+            ekran dziecka nie przypomina o nowej szkole (prośba rodzica). */}
+        <ParentTip>
+          <p>
+            Kolejność to kolejność pilności, a nie trudności: pierwsze cztery tematy to
+            przetrwanie w szkole. Wszystkie są otwarte — jeśli dziecko jutro idzie do szkoły,
+            zacznijcie od „Ratunek!”, a resztę róbcie po kolei.
+          </p>
+        </ParentTip>
 
         <div className="grid gap-3 sm:grid-cols-2">
           {TOPICS.map((topic, position) => {

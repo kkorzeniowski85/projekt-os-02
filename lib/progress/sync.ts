@@ -6,9 +6,9 @@
  * ZASADA DZIAŁANIA: wspólna "skrzynka" — jeden dokument JSON pod losowym,
  * niezgadywalnym adresem. Każde urządzenie po zmianie wysyła tam SCALONY stan
  * (pobierz → scal → wyślij), a przy każdym otwarciu i co kilka minut pobiera
- * i scala u siebie. Scalanie to unia sesji po `id` (lib/progress/merge.ts) —
- * jest idempotentne, więc kolejność i powtórzenia nie szkodzą, a stany
- * zbiegają się same.
+ * i scala u siebie. Scalanie to unia sesji po `id` (lib/progress/merge.ts),
+ * z pominięciem sesji sprzed wyczyszczenia postępu — jest idempotentne, więc
+ * kolejność i powtórzenia nie szkodzą, a stany zbiegają się same.
  *
  * ADRES SKRZYNKI WYMYŚLAMY SAMI — to najważniejsza decyzja w tym pliku i
  * wynik bolesnej lekcji z poprzedniej wersji, która kazała usłudze utworzyć
@@ -58,6 +58,11 @@ export type SyncStatus = {
   /** Szczegół techniczny do panelu rodzica — bez niego diagnoza to zgadywanie. */
   lastErrorDetail: string | null;
   syncing: boolean;
+  /**
+   * Ile sesji tego urządzenia zachowano przy dołączeniu do rodziny, która
+   * wcześniej wyczyściła postęp (patrz pendingJoin) — do informacji w panelu.
+   */
+  keptOnJoin: { sessions: number; resetTs: number } | null;
 };
 
 let status: SyncStatus = {
@@ -67,6 +72,7 @@ let status: SyncStatus = {
   lastError: null,
   lastErrorDetail: null,
   syncing: false,
+  keptOnJoin: null,
 };
 
 const listeners = new Set<(s: SyncStatus) => void>();
@@ -124,7 +130,7 @@ function saveSyncCode(code: string | null): void {
   } catch {
     // brak localStorage — synchronizacja i tak nie ma sensu
   }
-  emit({ enabled: Boolean(code), code, lastError: null, lastErrorDetail: null });
+  emit({ enabled: Boolean(code), code, lastError: null, lastErrorDetail: null, keptOnJoin: null });
 }
 
 /**
@@ -135,11 +141,13 @@ function saveSyncCode(code: string | null): void {
 export function enableSync(): string {
   const code = newCode();
   saveSyncCode(code);
+  noteJoin(code);
   return code;
 }
 
 export function disableSync(): void {
   saveSyncCode(null);
+  noteJoin(null);
 }
 
 /**
@@ -151,6 +159,7 @@ export function adoptFromHash(): boolean {
   const match = window.location.hash.match(/[#&]sync=([a-zA-Z0-9-]{16,})/);
   if (!match) return false;
   saveSyncCode(match[1]);
+  noteJoin(match[1]);
   // Sprzątamy adres, żeby kod nie wisiał w pasku i historii.
   window.history.replaceState(null, "", window.location.pathname + window.location.search);
   return true;
@@ -160,6 +169,89 @@ export function pairingLink(): string | null {
   if (!status.code || typeof window === "undefined") return null;
   const base = window.location.pathname.replace(/rodzic\/?$/, "");
   return `${window.location.origin}${base}#sync=${status.code}`;
+}
+
+// --- do której rodziny należy reset ----------------------------------------
+
+/**
+ * Kod rodziny, w której zapadły znaczniki resetu i przywrócenia zapisane w
+ * postępie tego urządzenia (null = zapadły bez synchronizacji).
+ *
+ * Bez tego „Wyczyść postęp" na nowym tablecie (np. po próbnych sesjach, przy
+ * wyłączonej synchronizacji) po sparowaniu stawał się resetem CAŁEJ rodziny:
+ * scalanie bierze najnowszy reset z obu stron, więc skasowałoby historię z
+ * pozostałych urządzeń i ze skrzynki. Store przed obiegiem porównuje ten kod
+ * z bieżącym i przy różnicy zdejmuje znaczniki (patrz runSync) — sesje sprzed
+ * lokalnego resetu i tak już tu nie istnieją, więc nic nie wraca.
+ *
+ * Osobny klucz, a nie pole postępu: postęp trafia do plików kopii, a kod
+ * rodziny to klucz do skrzynki i nie powinien leżeć na Dysku.
+ */
+const MARKERS_KEY = "phonics.sync.markers.v1";
+
+export function markersFamily(): string | null {
+  try {
+    const raw = localStorage.getItem(MARKERS_KEY);
+    return raw ? ((JSON.parse(raw) as { code?: string | null }).code ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setMarkersFamily(code: string | null): void {
+  try {
+    localStorage.setItem(MARKERS_KEY, JSON.stringify({ code }));
+  } catch {
+    // brak localStorage — synchronizacja i tak nie działa
+  }
+}
+
+// --- dołączenie do rodziny ---------------------------------------------------
+
+/**
+ * Kod rodziny, do której to urządzenie właśnie dołączyło (QR, krótki kod,
+ * włączenie synchronizacji), a jeszcze nie scaliło się z jej skrzynką.
+ *
+ * Odwrotność markersFamily: reset zrobiony w rodzinie, ZANIM urządzenie do
+ * niej dołączyło, nie dotyczy jego historii. Bez tego telefon z historią,
+ * podłączony do tabletu, na którym ktoś wcześniej wyczyścił próbne sesje,
+ * po cichu tracił wszystkie sesje sprzed tamtego resetu. Store przy pierwszym
+ * scaleniu zachowuje je przywróceniem (patrz runSync).
+ *
+ * Zapisujemy to W CHWILI zmiany kodu, a nie wnioskujemy z braku
+ * markersFamily: urządzenie tuż po aktualizacji aplikacji też nie ma tego
+ * klucza, a reset jego własnej rodziny ma je objąć. Z tego samego powodu
+ * ponowne podłączenie do rodziny, w której urządzenie już było, to nie
+ * dołączenie.
+ */
+const JOIN_KEY = "phonics.sync.joining.v1";
+
+function noteJoin(code: string | null): void {
+  try {
+    if (code && markersFamily() !== code) localStorage.setItem(JOIN_KEY, JSON.stringify({ code }));
+    else localStorage.removeItem(JOIN_KEY);
+  } catch {
+    // brak localStorage — synchronizacja i tak nie działa
+  }
+}
+
+export function pendingJoin(): string | null {
+  try {
+    const raw = localStorage.getItem(JOIN_KEY);
+    return raw ? ((JSON.parse(raw) as { code?: string | null }).code ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Dołączenie do `code` załatwione — pierwsze scalenie ze skrzynką się odbyło. */
+export function finishJoin(code: string, kept: SyncStatus["keptOnJoin"]): void {
+  try {
+    if (pendingJoin() === code) localStorage.removeItem(JOIN_KEY);
+  } catch {
+    // brak localStorage — synchronizacja i tak nie działa
+  }
+  if (kept) emit({ keptOnJoin: kept });
 }
 
 // --- krótki kod do przepisania ---------------------------------------------
@@ -219,6 +311,7 @@ export async function adoptShortCode(wpisane: string): Promise<boolean> {
     const dane = JSON.parse(odczyt.dane) as { code?: string };
     if (!dane?.code) return false;
     saveSyncCode(dane.code);
+    noteJoin(dane.code);
     return true;
   } catch {
     return false;
@@ -362,16 +455,25 @@ function opisWyjatku(blad: unknown): string {
 /**
  * Czy mamy coś, czego skrzynka jeszcze nie widziała?
  *
- * Celowo patrzymy tylko na sesje i imię, a NIE na dziennik prób. Próby i tak
- * zawsze przyjeżdżają razem z sesją (zapisuje je ten sam commit), więc nic nam
- * nie umyka — a gdybyśmy je tu liczyli, przycięcie dziennika przy limicie
- * rozmiaru zapętliłoby wysyłkę: skrzynka miałaby na stałe mniej prób niż my,
- * więc każdy obieg uznawałby, że trzeba wysłać jeszcze raz.
+ * Celowo patrzymy tylko na sesje, imię i znaczniki resetu/przywrócenia, a NIE
+ * na dziennik prób. Próby i tak zawsze przyjeżdżają razem z sesją (zapisuje je
+ * ten sam commit), więc nic nam nie umyka — a gdybyśmy je tu liczyli,
+ * przycięcie dziennika przy limicie rozmiaru zapętliłoby wysyłkę: skrzynka
+ * miałaby na stałe mniej prób niż my, więc każdy obieg uznawałby, że trzeba
+ * wysłać jeszcze raz.
  */
 function mamyWiecej(merged: ProgressState, zdalny: ProgressState): boolean {
   const znane = new Set(zdalny.sessions.map((s) => s.id));
   return (
-    merged.sessions.some((s) => !znane.has(s.id)) || merged.childName !== zdalny.childName
+    merged.sessions.some((s) => !znane.has(s.id)) ||
+    merged.childName !== zdalny.childName ||
+    // Imię porównujemy razem ze znacznikiem: sam tekst mógłby się zgadzać,
+    // a znacznik nie, i wtedy inne urządzenie przy remisie wybrałoby inaczej.
+    (merged.childNameTs ?? 0) !== (zdalny.childNameTs ?? 0) ||
+    // Po resecie mamy MNIEJ sesji niż skrzynka, a i tak trzeba wysłać — inaczej
+    // skrzynka dalej rozdawałaby skasowany postęp. To samo przy przywróceniu.
+    (merged.resetTs ?? 0) > (zdalny.resetTs ?? 0) ||
+    (merged.restoreTs ?? 0) > (zdalny.restoreTs ?? 0)
   );
 }
 
@@ -380,6 +482,10 @@ function mamyWiecej(merged: ProgressState, zdalny: ProgressState): boolean {
  * `applyMerged` oddaje scalony stan do magazynu aplikacji — wołający decyduje,
  * czy faktycznie coś się zmieniło i czy zapisać.
  *
+ * `prepareLocal` (opcjonalne) dostaje pobraną skrzynkę PRZED scaleniem i
+ * zwraca stan lokalny do scalenia — store korzysta z tego przy dołączaniu do
+ * rodziny (patrz pendingJoin).
+ *
  * Bez blokad i wersjonowania: gdy dwa urządzenia zapiszą naraz, jedno nadpisze
  * drugie. Nic nie ginie, bo każde ma swój postęp u siebie i przy następnym
  * obiegu (po sesji albo co 3 minuty) zobaczy brak i dośle go ponownie.
@@ -387,6 +493,7 @@ function mamyWiecej(merged: ProgressState, zdalny: ProgressState): boolean {
 export async function syncNow(
   localState: ProgressState,
   applyMerged: (merged: ProgressState) => void,
+  prepareLocal?: (remote: ProgressState) => ProgressState,
 ): Promise<void> {
   const code = status.code ?? loadSyncCode();
   if (!code || status.syncing) return;
@@ -399,7 +506,8 @@ export async function syncNow(
       return;
     }
 
-    const merged = zdalne.dane ? mergeProgress(localState, zdalne.dane) : localState;
+    const local = zdalne.dane && prepareLocal ? prepareLocal(zdalne.dane) : localState;
+    const merged = zdalne.dane ? mergeProgress(local, zdalne.dane) : local;
     applyMerged(merged);
 
     if (zdalne.dane && !mamyWiecej(merged, zdalne.dane)) {

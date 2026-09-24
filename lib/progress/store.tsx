@@ -19,9 +19,15 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { mergeProgress } from "./merge";
+import {
+  mergeProgress,
+  previewImport as previewImportInto,
+  sessionDiff,
+  type ImportPreview,
+} from "./merge";
 import { applySessionResult, RULES } from "./rules";
 import {
+  cutoffTs,
   emptyProgress,
   normalizeProgress,
   PROGRESS_SCHEMA_VERSION,
@@ -61,8 +67,22 @@ type ProgressContextValue = {
   ready: boolean;
   state: ProgressState;
   commitSession: (commit: SessionCommit) => SessionOutcome;
-  /** Scala postęp z pliku (unia sesji). Zwraca liczbę dodanych sesji. */
-  importProgress: (incoming: ProgressState) => number;
+  /**
+   * Scala postęp z pliku (unia sesji, z pominięciem sesji sprzed wyczyszczenia
+   * postępu). `restore` = rodzic zgodził się przywrócić sesje sprzed
+   * wyczyszczenia: znosi odcięcie na tym urządzeniu i — przez synchronizację —
+   * na pozostałych. Zwraca, ile sesji doszło i ile ubyło (ubywa, gdy plik
+   * niesie nowszy reset niż to urządzenie).
+   */
+  importProgress: (
+    incoming: ProgressState,
+    options?: { restore?: boolean },
+  ) => { added: number; removed: number };
+  /**
+   * Co zrobi wczytanie pliku — liczone na NAJNOWSZYM stanie (w trakcie
+   * odczytu pliku synchronizacja mogła przynieść reset z innego urządzenia).
+   */
+  previewImport: (incoming: ProgressState) => ImportPreview;
   setChildName: (name: string) => void;
   resetAll: () => void;
   /**
@@ -116,6 +136,64 @@ function save(state: ProgressState): void {
   }
 }
 
+/**
+ * Najpóźniejszy znacznik czasu wśród sesji i prób (0, gdy nic nie ma), ale
+ * nie dalej niż dobę naprzód: jeden rekord z urządzenia z zegarem przestawionym
+ * o lata do przodu nie może przesunąć resetu w przyszłość — reset odcinałby wtedy
+ * wszystkie sesje rodziny aż do tej daty.
+ */
+function newestRecordTs(state: ProgressState): number {
+  const newest = Math.max(
+    0,
+    ...state.sessions.map((session) => session.endedTs),
+    ...state.attempts.map((attempt) => attempt.ts),
+  );
+  return Math.min(newest, Date.now() + 24 * 60 * 60 * 1000);
+}
+
+/**
+ * Stan po zapisaniu sesji. Sesja kończona na urządzeniu, które ZNA już reset,
+ * jest z definicji postępem po resecie — a scalanie odrzuca rekordy starsze
+ * niż granica. Gdy reset przyszedł z urządzenia ze spieszącym się zegarem,
+ * granica leży „w przyszłości" i świeża sesja dziecka znikałaby przy
+ * najbliższej synchronizacji. Przesuwamy wtedy całą sesję (z próbami, z
+ * zachowaniem odstępów) tuż za granicę i za ostatnią zapisaną sesję.
+ */
+function withCommit(
+  previous: ProgressState,
+  session: SessionRecord,
+  attempts: Attempt[],
+): ProgressState {
+  const cutoff = cutoffTs(previous);
+  const earliest = Math.min(session.startedTs, ...attempts.map((attempt) => attempt.ts));
+  // Za granicę ORAZ za ostatnią zapisaną sesję: kolejne sesje z okna rozjazdu
+  // zegarów trafiłyby inaczej w to samo miejsce, a scalanie układa sesje po
+  // końcu — ostatni wynik dźwięku byłby wtedy wynikiem wcześniejszej sesji.
+  const floor = Math.max(cutoff, ...previous.sessions.map((saved) => saved.endedTs));
+  const shift = cutoff > 0 && earliest <= cutoff ? floor + 1 - earliest : 0;
+  const saved = shift
+    ? {
+        ...session,
+        startedTs: session.startedTs + shift,
+        endedTs: session.endedTs + shift,
+      }
+    : session;
+  const withSession = applySessionResult(previous, saved);
+  return {
+    ...withSession,
+    attempts: [
+      ...previous.attempts,
+      ...(shift ? attempts.map((attempt) => ({ ...attempt, ts: attempt.ts + shift })) : attempts),
+    ].slice(-RULES.attemptLogLimit),
+  };
+}
+
+/** Zapamiętuje, że znaczniki resetu/przywrócenia zapadły w bieżącej rodzinie (albo bez niej). */
+async function noteMarkersFamily(): Promise<void> {
+  const { loadSyncCode, setMarkersFamily } = await import("./sync");
+  setMarkersFamily(loadSyncCode());
+}
+
 export function ProgressProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<ProgressState>(() => emptyProgress());
   const [ready, setReady] = useState(false);
@@ -152,16 +230,85 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   // --- automatyczna synchronizacja między urządzeniami ----------------------
 
   const runSync = useCallback(() => {
-    void (async () => {
-      const { syncNow, loadSyncCode } = await import("./sync");
-      await syncNow(stateRef.current, (merged) => {
-        update((previous) => {
-          // Scalamy jeszcze raz z NAJNOWSZYM stanem (mógł się zmienić w trakcie
-          // pobierania) — scalanie jest idempotentne, więc to bezpieczne.
-          const zMerged = mergeProgress(previous, merged);
-          return JSON.stringify(zMerged) === JSON.stringify(previous) ? previous : zMerged;
-        });
-      });
+    const pass = async (): Promise<void> => {
+      const {
+        syncNow,
+        loadSyncCode,
+        markersFamily,
+        setMarkersFamily,
+        pendingJoin,
+        finishJoin,
+      } = await import("./sync");
+      // Kod mógł się zmienić w innej karcie — bez odczytu wysyłalibyśmy do starej skrzynki.
+      const family = loadSyncCode();
+      if (!family) return;
+      // Reset albo przywrócenie zrobione poza tą rodziną (bez synchronizacji
+      // albo w innym obiegu) dotyczy tylko tego urządzenia: zdejmujemy znaczniki
+      // PRZED pierwszym scaleniem ze skrzynką, inaczej skasowałyby historię
+      // pozostałych urządzeń. Sesji sprzed resetu tu już nie ma, więc nic nie wraca.
+      if (markersFamily() !== family) {
+        const current = stateRef.current;
+        if (current.resetTs || current.restoreTs) {
+          stateRef.current = { ...current, resetTs: 0, restoreTs: 0 };
+          update((previous) =>
+            previous.resetTs || previous.restoreTs
+              ? { ...previous, resetTs: 0, restoreTs: 0 }
+              : previous,
+          );
+        }
+        setMarkersFamily(family);
+      }
+
+      // I w drugą stronę: reset zrobiony w rodzinie, zanim to urządzenie do
+      // niej dołączyło, nie kasuje jego historii. Gdy skrzynka odcięłaby
+      // sesje stąd, przy pierwszym scaleniu zachowujemy je przywróceniem —
+      // jak przy wczytaniu kopii ze zgodą rodzica. Kosztem jest to, że wrócą
+      // też sesje sprzed tamtego resetu z urządzeń rodziny, które od resetu
+      // nie były w sieci; to lepsze niż ciche skasowanie całej historii.
+      const joining = pendingJoin() === family;
+      let kept: { sessions: number; resetTs: number } | null = null;
+      const keepOnJoin = (remote: ProgressState): ProgressState => {
+        const current = stateRef.current;
+        if (loadSyncCode() !== family) return current;
+        const { removedLocal, cutoffTs: cutoff } = previewImportInto(current, remote);
+        if (removedLocal === 0) return current;
+        const restoreTs = Math.max(Date.now(), remote.resetTs + 1, current.resetTs + 1);
+        const withRestore = (previous: ProgressState) =>
+          previous.restoreTs >= restoreTs ? previous : { ...previous, restoreTs };
+        stateRef.current = withRestore(current);
+        update(withRestore);
+        kept = { sessions: removedLocal, resetTs: cutoff };
+        return stateRef.current;
+      };
+
+      let stale = false;
+      await syncNow(
+        stateRef.current,
+        (merged) => {
+          // Obieg zaczęty dla innej rodziny (w międzyczasie „Podłącz" albo
+          // parowanie w drugiej karcie): jego wynik niesie znaczniki starej
+          // rodziny, które przed chwilą zdjęliśmy — przyjęcie go wyczyściłoby
+          // historię nowej.
+          if (loadSyncCode() !== family) {
+            stale = true;
+            return;
+          }
+          // Od razu, nie dopiero po renderze: podgląd importu i wynik importu
+          // czytają stateRef i muszą widzieć np. reset, który właśnie przyszedł.
+          stateRef.current = mergeProgress(stateRef.current, merged);
+          update((previous) => {
+            // Scalamy jeszcze raz z NAJNOWSZYM stanem (mógł się zmienić w trakcie
+            // pobierania) — scalanie jest idempotentne, więc to bezpieczne.
+            const zMerged = mergeProgress(previous, merged);
+            return JSON.stringify(zMerged) === JSON.stringify(previous) ? previous : zMerged;
+          });
+          if (joining) finishJoin(family, kept);
+        },
+        joining ? keepOnJoin : undefined,
+      );
+      // Obieg nowej rodziny odbił się od trwającego obiegu starej — robimy go
+      // od razu, zamiast czekać na zegar.
+      if (stale || loadSyncCode() !== family) return pass();
 
       // Nagrania rodzica jadą tym samym kodem, ale osobnym obiegiem — są
       // znacznie cięższe od postępu i nie ma sensu ruszać ich przy każdej
@@ -170,7 +317,8 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       if (!code) return;
       const { syncRecordings } = await import("./recordingsSync");
       await syncRecordings(code);
-    })();
+    };
+    void pass();
   }, [update]);
 
   useEffect(() => {
@@ -199,8 +347,11 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   }, [ready, runSync]);
 
   // Wysyłka po każdej zmianie postępu (z odstępem, żeby seria zmian poszła raz).
+  // Pusty postęp też jedzie, jeśli to skutek resetu albo niesie imię — inaczej
+  // „Wyczyść postęp" nie docierało do skrzynki i wracało z niej przy
+  // najbliższym pobraniu.
   useEffect(() => {
-    if (!ready || state.sessions.length === 0) return;
+    if (!ready || (state.sessions.length === 0 && !state.resetTs && !state.childNameTs)) return;
     const timer = setTimeout(runSync, 2000);
     return () => clearTimeout(timer);
   }, [state, ready, runSync]);
@@ -227,53 +378,89 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         scored: scored.length,
       };
 
-      let outcome: SessionOutcome = {
-        session,
+      // Wynik dla ekranu nagrody liczymy od razu, ze stanu sprzed zapisu —
+      // updater setState React wykonuje później, więc nie wolno na nim polegać
+      // przy zwracaniu wartości (bez synchronizacji nowa postać nigdy nie
+      // trafiała na ekran nagrody).
+      const before = stateRef.current;
+      const after = withCommit(before, session, attempts);
+      // Kolejny zapis w tym samym takcie (przed renderem) liczy już od tego stanu.
+      stateRef.current = after;
+      update((previous) => withCommit(previous, session, attempts));
+
+      return {
+        session: after.sessions.find((saved) => saved.id === session.id) ?? session,
         accuracy: session.scored > 0 ? session.correct / session.scored : null,
-        newHeroes: [],
+        newHeroes: after.unlockedHeroes.filter((heroId) => !before.unlockedHeroes.includes(heroId)),
       };
-
-      update((previous) => {
-        const withSession = applySessionResult(previous, session);
-        outcome = {
-          ...outcome,
-          newHeroes: withSession.unlockedHeroes.filter(
-            (heroId) => !previous.unlockedHeroes.includes(heroId),
-          ),
-        };
-        return {
-          ...withSession,
-          attempts: [...previous.attempts, ...attempts].slice(-RULES.attemptLogLimit),
-        };
-      });
-
-      return outcome;
     },
     [update],
   );
 
   const importProgress = useCallback(
-    (incoming: ProgressState): number => {
-      let addedSessions = 0;
-      update((previous) => {
-        const merged = mergeProgress(previous, incoming);
-        addedSessions = merged.sessions.length - previous.sessions.length;
-        return merged;
-      });
-      return addedSessions;
+    (incoming: ProgressState, options?: { restore?: boolean }) => {
+      // Jak w commitSession: wynik ze stateRef, nie z updatera setState — ten
+      // React wykonuje zwykle dopiero przy renderze, już po naszym return.
+      const before = stateRef.current;
+      // Przywrócenie musi być późniejsze niż każdy znany reset, także zapisany
+      // przez urządzenie ze spieszącym się zegarem — inaczej nic by nie znosiło.
+      const restoreTs = Math.max(Date.now(), before.resetTs + 1, (incoming.resetTs ?? 0) + 1);
+      const withImport = (previous: ProgressState) =>
+        mergeProgress(
+          options?.restore
+            ? { ...previous, restoreTs: Math.max(restoreTs, previous.resetTs + 1) }
+            : previous,
+          incoming,
+        );
+      const after = withImport(before);
+      stateRef.current = after;
+      update(withImport);
+      if (after.resetTs !== before.resetTs || after.restoreTs !== before.restoreTs) {
+        void noteMarkersFamily();
+      }
+      return sessionDiff(before, after);
     },
     [update],
   );
 
+  const previewImport = useCallback(
+    (incoming: ProgressState) => previewImportInto(stateRef.current, incoming),
+    [],
+  );
+
+  // Znacznik zmiany imienia rośnie zawsze, także gdy obecne imię ustawiło
+  // urządzenie ze spieszącym się zegarem — inaczej nowsza zmiana przegrałaby
+  // przy scalaniu ze starszą.
   const setChildName = useCallback(
-    (name: string) => update((previous) => ({ ...previous, childName: name })),
+    (name: string) =>
+      update((previous) => ({
+        ...previous,
+        childName: name,
+        childNameTs: Math.max(Date.now(), previous.childNameTs + 1),
+      })),
     [update],
   );
 
-  const resetAll = useCallback(
-    () => update((previous) => emptyProgress(previous.childName)),
-    [update],
-  );
+  // Reset zostawia znacznik zamiast samego pustego stanu: skrzynka i inne
+  // urządzenia wciąż mają stare sesje, a scalanie odrzuca je dopiero wtedy,
+  // gdy wie, od kiedy liczy się nowy postęp. Imię i jego znacznik zostają.
+  // Reset musi wypaść po ostatnim przywróceniu (patrz cutoffTs) i po każdym
+  // rekordzie, który tu jest — także zapisanym przez urządzenie ze spieszącym
+  // się zegarem — inaczej „Wyczyść postęp" zostawiałby część sesji.
+  const resetAll = useCallback(() => {
+    update((previous) => ({
+      ...emptyProgress(previous.childName),
+      childNameTs: previous.childNameTs,
+      restoreTs: previous.restoreTs,
+      resetTs: Math.max(
+        Date.now(),
+        previous.resetTs + 1,
+        previous.restoreTs + 1,
+        newestRecordTs(previous) + 1,
+      ),
+    }));
+    void noteMarkersFamily();
+  }, [update]);
 
   const value = useMemo<ProgressContextValue>(
     () => ({
@@ -281,11 +468,12 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       state,
       commitSession,
       importProgress,
+      previewImport,
       setChildName,
       resetAll,
       requestSync: runSync,
     }),
-    [ready, state, commitSession, importProgress, setChildName, resetAll, runSync],
+    [ready, state, commitSession, importProgress, previewImport, setChildName, resetAll, runSync],
   );
 
   return <ProgressContext.Provider value={value}>{children}</ProgressContext.Provider>;

@@ -110,6 +110,19 @@ export type TopicState = {
 export type ProgressState = {
   version: number;
   childName: string;
+  /** Kiedy rodzic ostatnio zmienił imię — rozstrzyga imię przy scalaniu. */
+  childNameTs: number;
+  /**
+   * Kiedy rodzic wyczyścił postęp (0 = nigdy). Sesje i próby starsze niż ta
+   * chwila są pomijane przy scalaniu — bez tego skasowany postęp wracał z
+   * chmury przy najbliższej synchronizacji.
+   */
+  resetTs: number;
+  /**
+   * Kiedy rodzic świadomie przywrócił kopię sprzed wyczyszczenia (0 = nigdy).
+   * Późniejsze przywrócenie znosi wcześniejszy reset — patrz cutoffTs.
+   */
+  restoreTs: number;
   updatedTs: number;
   /** Tor 1: postęp per dźwięk. */
   sounds: Record<string, SoundState>;
@@ -132,6 +145,9 @@ export function emptyProgress(childName = "Bohater"): ProgressState {
   return {
     version: PROGRESS_SCHEMA_VERSION,
     childName,
+    childNameTs: 0,
+    resetTs: 0,
+    restoreTs: 0,
     updatedTs: 0,
     sounds: {},
     topics: {},
@@ -166,11 +182,28 @@ export function emptyTopicState(topicId: string): TopicState {
 }
 
 /**
+ * Granica odcięcia: rekordy starsze niż ta chwila nie wchodzą do postępu.
+ *
+ * Reset i przywrócenie scalają się jako maksimum z obu stron, więc żadne z nich
+ * nie „cofa się" przy synchronizacji. Wygrywa to, które było później: reset po
+ * przywróceniu odcina znowu, przywrócenie po resecie znosi odcięcie (0).
+ */
+export function cutoffTs(state: { resetTs?: number; restoreTs?: number }): number {
+  const resetTs = state.resetTs ?? 0;
+  return resetTs > (state.restoreTs ?? 0) ? resetTs : 0;
+}
+
+function timestampOr0(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+/**
  * Uzupełnia pola, których nie było we wcześniejszych wersjach aplikacji.
  *
- * Tor 2 dołożył `topics`, więc postęp zapisany wcześniej (localStorage, plik
- * kopii, skrzynka synchronizacji) tego pola nie ma. Numeru wersji świadomie NIE
- * podnosimy: to zmiana wyłącznie dokładająca pole, a podniesienie wersji
+ * Tor 2 dołożył `topics`, a synchronizacja znaczniki imienia, resetu i
+ * przywrócenia, więc postęp zapisany wcześniej (localStorage, plik kopii,
+ * skrzynka synchronizacji) tych pól nie ma. Numeru wersji świadomie NIE
+ * podnosimy: to zmiany wyłącznie dokładające pola, a podniesienie wersji
  * kazałoby starszym urządzeniom odrzucać nowe pliki, zanim same się
  * zaktualizują — czyli zatrzymałoby synchronizację dokładnie wtedy, gdy jest
  * potrzebna. Wersję podnosimy dopiero przy zmianie, która psuje odczyt.
@@ -178,6 +211,18 @@ export function emptyTopicState(topicId: string): TopicState {
  * Wołane w każdym miejscu, gdzie stan wchodzi z zewnątrz.
  */
 export function normalizeProgress(state: ProgressState): ProgressState {
-  if (state.topics && typeof state.topics === "object") return state;
-  return { ...state, topics: {} };
+  const named =
+    typeof state.childName === "string" &&
+    state.childName.trim() !== "" &&
+    state.childName !== "Bohater";
+  return {
+    ...state,
+    topics: state.topics && typeof state.topics === "object" ? state.topics : {},
+    // Imię wpisane przed wprowadzeniem znacznika wygrywa z domyślnym „Bohater",
+    // ale przegrywa z każdą późniejszą zmianą imienia.
+    childNameTs:
+      typeof state.childNameTs === "number" ? timestampOr0(state.childNameTs) : named ? 1 : 0,
+    resetTs: timestampOr0(state.resetTs),
+    restoreTs: timestampOr0(state.restoreTs),
+  };
 }

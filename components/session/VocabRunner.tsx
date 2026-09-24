@@ -59,6 +59,7 @@ import { phraseNote, phraseScene, wordExample } from "@/lib/curriculum/vocabPare
 import { getHero } from "@/lib/heroes";
 import { useProgress, type PendingAttempt, type SessionOutcome } from "@/lib/progress/store";
 import type { DeviceRole, SessionMode, TopicStatus } from "@/lib/progress/types";
+import { useBusy } from "@/lib/sessionBusy";
 import { useDeviceRole } from "@/lib/useDeviceRole";
 
 type Screen =
@@ -204,8 +205,12 @@ export function VocabRunner({ topic }: { topic: Topic }) {
   const startedTsRef = useRef(0);
   /** Indeks pierwszego ekranu rundy bonusowej; null = bonus jeszcze nie ruszyl. */
   const bonusStartRef = useRef<number | null>(null);
+  /** Wynik zapisany przy wejściu w bonus — ekran nagrody pokazuje właśnie jego. */
+  const outcomeRef = useRef<SessionOutcome | null>(null);
 
   useEffect(() => primeSpeech(), []);
+  // Od startu do ekranu nagrody aktualizacja aplikacji nie przeładuje strony.
+  useBusy(stage === "running");
 
   const start = useCallback(
     (chosenMode: SessionMode) => {
@@ -217,6 +222,7 @@ export function VocabRunner({ topic }: { topic: Topic }) {
       attemptsByIndexRef.current = new Map();
       frontierRef.current = 0;
       bonusStartRef.current = null;
+      outcomeRef.current = null;
       startedTsRef.current = Date.now();
       setFrontier(0);
       setIndex(0);
@@ -243,7 +249,8 @@ export function VocabRunner({ topic }: { topic: Topic }) {
   );
 
   const finish = useCallback(() => {
-    setOutcome(zapisz());
+    // Po rundzie bonusowej sesja jest już zapisana — drugi zapis zdublowałby ją.
+    setOutcome(outcomeRef.current ?? zapisz());
     setStage("done");
   }, [zapisz]);
 
@@ -281,13 +288,17 @@ export function VocabRunner({ topic }: { topic: Topic }) {
         .map(([i]) => screens[i])
         .filter(Boolean);
       if (nieudane.length > 0) {
+        // Wynik zapadł przy pierwszym podejściu, więc zapisujemy go TERAZ:
+        // wyjście w trakcie bonusu (albo zamknięcie aplikacji) nie może
+        // zgubić ukończonej sesji.
+        outcomeRef.current = zapisz();
         bonusStartRef.current = screens.length;
         setScreens((previous) => [...previous, ...nieudane]);
         return; // frontier zostaje — sesja biegnie dalej po dodanych ekranach
       }
     }
     finish();
-  }, [stage, frontier, screens, finish]);
+  }, [stage, frontier, screens, finish, zapisz]);
 
   const screen = screens[index];
   const powtorka = index < frontier;
@@ -318,6 +329,7 @@ export function VocabRunner({ topic }: { topic: Topic }) {
               (attempt) => attempt.correct !== null,
             ).length
           }
+          zapisane={bonusStartRef.current !== null}
           onZapisz={zapisz}
           onWroc={() => setPytanieOWyjscie(false)}
         />

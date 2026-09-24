@@ -48,6 +48,68 @@ pochodnego (`lib/progress/merge.ts`) — idempotentne, nic nie nadpisuje,
 kolejność wczytań bez znaczenia. Ta sama funkcja scalająca posłuży przyszłej
 synchronizacji automatycznej.
 
+Wyjątki od „samej unii” (podstawa — `resetTs`, `restoreTs`, okna przy wczytaniu
+kopii, imię po `childNameTs` — jest wspólna z Akademią Ligi; różnice niżej):
+
+- **Wyczyść postęp** zapisuje znacznik `resetTs` zamiast samego pustego stanu.
+  Sesje i próby starsze niż najnowszy reset odpadają przy każdym scaleniu
+  (skrzynka, inne urządzenia, stary plik), a stan dźwięków, tematów i postaci
+  odtwarza się z tego, co zostało — inaczej wyczyszczony postęp wracał z
+  chmury.
+- **Przywrócenie kopii sprzed resetu** jest jawne: przy wczytaniu pliku z
+  sesjami sprzed wyczyszczenia panel pyta rodzica. Zgoda zapisuje `restoreTs`.
+  Oba znaczniki scalają się jako maksimum, a granica odcięcia to `resetTs`,
+  gdy reset był później niż przywrócenie, w przeciwnym razie brak granicy.
+  Plik z nowszym resetem niż urządzenie wymaga potwierdzenia z liczbą sesji,
+  które znikną. Plik z przywróceniem późniejszym niż reset zrobiony na tym
+  urządzeniu też pyta; „Anuluj” wczytuje go bez znaczników (lokalny reset
+  zostaje w mocy). Podgląd liczy się na najnowszym stanie, bo w trakcie
+  odczytu pliku synchronizacja mogła przynieść reset.
+- **Reset należy do rodziny, w której go zrobiono.** Kod rodziny z chwili
+  resetu/przywrócenia leży osobno (`phonics.sync.markers.v1`, nie w pliku
+  kopii — kod to klucz do skrzynki). Gdy urządzenie trafia do innej rodziny
+  (link z QR, krótki kod, włączenie synchronizacji po resecie bez niej),
+  przed pierwszym scaleniem zdejmuje swoje znaczniki. Inaczej wyczyszczenie
+  próbnych sesji na nowym tablecie kasowało po sparowaniu historię całej
+  rodziny.
+- **Reset nie obejmuje urządzeń dołączonych później.** W chwili zmiany kodu
+  (QR, krótki kod, włączenie) urządzenie zapisuje, że dołącza
+  (`phonics.sync.joining.v1`) — chyba że wraca do rodziny, w której już
+  było. Przy pierwszym scaleniu ze skrzynką, gdy reset rodziny odciąłby
+  sesje z tego urządzenia, zachowujemy je przywróceniem (`restoreTs`), a
+  panel mówi rodzicowi, ile sesji zostało i że trafią na pozostałe
+  urządzenia. Bez tego telefon z historią, podłączony do tabletu, na którym
+  wyczyszczono próbne sesje, po cichu tracił cały postęp. Koszt: wrócą też
+  sesje sprzed tamtego resetu z urządzeń rodziny, które od resetu nie były
+  w sieci (odzyskiwalne kolejnym „Wyczyść postęp”, w przeciwieństwie do
+  skasowanej historii). Dołączenia nie wnioskujemy z braku znacznika
+  rodziny, bo urządzenie tuż po aktualizacji aplikacji też go nie ma, a
+  reset jego rodziny ma je objąć.
+- **Obieg zaczęty dla innej rodziny** (np. „Podłącz” w trakcie wolnego
+  pobierania) jest odrzucany, a obieg nowej rodziny rusza od razu — inaczej
+  spóźniona odpowiedź starej skrzynki przywracała zdjęty reset i czyściła
+  nową rodzinę.
+- **Imię** wybiera się po czasie ostatniej zmiany imienia (`childNameTs`), a
+  nie po stanie z późniejszą sesją.
+- **Zegary.** Nowy znacznik (reset, przywrócenie, imię) jest zawsze późniejszy
+  od znanego już znacznika tego rodzaju (i reset — od najnowszego rekordu, z
+  limitem doby naprzód), a sesja kończona na urządzeniu, które zna już reset
+  „z przyszłości”, przesuwa się tuż za niego i za ostatnią zapisaną sesję
+  (żeby kolejność sesji, a z nią ostatni wynik dźwięku, się nie odwracała). Nie da się naprawić przypadku, w którym
+  urządzenie jeszcze NIE zna zdarzenia z urządzenia ze spieszącym się zegarem:
+  sesja zrobiona offline po resecie z „przyszłości” odpadnie, a reset zrobiony
+  offline tuż po przywróceniu z „przyszłości” przegra z tym przywróceniem.
+  Wymaga to zgodnych zegarów (automatyczny czas w ustawieniach urządzeń).
+- **Różnice względem Akademii Ligi** (stan na wrzesień 2026): Akademia ma
+  `resetTs`/`restoreTs`, okna (a) i (b) przy wczytaniu kopii i imię po
+  `childNameTs`, ale nie ma: rodziny znaczników (`phonics.sync.markers.v1`),
+  zachowania historii przy dołączeniu, odrzucania obiegu starej rodziny,
+  okna dla kopii z przywróceniem późniejszym niż lokalny reset
+  (`withoutMarkers`), przesuwania sesji za reset „z przyszłości” ani resetu
+  liczonego od najnowszego rekordu. Przeniesienie ich do Akademii to osobne
+  zadanie — do tego czasu te przypadki zachowują się w obu aplikacjach
+  inaczej.
+
 Droga do pełnej automatyzacji bez własnego serwera: **Google Drive API**
 (zapis pliku postępu w appDataFolder konta rodzinnego, odczyt i scalenie przy
 starcie aplikacji). Wymaga jednorazowo od rodzica: projekt w Google Cloud

@@ -41,3 +41,6 @@ yarn-error.log*
 next-env.d.ts
 .lessons-dump.txt
 .slowa.txt
+
+# generowany przed buildem (scripts/deploy-manifest.mjs)
+/public/deploy.json

@@ -25,8 +25,10 @@
   --font-reading: var(--font-andika), "Comic Sans MS", "Chalkboard SE", "Trebuchet MS", sans-serif;
 }
 
-html,
-body {
+/* Wysokość tylko na html: body rośnie z treścią (min-h-dvh w layout.tsx),
+   więc dolny inset safe-area niżej wydłuża przewijanie zamiast leżeć pod
+   treścią długiej strony. */
+html {
   height: 100%;
 }
 
@@ -41,6 +43,14 @@ body {
   color-scheme: dark;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: contain;
+}
+
+/* iPhone z aplikacją na ekranie głównym: treść pod paskiem statusu i
+   wycięciem (viewportFit: cover, statusBarStyle: black-translucent w
+   layout.tsx). Na urządzeniach bez wycięcia insety = 0. */
+body {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
 }
 
 /* Widoczny fokus dla nawigacji klawiaturą — na ciemnym tle domyślny ginie. */

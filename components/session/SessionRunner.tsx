@@ -42,6 +42,7 @@ import type { Sound } from "@/lib/curriculum/sounds";
 import { getHero, HEROES_BY_ID } from "@/lib/heroes";
 import { useProgress, type PendingAttempt, type SessionOutcome } from "@/lib/progress/store";
 import type { DeviceRole, SessionMode } from "@/lib/progress/types";
+import { useBusy } from "@/lib/sessionBusy";
 import { useDeviceRole } from "@/lib/useDeviceRole";
 
 type Screen =
@@ -157,8 +158,12 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
   const startedTsRef = useRef(0);
   /** Indeks pierwszego ekranu rundy bonusowej; null = bonus jeszcze nie ruszyl. */
   const bonusStartRef = useRef<number | null>(null);
+  /** Wynik zapisany przy wejściu w bonus — ekran nagrody pokazuje właśnie jego. */
+  const outcomeRef = useRef<SessionOutcome | null>(null);
 
   useEffect(() => primeSpeech(), []);
+  // Od startu do ekranu nagrody aktualizacja aplikacji nie przeładuje strony.
+  useBusy(stage === "running");
 
   const start = useCallback(
     (chosenMode: SessionMode) => {
@@ -170,6 +175,7 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
       attemptsByIndexRef.current = new Map();
       frontierRef.current = 0;
       bonusStartRef.current = null;
+      outcomeRef.current = null;
       startedTsRef.current = Date.now();
       setFrontier(0);
       setIndex(0);
@@ -201,7 +207,8 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
   );
 
   const finish = useCallback(() => {
-    setOutcome(zapisz());
+    // Po rundzie bonusowej sesja jest już zapisana — drugi zapis zdublowałby ją.
+    setOutcome(outcomeRef.current ?? zapisz());
     setStage("done");
   }, [zapisz]);
 
@@ -239,13 +246,17 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
         .map(([i]) => screens[i])
         .filter(Boolean);
       if (nieudane.length > 0) {
+        // Wynik zapadł przy pierwszym podejściu, więc zapisujemy go TERAZ:
+        // wyjście w trakcie bonusu (albo zamknięcie aplikacji) nie może
+        // zgubić ukończonej sesji.
+        outcomeRef.current = zapisz();
         bonusStartRef.current = screens.length;
         setScreens((previous) => [...previous, ...nieudane]);
         return; // frontier zostaje — sesja biegnie dalej po dodanych ekranach
       }
     }
     finish();
-  }, [stage, frontier, screens, finish]);
+  }, [stage, frontier, screens, finish, zapisz]);
 
   const screen = screens[index];
   const powtorka = index < frontier;
@@ -276,6 +287,7 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
               (attempt) => attempt.correct !== null,
             ).length
           }
+          zapisane={bonusStartRef.current !== null}
           onZapisz={zapisz}
           onWroc={() => setPytanieOWyjscie(false)}
         />
@@ -670,6 +682,8 @@ function BlendScreen({
   const [tapped, setTapped] = useState<number[]>([]);
   const [revealed, setRevealed] = useState(false);
   const [missingClip, setMissingClip] = useState(false);
+  /** Czemu kawałek nie zagrał, choć nagranie jest (null = zagrał albo go brak). */
+  const [tapProblem, setTapProblem] = useState<"blocked" | "network" | "offline" | null>(null);
   const startRef = useRef(Date.now());
 
   const allTapped = tapped.length === card.graphemes.length;
@@ -706,7 +720,20 @@ function BlendScreen({
                 );
                 // chipSoundId: kafelek "oo" gra wariant tej lekcji (zoo vs look).
                 const result = await playPhonemeStrict(chipSoundId(grapheme, sound.id));
-                if (result.source === "unavailable") setMissingClip(true);
+                if (result.source === "interrupted") return;
+                // „Brak nagrania" tylko przy prawdziwym braku; zablokowany
+                // dźwięk = wystarczy stuknąć jeszcze raz. Bez internetu
+                // ponowne stuknięcie nic nie da — wtedy głoskę mówi rodzic.
+                if (result.source === "unavailable" && result.reason === "missing") {
+                  setMissingClip(true);
+                }
+                if (result.source !== "unavailable" || result.reason === "missing") {
+                  setTapProblem(null);
+                } else if (result.reason === "network" && navigator.onLine === false) {
+                  setTapProblem("offline");
+                } else {
+                  setTapProblem(result.reason ?? "network");
+                }
               }}
               className={`font-reading min-w-20 rounded-2xl px-5 py-4 text-4xl font-black transition active:translate-y-1 ${
                 isTarget
@@ -722,6 +749,23 @@ function BlendScreen({
       <p className="text-xs text-paper/50">
         Żółty kawałek to „special friends” — dwie litery, jeden dźwięk.
       </p>
+      {tapProblem === "blocked" && (
+        <p className="text-sm font-bold text-hero-gold">
+          Stuknij kawałek jeszcze raz, żeby usłyszeć dźwięk
+        </p>
+      )}
+      {tapProblem === "network" && (
+        <p className="max-w-md text-sm font-bold text-hero-gold">
+          📶 Dźwięk się nie wczytał — stuknij kawałek jeszcze raz albo niech wypowie go
+          rodzic.
+        </p>
+      )}
+      {tapProblem === "offline" && (
+        <p className="max-w-md text-xs text-hero-gold/80">
+          📶 Brak internetu, a tej głoski nie ma jeszcze w pamięci urządzenia — wypowiada
+          ją rodzic.
+        </p>
+      )}
       {missingClip && (
         <p className="max-w-md text-xs text-hero-gold/80">
           🎤 Brak nagrania tej głoski — wypowiada ją rodzic. Syntezator mowy przeczytałby

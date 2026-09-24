@@ -182,6 +182,30 @@ npm run audio
 - lista słów bierze się wprost z lekcji, więc po dopisaniu nowego dźwięku
   wystarczy uruchomić skrypt ponownie.
 
+## Podmiana i kasowanie nagrań a urządzenia
+
+Service worker trzyma każde odtworzone nagranie w pamięci urządzenia, żeby
+działało offline. Przy każdym buildzie (`npm run build` → `prebuild`)
+`scripts/deploy-manifest.mjs` zapisuje `public/deploy.json` z krótkim hashem
+każdego pliku z `public/audio`. Urządzenie porównuje go z zapamiętanym przy
+pierwszym otwarciu aplikacji z internetem po wdrożeniu (od razu, gdy strona
+przyszła już z nowego buildu, inaczej najpóźniej po kilku minutach): nagrania
+podmienione (`--force`, `--voice`, ponowne wycięcie głosek)
+albo skasowane znikają z pamięci, a przy następnym odtworzeniu pobiera się
+nowa wersja. Skasowana głoska przestaje być znajdowana, więc wraca „wymawia
+rodzic" albo nagranie rodzica. Nic nie trzeba robić na urządzeniach — nie
+trzeba też „Pobierz najnowszą wersję". Warunek: zmiana musi zostać
+**wdrożona** (push na `main`); plik zmieniony tylko lokalnie urządzeń nie
+dotyczy. `public/deploy.json` jest generowany i nie trafia do repozytorium.
+
+Przy tym samym sprawdzeniu service worker aktualizuje strony zapisane offline
+(powłokę i odwiedzone sesje, np. `/sesja/<id>/`, `/slownictwo/<id>/`): najpierw
+pobiera nowe strony i ich pliki, a podmienia je dopiero w komplecie, więc
+zerwane wifi w połowie zostawia starą, działającą wersję. Nagrania, którego
+nie ma jeszcze w pamięci, odtwarzacz czeka najwyżej 6 s (łącze bez
+transmisji) — potem dostaje błąd jak offline, a plik dociąga się w tle na
+następny raz.
+
 ## Czego nie robimy
 
 Nagrywania **dziecka** i automatycznej oceny wymowy — świadoma decyzja z briefu.
