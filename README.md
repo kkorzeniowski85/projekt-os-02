@@ -1,8 +1,17 @@
-# Liga Dźwięków — angielski przez phonics
+# Liga — Dźwięki i Akademia
 
-Aplikacja (PWA) do nauki czytania po angielsku dla 7-latka, oparta o sekwencję
-dźwięków **Read Write Inc.** Działa w przeglądarce na komputerze, tablecie i
-telefonie; da się ją zainstalować jako aplikację.
+Aplikacja (PWA) dla dziecka z dwoma działami:
+
+- **Dźwięki** (dawna Liga Dźwięków) — nauka czytania po angielsku oparta o
+  sekwencję dźwięków **Read Write Inc.** oraz słownictwo i zwroty,
+- **Akademia** (dawna Akademia Ligi, projekt-os-04) — tabliczka mnożenia pod
+  Multiplication Tables Check, matematyka po angielsku, czytanie ze
+  zrozumieniem i język klasy (opis: [docs/akademia/README.md](docs/akademia/README.md)).
+
+Jedna aplikacja, dwa silniki: architektura połączenia, klucze danych, tryb
+testowy, przełączenie i cofnięcie — [docs/polaczenie.md](docs/polaczenie.md).
+Działa w przeglądarce na komputerze, tablecie i telefonie; da się ją
+zainstalować jako aplikację.
 
 ## Instalacja na urządzeniach
 
@@ -48,6 +57,13 @@ npm --prefix angielski run build
 ```
 
 Wynik ląduje w `angielski/out/` jako czysta statyka.
+
+Dział Akademia ma własne nagrania i audyt treści:
+
+```bash
+npm --prefix angielski run audio:akademia
+npm --prefix angielski run audit:akademia
+```
 
 ## Co już działa
 
@@ -117,11 +133,12 @@ Wynik ląduje w `angielski/out/` jako czysta statyka.
 
 ```
 app/
-  page.tsx                  ekran główny (baza drużyny), wejście w oba tory
+  page.tsx                  ekran główny: misja na dziś (2+1), dział Dźwięki, dział Akademia
+  tabliczka/ matematyka/ czytanie/ polecenia/   ekrany działu Akademia
   sesja/[soundId]/          tor 1: jedna sesja czytania
   slownictwo/               tor 2: mapa tematów
   slownictwo/[topicId]/     tor 2: jedna sesja słownictwa
-  rodzic/                   tryb rodzica: postęp, raport, audio
+  rodzic/                   tryb rodzica: zakładki obu działów, synchronizacja, raport
   manifest.ts               manifest PWA
 components/
   session/SessionRunner.tsx  silnik toru 1 (4 ekrany ćwiczeń)
@@ -131,6 +148,10 @@ components/
   HeroAvatar.tsx            postać rysowana w SVG
   ui.tsx                    duże przyciski, karty, odtwarzacze dźwięku
 lib/
+  akademia/                 silnik i dane działu Akademia (components/akademia/ — jego ekrany)
+  dailyMission.ts           misja na dziś z obu działów
+  familySync.ts             jeden kod rodziny dla obu modułów synchronizacji
+  testMode.ts               wersja testowa (NEXT_PUBLIC_TEST_MODE=1)
   curriculum/sounds.ts      pełna sekwencja RWI (Set 1/2/3) jako dane
   curriculum/lessons.ts     tor 1: treść ćwiczeń — tu dopisuje się dźwięki
   curriculum/vocab.ts       tor 2: tematy, słowa, zwroty, kolokacje
@@ -143,7 +164,7 @@ lib/
 scripts/
   generate-audio.mjs        generator nagrań obu torów (npm run audio)
   audit-lessons.mjs         audyt danych obu torów (npm run audit)
-public/audio/               words/ i phrases/ i phonemes/ (patrz docs/audio.md)
+public/audio/               words/ i phrases/ i phonemes/ (patrz docs/audio.md); akademia/ — nagrania Akademii
 ```
 
 ## Jak dodać kolejny dźwięk (tor 1)
