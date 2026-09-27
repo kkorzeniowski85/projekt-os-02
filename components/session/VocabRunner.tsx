@@ -29,6 +29,10 @@
  *  - `scene`  — scenka: cała rozmowa do posłuchania, potem „Twoja kolej”,
  *  - `order`  — „Teraz ty rządzisz”: dziecko MÓWI polecenie, rodzic je wykonuje
  *    (odwrócone TPR; tylko z rodzicem),
+ *  - `act`    — „Pokaż ruchem!”: dziecko WYKONUJE polecenie albo — gdy temat ma
+ *    `situations` — POKAZUJE, co robi w sytuacji („What do you do when you need
+ *    help? Show me!”); tylko z rodzicem. Rodzic może ćwiczenia ruchowe
+ *    wyłączyć (lib/settings.ts → noMovement).
  *  - `say` ma drabinkę podpowiedzi (echo → z podpowiedzią → sam), liczoną z
  *    historii ocen rodzica (lib/progress/rules.ts → speakingLevel).
  * Aplikacja nigdy nie nagrywa ani nie ocenia mowy dziecka; wszystkie próby
@@ -64,6 +68,7 @@ import {
   TOPICS,
   type Collocation,
   type Command,
+  type Situation,
   type Phrase,
   type Topic,
   type VocabWord,
@@ -78,6 +83,7 @@ import { getHero } from "@/lib/heroes";
 import { speakingLevel } from "@/lib/progress/rules";
 import { useProgress, type PendingAttempt, type SessionOutcome } from "@/lib/progress/store";
 import type { DeviceRole, SessionMode, TopicStatus } from "@/lib/progress/types";
+import { readSettings } from "@/lib/settings";
 import { useBusy } from "@/lib/sessionBusy";
 import { useDeviceRole } from "@/lib/useDeviceRole";
 
@@ -90,8 +96,17 @@ type Screen =
   | { kind: "command"; command: Command; options: Command[] }
   | { kind: "collocation"; collocation: Collocation; options: string[] }
   | { kind: "say"; phrase: Phrase }
-  | { kind: "act"; command: Command }
+  | { kind: "act"; target: ActTarget }
   | { kind: "order"; command: Command };
+
+/**
+ * Co dziecko pokazuje ruchem: polecenie nauczyciela („Line up”) albo sytuację
+ * („What do you do when you need help? Show me!”). Dwa źródła, jedno
+ * ćwiczenie — patrz ActScreen.
+ */
+type ActTarget =
+  | { kind: "command"; command: Command }
+  | { kind: "situation"; situation: Situation };
 
 /** Ekrany, które powtórka (↩) pokazuje w wspólnym układzie „to już było”. */
 type ReplayableScreen = Exclude<Screen, { kind: "warmup" | "scene" }>;
@@ -206,17 +221,42 @@ function buildScreens(
   // Badania na 8-latkach: ruch i gest wzmacniają pamięć słów na miesiące
   // (Andrä 2020; metaanaliza TPR). Tylko w trybie z rodzicem — w trybie
   // samodzielnym nie ma komu ocenić, a udawany przycisk uczyłby klikania.
-  if (mode === "parent") {
-    const doPokazania = shuffled(topic.commands).slice(0, ile(2, 1));
-    screens.push(...doPokazania.map<Screen>((command) => ({ kind: "act", command })));
+  //
+  // Wyłącznik rodzica (panel → „bez ćwiczeń ruchowych”): pomija WSZYSTKIE
+  // ekrany ruchowe — polecenia, sytuacje i „Teraz ty rządzisz”. Decyzja
+  // rodzica: dla dziecka, które już rozumie polecenia, ważniejsze jest
+  // mówienie, a ruch przy stole bywa rozpraszaczem. Odczyt raz, przy budowie
+  // sesji — ustawienie zmienia się w panelu, nie w trakcie sesji.
+  if (mode === "parent" && !readSettings().noMovement) {
+    if (topic.situations?.length) {
+      // Sytuacje ZAMIAST poleceń: w tematach, gdzie „polecenia” to pytania
+      // nauczycielki („Are you OK?”), nie ma czego wykonać — pokazać da się za
+      // to własną reakcję („co robisz, gdy potrzebujesz pomocy?”). „Teraz ty
+      // rządzisz” tu odpada: pytania-sytuacji dziecko nie wydaje.
+      const doPokazania = shuffled(topic.situations).slice(0, ile(2, 1));
+      screens.push(
+        ...doPokazania.map<Screen>((situation) => ({
+          kind: "act",
+          target: { kind: "situation", situation },
+        })),
+      );
+    } else {
+      const doPokazania = shuffled(topic.commands).slice(0, ile(2, 1));
+      screens.push(
+        ...doPokazania.map<Screen>((command) => ({
+          kind: "act",
+          target: { kind: "command", command },
+        })),
+      );
 
-    // „Teraz ty rządzisz”: odwrócone TPR — dziecko WYDAJE polecenie, rodzic
-    // je wykonuje. Jedno na sesję, najlepiej inne niż te dopiero pokazane
-    // ruchem, żeby nie było to samo polecenie trzeci raz z rzędu.
-    const doWydania =
-      shuffled(topic.commands).find((command) => !doPokazania.includes(command)) ??
-      doPokazania[0];
-    if (doWydania) screens.push({ kind: "order", command: doWydania });
+      // „Teraz ty rządzisz”: odwrócone TPR — dziecko WYDAJE polecenie, rodzic
+      // je wykonuje. Jedno na sesję, najlepiej inne niż te dopiero pokazane
+      // ruchem, żeby nie było to samo polecenie trzeci raz z rzędu.
+      const doWydania =
+        shuffled(topic.commands).find((command) => !doPokazania.includes(command)) ??
+        doPokazania[0];
+      if (doWydania) screens.push({ kind: "order", command: doWydania });
+    }
   }
 
   // Mówienie na koniec: dziecko powtarza zwrot, który przed chwilą słyszało
@@ -551,7 +591,7 @@ export function VocabRunner({ topic }: { topic: Topic }) {
         {!powtorka && screen?.kind === "act" && (
           <ActScreen
             key={`act-${index}`}
-            command={screen.command}
+            target={screen.target}
             topicId={topic.id}
             onAnswer={onAnswer}
             onNext={onNext}
@@ -1461,7 +1501,6 @@ function PowtorkaEkranu({
           opis: screen.phrase.situationPl,
         };
       case "command":
-      case "act":
         return {
           emoji: screen.command.emoji,
           en: screen.command.en,
@@ -1469,6 +1508,19 @@ function PowtorkaEkranu({
           audio: <PhraseSpeaker text={screen.command.en} label="Posłuchaj" size="lg" />,
           opis: screen.command.actionPl,
         };
+      case "act": {
+        // Polecenie i sytuacja mają te same pola — w powtórce opis to zawsze
+        // wzorcowa reakcja, bo tu już nic nie jest sprawdzane.
+        const cel =
+          screen.target.kind === "command" ? screen.target.command : screen.target.situation;
+        return {
+          emoji: cel.emoji,
+          en: cel.en,
+          pl: cel.pl,
+          audio: <PhraseSpeaker text={cel.en} label="Posłuchaj" size="lg" />,
+          opis: cel.actionPl,
+        };
+      }
       case "order":
         return {
           emoji: screen.command.emoji,
@@ -1599,8 +1651,16 @@ function NiuansZwrotu({ zwrot }: { zwrot: string }) {
 // --- Ćwiczenie: pokaż ruchem (TPR) ------------------------------------------
 
 /**
- * Dziecko słyszy polecenie i WYKONUJE je ciałem — wstaje, podnosi rękę, dosuwa
- * krzesło. Rodzic potwierdza, aplikacja niczego nie mierzy.
+ * „Pokaż ruchem!” — dziecko słyszy nagranie i ODGRYWA je ciałem; rodzic
+ * potwierdza, aplikacja niczego nie mierzy. Dwa źródła (ActTarget):
+ *  - polecenie nauczyciela („Line up”): dziecko je WYKONUJE — wstaje, dosuwa
+ *    krzesło; polski opis widać od razu, bo pytaniem jest samo polecenie;
+ *  - sytuacja („What do you do when you need help? Show me!”): dziecko
+ *    POKAZUJE, co wtedy robi — podnosi rękę, robi minę, może dodać zwrot.
+ *    Wzorcowa reakcja (actionPl) jest schowana do „Pokaż podpowiedź” albo do
+ *    oceny rodzica: dziecko ma najpierw samo sobie przypomnieć, co robi, a nie
+ *    przeczytać. Po ocenie ekran chwilę czeka („Dalej”), żeby rodzic widział
+ *    wzorzec i mógł go odegrać razem z dzieckiem.
  *
  * Dlaczego to osobne ćwiczenie: ruch sprzężony ze słowem wzmacnia pamięć
  * u dzieci w tym wieku na miesiące (Andrä i in. 2020 — badanie na 8-latkach;
@@ -1612,61 +1672,98 @@ function NiuansZwrotu({ zwrot }: { zwrot: string }) {
  * klikania, nie reagowania.
  */
 function ActScreen({
-  command,
+  target,
   topicId,
   onAnswer,
   onNext,
 }: {
-  command: Command;
+  target: ActTarget;
   topicId: string;
   onAnswer: (attempt: PendingAttempt) => void;
   onNext: () => void;
 }) {
   const startRef = useRef(Date.now());
+  const sytuacja = target.kind === "situation";
+  const cel = target.kind === "command" ? target.command : target.situation;
+  const [podpowiedz, setPodpowiedz] = useState(false);
+  const [ocenione, setOcenione] = useState(false);
 
   useEffect(() => {
-    void playPhrase(command.en);
-  }, [command.en]);
+    void playPhrase(cel.en);
+  }, [cel.en]);
 
   function report(correct: boolean) {
     onAnswer({
       ts: Date.now(),
       soundId: topicId,
       exercise: "act",
-      item: command.en,
+      item: cel.en,
       correct,
       responseMs: Date.now() - startRef.current,
     });
-    onNext();
+    if (!sytuacja) {
+      onNext();
+      return;
+    }
+    // Sytuacja: wynik zapadł, ale zostajemy — teraz odsłania się wzorzec.
+    setOcenione(true);
   }
 
   return (
     <Card className="no-select flex flex-col items-center gap-5 text-center">
       <h2 className="text-2xl font-bold">
-        <span className="text-hero-cyan">Pokaż ruchem!</span>
+        <span className="text-hero-cyan">{sytuacja ? "Co robisz, gdy…? Pokaż!" : "Pokaż ruchem!"}</span>
       </h2>
       <div className="animate-pop-in text-8xl" aria-hidden>
-        {command.emoji}
+        {cel.emoji}
       </div>
-      <PhraseSpeaker text={command.en} label="Posłuchaj" size="lg" />
-      <p className="max-w-md text-lg text-paper/80">
-        Usłyszałeś polecenie? <strong>Zrób to naprawdę</strong> — całym ciałem, jak w szkole.
-      </p>
+      <PhraseSpeaker text={cel.en} label="Posłuchaj" size="lg" />
+      {sytuacja ? (
+        <p className="max-w-md text-lg text-paper/80">
+          Usłyszałeś pytanie? <strong>Pokaż naprawdę</strong>, co wtedy robisz — gestem, a
+          jeśli chcesz, też słowami.
+        </p>
+      ) : (
+        <p className="max-w-md text-lg text-paper/80">
+          Usłyszałeś polecenie? <strong>Zrób to naprawdę</strong> — całym ciałem, jak w szkole.
+        </p>
+      )}
 
-      <div className="flex w-full max-w-md flex-col gap-3 sm:flex-row">
-        <BigButton tone="yes" onClick={() => report(true)} full>
-          Pokazał sam
-        </BigButton>
-        <BigButton tone="no" onClick={() => report(false)} full>
-          Z podpowiedzią
-        </BigButton>
-      </div>
-      <p className="text-xs text-paper/50">
-        Ty potwierdzasz — aplikacja nie widzi ruchu. Jeśli dziecko się waha, pokaż ruch
-        razem z nim i odtwórzcie polecenie jeszcze raz.
+      {sytuacja && !podpowiedz && !ocenione && (
+        <button
+          type="button"
+          onClick={() => setPodpowiedz(true)}
+          className="flex min-h-14 items-center gap-3 rounded-blob bg-hero-gold px-6 py-3 text-xl font-bold text-night shadow-[0_6px_0_#c99a1f] transition active:translate-y-1 active:shadow-none"
+        >
+          <span aria-hidden>💡</span> Pokaż podpowiedź
+        </button>
+      )}
+      {sytuacja && (podpowiedz || ocenione) && (
+        <p className="animate-pop-in max-w-md rounded-2xl border border-hero-gold/40 bg-hero-gold/10 p-3 text-lg text-paper/90">
+          <span className="text-sm font-bold text-hero-gold">Na przykład: </span>
+          {cel.actionPl}
+        </p>
+      )}
+
+      {ocenione ? (
+        <BigButton onClick={onNext}>Dalej ▸</BigButton>
+      ) : (
+        <div className="flex w-full max-w-md flex-col gap-3 sm:flex-row">
+          <BigButton tone="yes" onClick={() => report(true)} full>
+            Pokazał sam
+          </BigButton>
+          <BigButton tone="no" onClick={() => report(false)} full>
+            Z podpowiedzią
+          </BigButton>
+        </div>
+      )}
+      <p className="max-w-md text-xs text-paper/50">
+        {sytuacja
+          ? "Ty oceniasz — aplikacja nie widzi ruchu. Liczy się reakcja, nie dokładne słowa: gest wystarczy, zwrot to bonus. Jeśli dziecko się waha, odegrajcie to razem."
+          : "Ty potwierdzasz — aplikacja nie widzi ruchu. Jeśli dziecko się waha, pokaż ruch razem z nim i odtwórzcie polecenie jeszcze raz."}
       </p>
       <p className="animate-pop-in text-lg text-hero-cyan">
-        <span className="font-reading font-bold">{command.en}</span> — {command.pl}
+        <span className="font-reading font-bold">{cel.en}</span> — {cel.pl}
       </p>
     </Card>
   );
