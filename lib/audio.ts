@@ -44,6 +44,12 @@ export type PlaybackResult = {
   /** true = to nie jest to, o co prosiliśmy (np. słowo zamiast czystej głoski). */
   approximate: boolean;
   reason?: UnavailableReason;
+  /**
+   * Długość nagrania w ms — tylko przy odtworzeniu z `wait` do końca i tylko
+   * z pliku (synteza jej nie zna). Przycisk „Mów ze mną" mierzy nią pauzę na
+   * powtórzenie: dziecko ma dostać tyle czasu, ile trwa zdanie, nie sztywne 3 s.
+   */
+  durationMs?: number;
 };
 
 // Na GitHub Pages aplikacja siedzi w podkatalogu, więc ścieżki do nagrań muszą
@@ -237,20 +243,68 @@ type PlayStatus = "ok" | "blocked" | "failed" | "interrupted";
 let playToken = 0;
 
 /**
+ * Kończy czekanie bieżącego odtworzenia z `wait`. Przerwanie (nowsze nagranie,
+ * synteza, stopAudio) woła je od razu, nie czekając na zdarzenie „pause":
+ * Chrome gubi je, gdy tuż po pause() zmienia się `src`, i przerwana sekwencja
+ * kończyła się dopiero z „ended" następnego nagrania — podświetlona kwestia
+ * scenki wisiałaby wtedy jeszcze ok. sekundy. Ten sam mechanizm ma Akademia
+ * (lib/akademia/audio.ts).
+ */
+let settlePending: (() => void) | null = null;
+
+/** Długość ostatniego nagrania odegranego do końca — patrz PlaybackResult.durationMs. */
+let lastClipDurationMs: number | undefined;
+
+/**
  * Tyle czekamy, aż nagranie ruszy, tam gdzie jest plan awaryjny. Przy łączu,
  * które wisi, pobieranie pliku nie ma własnego limitu — bez tego dziecko
  * słyszałoby ciszę zamiast syntezy albo podpowiedzi „stuknij jeszcze raz".
  */
 const PLAY_START_LIMIT_MS = 4000;
 
-async function playUrl(url: string, startLimitMs = 0): Promise<PlayStatus> {
+/**
+ * Gra plik. Z `wait` czeka do końca nagrania (albo do przerwania przez inne
+ * odtworzenie) — potrzebne sekwencji kwestii scenki i przyciskowi „Mów ze
+ * mną", który po nagraniu robi pauzę na powtórzenie.
+ */
+async function playUrl(url: string, startLimitMs = 0, wait = false): Promise<PlayStatus> {
   const token = ++playToken;
+  settlePending?.();
   const audio = getSharedAudio();
   // Nagranie przerywa też awaryjny głos z poprzedniego odtworzenia.
   if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
   audio.pause();
   audio.muted = false;
   audio.src = url;
+
+  const finished = wait
+    ? new Promise<void>((resolve) => {
+        const done = () => {
+          audio.removeEventListener("ended", done);
+          audio.removeEventListener("error", done);
+          audio.removeEventListener("pause", onPause);
+          clearTimeout(safety);
+          if (settlePending === done) settlePending = null;
+          lastClipDurationMs =
+            Number.isFinite(audio.duration) && audio.duration > 0
+              ? Math.round(audio.duration * 1000)
+              : undefined;
+          resolve();
+        };
+        settlePending = done;
+        // Pauza wywołana przez NOWSZE odtworzenie = przerwanie. Naturalny
+        // koniec nagrania też wysyła „pause", ale wtedy token jest aktualny.
+        const onPause = () => {
+          if (token !== playToken) done();
+        };
+        // Polisa na przeglądarki, które gubią zdarzenie „ended".
+        const safety = setTimeout(done, 20000);
+        audio.addEventListener("ended", done);
+        audio.addEventListener("error", done);
+        audio.addEventListener("pause", onPause);
+      })
+    : null;
+
   let limit: ReturnType<typeof setTimeout> | undefined;
   try {
     const playing = audio.play();
@@ -264,12 +318,16 @@ async function playUrl(url: string, startLimitMs = 0): Promise<PlayStatus> {
         // Za długo: zatrzymujemy (to odrzuci `playing` błędem AbortError,
         // już nikogo nie obchodzi) i oddajemy głos planowi awaryjnemu.
         audio.pause();
+        settlePending?.();
         return "failed";
       }
     } else {
       await playing;
     }
   } catch (error) {
+    // Własne czekanie (jeśli jeszcze wisi) kończymy tu — nowsze odtworzenie
+    // zrobiło to już samo na starcie.
+    if (token === playToken) settlePending?.();
     const name = (error as DOMException)?.name;
     // pause() albo nowy src w trakcie ładowania to przerwanie, nie brak
     // nagrania — inaczej przerwane słowo czytałby potem syntezator.
@@ -278,6 +336,7 @@ async function playUrl(url: string, startLimitMs = 0): Promise<PlayStatus> {
   } finally {
     clearTimeout(limit);
   }
+  if (finished) await finished;
   return token === playToken ? "ok" : "interrupted";
 }
 
@@ -289,7 +348,20 @@ async function playUrl(url: string, startLimitMs = 0): Promise<PlayStatus> {
  */
 let requestToken = 0;
 
+/**
+ * Numer bieżącej sekwencji (kwestie scenki grane po kolei). Każde ręczne
+ * odtworzenie z interfejsu i stopAudio ją przerywają: dziecko, które stuknie
+ * głośnik w trakcie scenki, chce usłyszeć TO, co stuknęło.
+ */
+let sequenceToken = 0;
+
 function beginRequest(): () => boolean {
+  sequenceToken += 1;
+  return beginStep();
+}
+
+/** Jak beginRequest, ale nie przerywa sekwencji — dla jej własnych kroków. */
+function beginStep(): () => boolean {
   const token = ++requestToken;
   return () => token !== requestToken;
 }
@@ -321,6 +393,7 @@ async function playFromBase(
   base: string,
   stale: () => boolean,
   retry = false,
+  wait = false,
 ): Promise<PlayStatus | "missing"> {
   const { path } = await lookupClip(base);
   if (stale()) return "interrupted";
@@ -328,7 +401,7 @@ async function playFromBase(
   // Niedawno nie zagrał (łącze wisi) — od razu plan awaryjny, bez czekania
   // na limit przy każdym stuknięciu.
   if (!retry && (unplayable.get(path) ?? 0) > Date.now()) return "failed";
-  const status = await playUrl(path, PLAY_START_LIMIT_MS);
+  const status = await playUrl(path, PLAY_START_LIMIT_MS, wait);
   if (status === "failed") unplayable.set(path, Date.now() + UNKNOWN_TTL_MS);
   else if (status === "ok") unplayable.delete(path);
   return status;
@@ -436,12 +509,16 @@ export function getVoiceStatus(): VoiceStatus {
   };
 }
 
-function speak(text: string, rate = 0.8): boolean {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return false;
+/** Z `wait` czeka do końca wypowiedzi (albo do jej przerwania przez cancel). */
+function speak(text: string, rate = 0.8, wait = false): Promise<boolean> {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+    return Promise.resolve(false);
+  }
 
   // Synteza zastępuje nagranie, więc je ucisza (także to jeszcze ładowane) —
   // inaczej syntezator i plik mówiłyby naraz.
   playToken += 1;
+  settlePending?.();
   sharedAudio?.pause();
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
@@ -449,8 +526,20 @@ function speak(text: string, rate = 0.8): boolean {
   if (voice) utterance.voice = voice;
   utterance.lang = voice?.lang ?? "en-GB";
   utterance.rate = rate; // wolniej niż domyślnie — dziecko dopiero łapie dźwięki
-  window.speechSynthesis.speak(utterance);
-  return true;
+  if (!wait) {
+    window.speechSynthesis.speak(utterance);
+    return Promise.resolve(true);
+  }
+  return new Promise((resolve) => {
+    const safety = setTimeout(() => resolve(true), 15000);
+    const done = () => {
+      clearTimeout(safety);
+      resolve(true);
+    };
+    utterance.onend = done;
+    utterance.onerror = done;
+    window.speechSynthesis.speak(utterance);
+  });
 }
 
 // --- API używane przez interfejs -------------------------------------------
@@ -470,7 +559,7 @@ export async function playWord(word: string): Promise<PlaybackResult> {
   // też byłaby zablokowana; interfejs pokaże "stuknij 🔊".
   if (status === "blocked") return BLOCKED;
   if (stale()) return INTERRUPTED;
-  return speak(word)
+  return (await speak(word))
     ? { source: "tts", approximate: false }
     : { source: "unavailable", approximate: false, reason: "missing" };
 }
@@ -484,18 +573,93 @@ export async function playWord(word: string): Promise<PlaybackResult> {
  * Nagranie brytyjskiego głosu jest lepsze (i po `npm run audio` wygrywa), ale
  * jego brak nie unieruchamia ćwiczenia.
  */
-export async function playPhrase(text: string): Promise<PlaybackResult> {
-  const stale = beginRequest();
-  const status = await playFromBase(phraseClipBase(text), stale);
-  if (status === "ok") return { source: "clip", approximate: false };
+export type PlayPhraseOptions = {
+  /**
+   * Czekać do końca nagrania (albo do przerwania). Domyślnie nie — zwykłe
+   * stuknięcie głośnika nie potrzebuje wiedzieć, kiedy zdanie się skończyło.
+   */
+  wait?: boolean;
+};
+
+export function playPhrase(text: string, options: PlayPhraseOptions = {}): Promise<PlaybackResult> {
+  return playPhraseWith(text, options.wait ?? false, beginRequest());
+}
+
+async function playPhraseWith(
+  text: string,
+  wait: boolean,
+  stale: () => boolean,
+): Promise<PlaybackResult> {
+  const status = await playFromBase(phraseClipBase(text), stale, false, wait);
+  if (status === "ok") {
+    return { source: "clip", approximate: false, durationMs: wait ? lastClipDurationMs : undefined };
+  }
   if (status === "interrupted") return INTERRUPTED;
   if (status === "blocked") return BLOCKED;
   if (stale()) return INTERRUPTED;
   // Wolniej niż pojedyncze słowo: całe zdanie w obcym języku dziecko musi
   // zdążyć rozłożyć na kawałki.
-  return speak(text, 0.75)
+  return (await speak(text, 0.75, wait))
     ? { source: "tts", approximate: false }
     : { source: "unavailable", approximate: false, reason: "missing" };
+}
+
+// --- Sekwencje (scenki) -----------------------------------------------------
+
+export type PhraseStep = {
+  text: string;
+  /** Wołane tuż przed odtworzeniem kroku — ekran podświetla nim bieżącą kwestię. */
+  onStart?: () => void;
+};
+
+/**
+ * Ucisza od razu to, co gra (nagranie i syntezę), i kończy czekanie na nie.
+ * Od razu, a nie dopiero przy starcie nowego nagrania: nowe najpierw pyta o
+ * plik (HEAD), a zapasem bywa synteza, która elementu audio w ogóle nie
+ * rusza — przerwana scenka grałaby i świeciła wtedy dalej do końca kwestii.
+ */
+function interrupt(): void {
+  playToken += 1;
+  settlePending?.();
+  sharedAudio?.pause();
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+  }
+}
+
+/**
+ * Kwestie scenki jedna po drugiej, z krótką przerwą — tak, jak toczy się
+ * rozmowa. Zwraca false, gdy ktoś ją przerwał (stuknięty głośnik, stopAudio,
+ * wyjście z ekranu); wołający nie zeruje wtedy podświetlenia — zajmuje się nim
+ * to, co przerwało.
+ */
+export async function playPhraseSequence(steps: PhraseStep[], gapMs = 350): Promise<boolean> {
+  const token = ++sequenceToken;
+  interrupt();
+  for (const step of steps) {
+    if (token !== sequenceToken) return false;
+    step.onStart?.();
+    await playPhraseWith(step.text, true, beginStep());
+    if (token !== sequenceToken) return false;
+    await new Promise((resolve) => setTimeout(resolve, gapMs));
+  }
+  return token === sequenceToken;
+}
+
+/** Zatrzymuje wszystko, co gra i co czeka na plik (np. przy wyjściu z ekranu). */
+export function stopAudio(): void {
+  sequenceToken += 1;
+  requestToken += 1;
+  interrupt();
+}
+
+/**
+ * Numer generacji dźwięku: rośnie przy każdym ręcznym odtworzeniu, sekwencji i
+ * stopAudio. Przycisk „Mów ze mną" porównuje go w trakcie pauzy na powtórzenie —
+ * jeśli w międzyczasie zagrało coś innego, nie gra drugi raz.
+ */
+export function audioGeneration(): number {
+  return sequenceToken;
 }
 
 /**
@@ -524,7 +688,7 @@ export async function playPhoneme(
   if (example === "interrupted") return INTERRUPTED;
   if (example === "blocked") return { ...BLOCKED, approximate: true };
   if (stale()) return INTERRUPTED;
-  return speak(exampleWord, 0.7)
+  return (await speak(exampleWord, 0.7))
     ? { source: "tts-example", approximate: true }
     : { source: "unavailable", approximate: true, reason: "missing" };
 }
