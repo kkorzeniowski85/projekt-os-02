@@ -336,3 +336,59 @@ gdzie jej nie ma.
   (1 kg 200 g, 5 m = 500 cm) i imperialne z życia (mile, pints — nie ma ich
   w programie Year 3–4); liczby ujemne w zadaniach (klawiatura odpowiedzi nie
   ma minusa); tysiące ze słuchu („two thousand, five hundred").
+
+## Rozszerzenie matematyki o realia Year 3–4 (wrzesień 2026)
+
+Decyzja rodzica po audycie: dodać to, co było „świadomie NIE dodane" —
+zeszyt, zegar do minuty, jednostki, liczby ujemne, tysiące ze słuchu.
+
+- **Zakładka „Jak pisać w zeszycie"** (`app/matematyka/zeszyt/`, treść w
+  `NOTEBOOK_METHODS` w `maths.ts`) — bez ćwiczeń i punktów: wzory do
+  przepisania na kartkę, kratka po kratce, ze zwrotami nauczycielki
+  (nagrania). Układy sprawdzone z *White Rose Education — Calculation policy*
+  (2024; stem sentences „I can exchange 10 ones for 1 ten", „I need to make an
+  exchange because I do not have enough ones", nagłówki kolumn T O / H T O;
+  słowo to zawsze „exchange", nigdy „borrow"), z Third Space Learning („What
+  is column addition / subtraction", „What is the bus stop method": dzielnik
+  przed „przystankiem", dzielna w środku, wynik nad kreską, reszta przeniesiona
+  jako mała cyfra przed następną cyfrą, „r 2"), z programem krajowym (Year 3:
+  „formal written methods of columnar addition and subtraction" do 3 cyfr;
+  Year 4: do 4 cyfr i „multiply two-digit and three-digit numbers by a
+  one-digit number using formal written layout"; short division formalnie
+  Year 5 — WRM: „introduced for the first time" w Year 5; w zakładce napisane
+  wprost, że wiele szkół pokazuje układ już w Year 4).
+  Przeniesiona cyfra w dodawaniu i mnożeniu: mała, **pod kreską wyniku**
+  (konwencja WRM / Power Maths; polska szkoła pisze ją nad słupkiem) — w
+  zakładce z zastrzeżeniem „inaczej niż w Polsce", bez twierdzenia, że każda
+  szkoła robi identycznie. Odejmowanie: przekreślona cyfra dziesiątek, nowa
+  nad nią, mała 1 przy jednościach. Do tego drobiazgi: 1 bez daszka, 7 bez
+  kreski, 2.5 / 2,500, £3.50 / 75p (nigdy £0.75p), data słownie z końcówką
+  (5th October) i skrótowo dzień/miesiąc/rok.
+- **Zegar do minuty** — `TimeKind` rozszerzony o five/ten/twenty/twenty-five
+  past/to (12 rodzajów × 12 godzin; tarcza `ClockFace` już rysowała dowolną
+  minutę). Dystraktory dla minut celują w kierunek: „twenty past three" (3:20)
+  kontra „twenty to three" (2:40 — te same słowa) i „twenty to four" (3:40 —
+  lustro). Sesja: 3 × half past (pułapka „wpół do"), 3 × do minuty, 2 dowolne,
+  plus am/pm z pory dnia (`DAY_TIMES`: lekcje 8:45–15:15, „tea" wieczorem —
+  Year 3 wnioskuje am/pm z kontekstu) i zamiana 12 h ↔ 24 h (Year 4; pułapki:
+  am/pm odwrotnie, 15 przeczytane jako 5). Koszt: 192 nowe nagrania godzin.
+- **Jednostki** — nowy temat `units`: słowa z brytyjską pisownią (metre,
+  centimetre, kilometre, gram, kilogram, litre, millilitre), jednostki
+  mieszane (1 kg 200 g, 1 m 50 cm), konwersje wpisywane (5 m = 500 cm,
+  2 km = 2,000 m — z przecinkiem tysięcy w rozpisaniu, godziny → minuty).
+  Imperialne (mile, pints, feet) tylko jednym zdaniem dla rodzica — nie ma ich
+  w programie Year 3–4.
+- **Liczby ujemne** — `NumberPad` ma klawisz „− minus" tylko przy
+  `allowNegative` (ćwiczenie typed), żeby nie mylić przy tabliczce; z
+  klawiatury fizycznej „-". Sam minus bez cyfr nie jest odpowiedzią. Wpisany
+  „-" pokazuje się jako typograficzny „−" (tak jak w zadaniach). 7 zadań w
+  `NEGATIVE_ITEMS` (2 less than 1, termometr rises/falls, liczenie wstecz przez
+  zero — program Year 4 „count backwards through zero") + „minus three
+  degrees" ze słuchu.
+- **Tysiące ze słuchu** — `THOUSANDS_POOL` (1,000–10,000; pary-pułapki
+  1,500 / 1,050, 2,300 / 2,030, 1,250 / 1,205, 2,500 / 250), `numberToWords`
+  do 999 999 („ten thousand"), `formatNumber` z przecinkiem tysięcy w
+  etykietach i wizualizacji; 10,000 tylko do słuchania/czytania (klawiatura
+  ma 4 cyfry). Temat `thousands` łączy tysiące z liczbami ujemnymi (obie
+  rzeczy to Year 4 „place value"). Dotychczasowe tematy i format zapisu
+  postępu bez zmian.

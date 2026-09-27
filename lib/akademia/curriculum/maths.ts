@@ -12,7 +12,14 @@
  * `mathsPhrases()`), więc dziecko, które jeszcze słabo czyta, może słuchać.
  */
 
-import { HUNDREDS_POOL, numbersWithAudio, numberToWords, TEEN_TY_PAIRS } from "./numbers";
+import {
+  formatNumber,
+  HUNDREDS_POOL,
+  numbersWithAudio,
+  numberToWords,
+  TEEN_TY_PAIRS,
+  THOUSANDS_POOL,
+} from "./numbers";
 import {
   pickSome,
   say,
@@ -20,6 +27,7 @@ import {
   shuffle,
   type ChoiceOption,
   type Exercise,
+  type Visual,
 } from "@/lib/akademia/session/exercise";
 
 export type MathsTopic = {
@@ -47,13 +55,25 @@ function confusables(value: number): number[] {
     const swapped = Number(digits.slice(0, -2) + digits.slice(-1) + digits.slice(-2, -1));
     out.add(swapped);
   }
-  if (value >= 100) {
+  if (value >= 100 && value < 1000) {
     // 406 ↔ 460 ↔ 46: zero w środku, zero na końcu, zgubiona setka.
     const rest = value % 100;
     const hundreds = Math.floor(value / 100);
     if (rest < 10) out.add(hundreds * 100 + rest * 10);
     if (rest % 10 === 0) out.add(hundreds * 100 + rest / 10);
     out.add(Number(`${hundreds}${rest || ""}`));
+  }
+  if (value >= 1000) {
+    // 1,500 ↔ 1,050 („five hundred" / „and fifty"), 2,500 ↔ 250 (zgubione
+    // „thousand"), 1,250 ↔ 1,205 (przestawione cyfry), sąsiedni tysiąc.
+    const rest = value % 1000;
+    const thousands = Math.floor(value / 1000);
+    if (rest >= 100 && rest % 100 === 0) out.add(thousands * 1000 + rest / 10);
+    if (rest > 0 && rest < 100 && rest % 10 === 0) out.add(thousands * 1000 + rest * 10);
+    if (rest > 0 && rest % 10 === 0) out.add(thousands * 100 + rest / 10);
+    out.add(thousands * 1000);
+    out.add((thousands + 1) * 1000);
+    out.add(thousands * 10000);
   }
   out.add(value + 1);
   out.add(value + 10);
@@ -69,7 +89,7 @@ function confusables(value: number): number[] {
 function distractors(value: number, count = 2): number[] {
   const picked = pickSome(confusables(value), count);
   if (picked.length >= count) return picked;
-  const pool = (value >= 100 ? HUNDREDS_POOL : [...AUDIO_NUMBERS])
+  const pool = (value >= 1000 ? THOUSANDS_POOL : value >= 100 ? HUNDREDS_POOL : [...AUDIO_NUMBERS])
     .filter((n) => n !== value && !picked.includes(n))
     .sort((a, b) => Math.abs(a - value) - Math.abs(b - value));
   return [...picked, ...pool.slice(0, count - picked.length)];
@@ -78,7 +98,7 @@ function distractors(value: number, count = 2): number[] {
 function hearNumberChoice(value: number, id: string): Exercise {
   const options: ChoiceOption[] = shuffle([value, ...distractors(value)]).map((n) => ({
     id: String(n),
-    label: String(n),
+    label: formatNumber(n),
   }));
   return {
     id,
@@ -91,9 +111,19 @@ function hearNumberChoice(value: number, id: string): Exercise {
     options,
     answer: String(value),
     columns: 3,
-    explainPl: `${value} = ${numberToWords(value)}`,
+    explainPl: `${formatNumber(value)} = ${numberToWords(value)}${thousandsHintPl(value)}`,
     explainWhen: "wrong",
   };
+}
+
+/** Dopisek do tysięcy: skąd przecinek i gdzie pada „and". */
+function thousandsHintPl(value: number): string {
+  if (value < 1000) return "";
+  const rest = value % 1000;
+  if (rest === 0) return " — przecinek oddziela tysiące.";
+  return rest < 100
+    ? " — po „thousand” od razu „and”, bo nie ma setek."
+    : " — przecinek w zapisie i pauza w mowie oddzielają tysiące od setek.";
 }
 
 function hearNumberTyped(value: number, id: string): Exercise {
@@ -106,9 +136,14 @@ function hearNumberTyped(value: number, id: string): Exercise {
     sound: sayNumber(value),
     listenOnly: true,
     answer: value,
-    revealText: `${value} — ${numberToWords(value)}`,
+    revealText: `${formatNumber(value)} — ${numberToWords(value)}`,
     revealSound: sayNumber(value),
-    explainPl: value >= 100 && value % 100 !== 0 ? "W setkach Brytyjczycy mówią „and”: one hundred AND five = 105." : undefined,
+    explainPl:
+      value >= 1000
+        ? `Wpisz same cyfry: ${value}. W zeszycie zapisuje się z przecinkiem: ${formatNumber(value)}.`
+        : value >= 100 && value % 100 !== 0
+          ? "W setkach Brytyjczycy mówią „and”: one hundred AND five = 105."
+          : undefined,
     explainWhen: "wrong",
   };
 }
@@ -121,7 +156,7 @@ function readNumberChoice(value: number, id: string): Exercise {
     exercise: "number-read",
     item: String(value),
     heading: "Jak to się mówi po angielsku?",
-    visual: { kind: "big", text: value >= 1000 ? value.toLocaleString("en-GB") : String(value) },
+    visual: { kind: "big", text: formatNumber(value) },
     options: shuffle([value, ...others]).map((n) => ({
       id: String(n),
       label: numberToWords(n),
@@ -445,10 +480,75 @@ function wordProblemsSession(): Exercise[] {
 
 // --- Zegar ------------------------------------------------------------------------
 
-type TimeKind = "oclock" | "half" | "quarter-past" | "quarter-to";
+/**
+ * Godziny tak, jak czyta się je z tarczy: „o'clock", potem „past" (po) do
+ * połowy godziny, potem „to" (za) z nazwą NASTĘPNEJ godziny. Year 3 czyta
+ * zegar do minuty (program: „tell and write the time from an analogue clock…
+ * to the nearest minute"), więc pięciominutówki są tu w komplecie.
+ */
+type TimeKind =
+  | "oclock"
+  | "five-past"
+  | "ten-past"
+  | "quarter-past"
+  | "twenty-past"
+  | "twenty-five-past"
+  | "half"
+  | "twenty-five-to"
+  | "twenty-to"
+  | "quarter-to"
+  | "ten-to"
+  | "five-to";
+
+const TIME_KINDS: TimeKind[] = [
+  "oclock",
+  "five-past",
+  "ten-past",
+  "quarter-past",
+  "twenty-past",
+  "twenty-five-past",
+  "half",
+  "twenty-five-to",
+  "twenty-to",
+  "quarter-to",
+  "ten-to",
+  "five-to",
+];
+
+/** Godziny „do minuty" — nowe względem o'clock / half / quarter. */
+const MINUTE_KINDS: TimeKind[] = TIME_KINDS.filter(
+  (kind) => !["oclock", "half", "quarter-past", "quarter-to"].includes(kind),
+);
+
+const MINUTE_OF: Record<TimeKind, number> = {
+  oclock: 0,
+  "five-past": 5,
+  "ten-past": 10,
+  "quarter-past": 15,
+  "twenty-past": 20,
+  "twenty-five-past": 25,
+  half: 30,
+  "twenty-five-to": 35,
+  "twenty-to": 40,
+  "quarter-to": 45,
+  "ten-to": 50,
+  "five-to": 55,
+};
+
+function kindOfMinute(minute: number): TimeKind {
+  const found = TIME_KINDS.find((kind) => MINUTE_OF[kind] === minute);
+  if (!found) throw new Error(`kindOfMinute: brak rodzaju dla ${minute}`);
+  return found;
+}
+
+/** „twenty past" ↔ „twenty to": ta sama liczba minut, przeciwny kierunek. */
+function mirrorKind(kind: TimeKind): TimeKind {
+  return kindOfMinute((60 - MINUTE_OF[kind]) % 60);
+}
 
 export function timePhrase(hour: number, kind: TimeKind): string {
   const word = (h: number) => numberToWords(((h - 1 + 12) % 12) + 1);
+  const minute = MINUTE_OF[kind];
   switch (kind) {
     case "oclock":
       return `${word(hour)} o'clock`;
@@ -458,16 +558,17 @@ export function timePhrase(hour: number, kind: TimeKind): string {
       return `quarter past ${word(hour)}`;
     case "quarter-to":
       return `quarter to ${word(hour + 1)}`;
+    default:
+      return minute < 30
+        ? `${numberToWords(minute)} past ${word(hour)}`
+        : `${numberToWords(60 - minute)} to ${word(hour + 1)}`;
   }
 }
 
-/** Wskazówki zegara dla „hour" i rodzaju godziny (quarter to = za kwadrans następna). */
+/** Wskazówki zegara dla „hour" i rodzaju godziny („to" = następna godzina jeszcze nie wybiła). */
 function clockOf(hour: number, kind: TimeKind): { hour: number; minute: number } {
-  const minute = { oclock: 0, half: 30, "quarter-past": 15, "quarter-to": 45 }[kind];
-  return { hour, minute };
+  return { hour, minute: MINUTE_OF[kind] };
 }
-
-const TIME_KINDS: TimeKind[] = ["oclock", "half", "quarter-past", "quarter-to"];
 
 function timeKey(hour: number, kind: TimeKind): string {
   return `${hour}-${kind}`;
@@ -481,6 +582,9 @@ function timeKey(hour: number, kind: TimeKind): string {
  *    trzeciej" = 2:30 → dystraktor o godzinę WCZEŚNIEJ;
  *  - z tarczy (zegar → zdanie): dziecko widzi 3:30, myśli „wpół do czwartej"
  *    i szuka „four" → dystraktor „half past four", o godzinę PÓŹNIEJ.
+ * Dla minut pułapką jest kierunek: „twenty past three" (3:20) kontra „twenty
+ * to three" (2:40 — te same słowa, inny kierunek) i „twenty to four" (3:40 —
+ * lustrzane odbicie wskazówki).
  */
 function timeDistractors(hour: number, kind: TimeKind, direction: "read" | "hear"): Array<[number, TimeKind]> {
   const prev = hour === 1 ? 12 : hour - 1;
@@ -506,7 +610,102 @@ function timeDistractors(hour: number, kind: TimeKind, direction: "read" | "hear
         [hour, "half"],
         [next, "oclock"],
       ];
+    default: {
+      const mirror = mirrorKind(kind);
+      // „past": te same słowa z „to" to godzina wcześniej (twenty to THREE = 2:40);
+      // „to": te same słowa z „past" to godzina później (twenty past FOUR = 4:20).
+      return [
+        [hour, mirror],
+        [MINUTE_OF[kind] < 30 ? prev : next, mirror],
+      ];
+    }
   }
+}
+
+type Meridiem = "am" | "pm";
+
+/** 12-godzinny zapis cyfrowy: „3:30 pm" (tak pisze się w Anglii na co dzień). */
+function digital12(hour: number, minute: number, meridiem: Meridiem): string {
+  return `${hour}:${String(minute).padStart(2, "0")} ${meridiem}`;
+}
+
+/** 24-godzinny zapis (rozkłady jazdy, program Year 4): 3:30 pm → 15:30, 12:15 am → 00:15. */
+function digital24(hour: number, minute: number, meridiem: Meridiem): string {
+  const h24 = meridiem === "am" ? hour % 12 : (hour % 12) + 12;
+  return `${String(h24).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+/**
+ * Pory dnia z życia angielskiego dziecka — z nich Year 3 wnioskuje am / pm.
+ * Realia: lekcje ok. 8:45–15:15, „tea" to wieczorny posiłek, kółka po szkole.
+ */
+export const DAY_TIMES: Array<{ id: string; en: string; hour: number; kind: TimeKind; meridiem: Meridiem; pl: string }> = [
+  { id: "wake", en: "I wake up at seven o'clock.", hour: 7, kind: "oclock", meridiem: "am", pl: "budzę się — rano" },
+  { id: "breakfast", en: "I eat breakfast at half past seven.", hour: 7, kind: "half", meridiem: "am", pl: "śniadanie — rano" },
+  { id: "school-starts", en: "School starts at quarter to nine.", hour: 8, kind: "quarter-to", meridiem: "am", pl: "początek lekcji — rano (8:45)" },
+  { id: "shop", en: "The shop opens at nine o'clock.", hour: 9, kind: "oclock", meridiem: "am", pl: "sklep otwiera się — rano" },
+  { id: "lunch", en: "We have lunch at quarter past twelve.", hour: 12, kind: "quarter-past", meridiem: "pm", pl: "lunch — w południe; od 12:00 jest już pm" },
+  { id: "school-ends", en: "School finishes at quarter past three.", hour: 3, kind: "quarter-past", meridiem: "pm", pl: "koniec lekcji — po południu" },
+  { id: "swimming", en: "Swimming club is at ten past four.", hour: 4, kind: "ten-past", meridiem: "pm", pl: "kółko pływackie po szkole — po południu" },
+  { id: "tea", en: "We have tea at five o'clock.", hour: 5, kind: "oclock", meridiem: "pm", pl: "„tea” to tu wieczorny posiłek — po południu" },
+  { id: "bed", en: "I go to bed at eight o'clock.", hour: 8, kind: "oclock", meridiem: "pm", pl: "idę spać — wieczorem" },
+];
+
+/** Year 3: z pory dnia dziecko wybiera zapis z am albo pm. */
+function amPmExercise(index: number): Exercise {
+  const item = DAY_TIMES[index];
+  const minute = MINUTE_OF[item.kind];
+  const other: Meridiem = item.meridiem === "am" ? "pm" : "am";
+  const nextHour = item.hour === 12 ? 1 : item.hour + 1;
+  const correct = digital12(item.hour, minute, item.meridiem);
+  const options = shuffle([correct, digital12(item.hour, minute, other), digital12(nextHour, minute, item.meridiem)]);
+  return {
+    id: `time-ampm-${item.id}`,
+    kind: "choice",
+    exercise: "time-ampm",
+    item: item.id,
+    heading: "am czy pm? Wybierz zapis",
+    promptEn: item.en,
+    sound: say(item.en),
+    visual: { kind: "clock", hour: item.hour, minute },
+    options: options.map((label) => ({ id: label, label })),
+    answer: correct,
+    columns: 3,
+    explainPl: `${item.pl}: ${correct}. am = od północy do południa, pm = od południa do północy.`,
+  };
+}
+
+/** Year 4: zamiana 12 h ↔ 24 h. Pułapki: am/pm odwrotnie, „15" przeczytane jako 5. */
+function clock24Exercise(index: number): Exercise {
+  const hour = 1 + Math.floor(Math.random() * 11);
+  const kind = TIME_KINDS[Math.floor(Math.random() * TIME_KINDS.length)];
+  const minute = MINUTE_OF[kind];
+  const meridiem: Meridiem = Math.random() < 0.5 ? "am" : "pm";
+  const other: Meridiem = meridiem === "am" ? "pm" : "am";
+  const nearHour = meridiem === "pm" ? (hour <= 9 ? hour + 2 : hour - 2) : hour === 11 ? 10 : hour + 1;
+  const to24 = index % 2 === 0;
+  const shown = to24 ? digital12(hour, minute, meridiem) : digital24(hour, minute, meridiem);
+  const correct = to24 ? digital24(hour, minute, meridiem) : digital12(hour, minute, meridiem);
+  const options = to24
+    ? [correct, digital24(hour, minute, other), digital24(nearHour, minute, meridiem)]
+    : [correct, digital12(hour, minute, other), digital12(nearHour, minute, meridiem)];
+  return {
+    id: `time-24h-${index}`,
+    kind: "choice",
+    exercise: "time-24h",
+    item: digital24(hour, minute, meridiem),
+    heading: to24 ? "Zapisz jak na rozkładzie jazdy (24 h)" : "Zegar 24-godzinny — który zapis z am / pm?",
+    promptEn: "What time is it?",
+    sound: say("What time is it?"),
+    visual: { kind: "big", text: shown },
+    options: shuffle(options).map((label) => ({ id: label, label })),
+    answer: correct,
+    columns: 3,
+    explainPl:
+      meridiem === "pm"
+        ? `${digital12(hour, minute, "pm")} = ${digital24(hour, minute, "pm")}: po południu dodajemy 12 do godziny (${hour} + 12 = ${hour + 12}).`
+        : `${digital12(hour, minute, "am")} = ${digital24(hour, minute, "am")}: rano godzina zostaje ta sama, tylko z zerem z przodu.`,
+  };
 }
 
 function timeSession(): Exercise[] {
@@ -521,31 +720,36 @@ function timeSession(): Exercise[] {
       promptEn: "It's half past three.",
       sound: say("It's half past three."),
       bodyPl:
-        "Uwaga, pułapka! „Half past three” to 3:30 — pół godziny PO trzeciej. Po polsku mówimy „wpół do czwartej”, więc łatwo pomylić godzinę. Anglik liczy od godziny, która minęła:",
+        "Uwaga, pułapka! „Half past three” to 3:30 — pół godziny PO trzeciej. Po polsku mówimy „wpół do czwartej”, więc łatwo pomylić godzinę. Anglik liczy od godziny, która minęła: do połowy mówi „past” (po), po połowie „to” (za) i już nazywa następną godzinę. Cyfrowo: 3:30 pm na co dzień, 15:30 na rozkładzie jazdy.",
       examples: [
         { en: "three o'clock", pl: "3:00 — trzecia" },
         { en: "quarter past three", pl: "3:15 — kwadrans po trzeciej" },
+        { en: "twenty-five past three", pl: "3:25 — do połowy godziny: „past” (po)" },
         { en: "half past three", pl: "3:30 — wpół do czwartej!" },
+        { en: "twenty-five to four", pl: "3:35 — po połowie: „to” (za) i już „four”" },
         { en: "quarter to four", pl: "3:45 — za kwadrans czwarta" },
-        { en: "twenty past three", pl: "3:20 — dwadzieścia po trzeciej (past = po)" },
-        { en: "ten to four", pl: "3:50 — za dziesięć czwarta (to = za)" },
+        { en: "ten to four", pl: "3:50 — za dziesięć czwarta" },
         { en: "half four", pl: "potocznie: 4:30 (half past four), NIE „wpół do czwartej”!" },
       ],
       parentPl:
-        "W Year 3–4 dzieci czytają zegar wskazówkowy do minuty („twenty past”, „ten to”; także tarcze z cyframi rzymskimi), znają am/pm i zapis 24-godzinny. Na co dzień mówi się 12-godzinnie: „half past three” to i 3:30, i 15:30. Uwaga na potoczne „half four” (tak mówią rodzice na placu zabaw: „pick-up at half four”) — to 4:30, a polskie ucho słyszy „wpół do czwartej”, czyli 3:30. Warto w domu mówić godziny po angielsku przy okazji: „It's quarter past seven — time for breakfast!”",
+        "W Year 3–4 dzieci czytają zegar wskazówkowy do minuty („twenty past”, „ten to”; także tarcze z cyframi rzymskimi), znają am/pm i zapis 24-godzinny (Year 4 zamienia jeden na drugi). Na co dzień mówi się 12-godzinnie: „half past three” to i 3:30, i 15:30. Uwaga na potoczne „half four” (tak mówią rodzice na placu zabaw: „pick-up at half four”) — to 4:30, a polskie ucho słyszy „wpół do czwartej”, czyli 3:30. Warto w domu mówić godziny po angielsku przy okazji: „It's quarter past seven — time for breakfast!”",
     },
   ];
 
   const used = new Set<string>();
   const draws: Array<[number, TimeKind]> = [];
-  while (draws.length < 7) {
+  const pickKind = (n: number): TimeKind => {
+    // Trzy razy „half past" (w nim siedzi pułapka), trzy godziny do minuty, reszta dowolna.
+    if (n < 3) return "half";
+    if (n < 6) return MINUTE_KINDS[Math.floor(Math.random() * MINUTE_KINDS.length)];
+    return TIME_KINDS[Math.floor(Math.random() * TIME_KINDS.length)];
+  };
+  while (draws.length < 8) {
     const hour = 1 + Math.floor(Math.random() * 12);
-    const kind = TIME_KINDS[Math.floor(Math.random() * TIME_KINDS.length)];
-    // „half past" częściej — to w nim siedzi pułapka.
-    const chosen: TimeKind = draws.length < 3 ? "half" : kind;
-    if (used.has(timeKey(hour, chosen))) continue;
-    used.add(timeKey(hour, chosen));
-    draws.push([hour, chosen]);
+    const kind = pickKind(draws.length);
+    if (used.has(timeKey(hour, kind))) continue;
+    used.add(timeKey(hour, kind));
+    draws.push([hour, kind]);
   }
 
   draws.forEach(([hour, kind], i) => {
@@ -593,11 +797,15 @@ function timeSession(): Exercise[] {
       });
     }
   });
+
+  screens.push(amPmExercise(Math.floor(Math.random() * DAY_TIMES.length)));
+  screens.push(clock24Exercise(Math.floor(Math.random() * 2)));
   return screens;
 }
 
 function explainTime(hour: number, kind: TimeKind): string {
   const next = hour === 12 ? 1 : hour + 1;
+  const minute = MINUTE_OF[kind];
   const hh = (h: number, m: number) => `${h}:${String(m).padStart(2, "0")}`;
   switch (kind) {
     case "oclock":
@@ -608,6 +816,10 @@ function explainTime(hour: number, kind: TimeKind): string {
       return `${timePhrase(hour, kind)} = ${hh(hour, 15)} — kwadrans PO ${hour}.`;
     case "quarter-to":
       return `${timePhrase(hour, kind)} = ${hh(hour, 45)} — za kwadrans ${next}.`;
+    default:
+      return minute < 30
+        ? `${timePhrase(hour, kind)} = ${hh(hour, minute)} — ${minute} minut PO ${hour} (past = po).`
+        : `${timePhrase(hour, kind)} = ${hh(hour, minute)} — za ${60 - minute} minut ${next} (to = za; mówimy już następną godzinę).`;
   }
 }
 
@@ -760,6 +972,415 @@ function notationSession(): Exercise[] {
   ];
 }
 
+// --- Jednostki -----------------------------------------------------------------------
+
+/**
+ * Jednostki po angielsku (Year 3–4): te same co w Polsce, inne słowa i
+ * brytyjska pisownia (metre, litre — nie meter, liter). Program: zamiana
+ * jednostek prostych (Year 3: m ↔ cm, kg ↔ g) i mieszanych (Year 4:
+ * 1 kg 200 g = 1,200 g), czas (godziny ↔ minuty). Imperialne (mile, pints)
+ * tylko we wskazówce dla rodzica — w programie Year 3–4 ich nie ma.
+ */
+export type UnitWordItem = {
+  id: string;
+  shown: string;
+  answer: string;
+  options: string[];
+  explainPl: string;
+};
+
+export const UNIT_WORDS: UnitWordItem[] = [
+  {
+    id: "m-cm",
+    shown: "1 m 50 cm",
+    answer: "one metre and fifty centimetres",
+    options: ["one metre and fifty centimetres", "one metre and fifty millimetres", "fifteen metres"],
+    explainPl: "1 m 50 cm = „one metre and fifty centimetres” (w mowie często krótko: „one metre fifty”). Pisownia brytyjska: metre, centimetre — z -re na końcu.",
+  },
+  {
+    id: "km",
+    shown: "2 km",
+    answer: "two kilometres",
+    options: ["two kilometres", "two kilograms", "two centimetres"],
+    explainPl: "km = kilometre(s): „two kilometres”. kg to kilogram — skróty łatwo pomylić, ale słowa brzmią inaczej.",
+  },
+  {
+    id: "g",
+    shown: "500 g",
+    answer: "five hundred grams",
+    options: ["five hundred grams", "five hundred kilograms", "fifty grams"],
+    explainPl: "g = gram(s): „five hundred grams” — pół kilograma.",
+  },
+  {
+    id: "kg-g",
+    shown: "1 kg 200 g",
+    answer: "one kilogram and two hundred grams",
+    options: ["one kilogram and two hundred grams", "one kilogram and twenty grams", "twelve kilograms"],
+    explainPl: "Jednostki mieszane czyta się po kolei: „one kilogram and two hundred grams” = 1,200 g.",
+  },
+  {
+    id: "ml",
+    shown: "250 ml",
+    answer: "two hundred and fifty millilitres",
+    options: ["two hundred and fifty millilitres", "two hundred and fifty litres", "twenty-five millilitres"],
+    explainPl: "ml = millilitre(s). Pisownia brytyjska: litre, millilitre (amerykańska: liter).",
+  },
+  {
+    id: "l",
+    shown: "3 litres",
+    answer: "three litres",
+    options: ["three litres", "three millilitres", "three metres"],
+    explainPl: "litre — jak polski „litr”, ale z -re na końcu; 1 litre = 1,000 millilitres.",
+  },
+  {
+    id: "m-thousands",
+    shown: "1,500 m",
+    answer: "one thousand, five hundred metres",
+    options: ["one thousand, five hundred metres", "one thousand and fifty metres", "fifteen metres"],
+    explainPl: "1,500 m — przecinek oddziela tysiące. To tyle samo co 1 km 500 m (1.5 km).",
+  },
+];
+
+export type UnitConversion = {
+  id: string;
+  en: string;
+  answer: number;
+  /** Rozpisanie po angielsku (z przecinkiem w tysiącach — tak wygląda w zeszycie). */
+  workingEn: string;
+  hintPl: string;
+};
+
+export const UNIT_CONVERSIONS: UnitConversion[] = [
+  { id: "m-to-cm", en: "How many centimetres are there in 5 metres?", answer: 500, workingEn: "5 m = 500 cm", hintPl: "1 metre = 100 centimetres" },
+  { id: "m-to-cm-3", en: "How many centimetres are there in 3 metres?", answer: 300, workingEn: "3 m = 300 cm", hintPl: "1 metre = 100 centimetres" },
+  { id: "km-to-m", en: "How many metres are there in 2 kilometres?", answer: 2000, workingEn: "2 km = 2,000 m", hintPl: "1 kilometre = 1,000 metres; po angielsku 2,000 — z przecinkiem" },
+  { id: "half-km", en: "How many metres are there in half a kilometre?", answer: 500, workingEn: "½ km = 500 m", hintPl: "połowa z 1,000 metres" },
+  { id: "kg-to-g", en: "How many grams are there in 1 kilogram?", answer: 1000, workingEn: "1 kg = 1,000 g", hintPl: "kilo = tysiąc" },
+  { id: "kg-g-mixed", en: "How many grams are there in 1 kilogram 200 grams?", answer: 1200, workingEn: "1 kg 200 g = 1,200 g", hintPl: "1,000 g + 200 g" },
+  { id: "m-cm-mixed", en: "How many centimetres are there in 1 metre 50 centimetres?", answer: 150, workingEn: "1 m 50 cm = 150 cm", hintPl: "100 cm + 50 cm" },
+  { id: "l-to-ml", en: "How many millilitres are there in 1 litre?", answer: 1000, workingEn: "1 litre = 1,000 ml", hintPl: "milli = tysięczna część" },
+  { id: "cm-to-mm", en: "How many millimetres are there in 1 centimetre?", answer: 10, workingEn: "1 cm = 10 mm", hintPl: "milimetry — najmniejsze kreski na linijce" },
+  { id: "h-to-min", en: "How many minutes are there in 2 hours?", answer: 120, workingEn: "2 hours = 120 minutes", hintPl: "1 hour = 60 minutes" },
+  { id: "h-half-to-min", en: "How many minutes are there in an hour and a half?", answer: 90, workingEn: "1½ hours = 90 minutes", hintPl: "60 + 30" },
+  { id: "min-to-s", en: "How many seconds are there in a minute?", answer: 60, workingEn: "1 minute = 60 seconds", hintPl: "seconds = sekundy" },
+];
+
+function unitsSession(): Exercise[] {
+  const learn: Exercise = {
+    id: "units-learn",
+    kind: "learn",
+    exercise: "learn",
+    item: "units",
+    heading: "Jednostki po angielsku",
+    visual: { kind: "big", text: "m  cm  kg  g  l  ml" },
+    promptEn: "metre, centimetre, kilometre",
+    sound: say("metre, centimetre, kilometre"),
+    bodyPl:
+      "Te same jednostki co w Polsce, inne słowa i pisownia: metre, centimetre, kilometre, gram, kilogram, litre, millilitre. Końcówka -re to pisownia brytyjska (amerykańska ma -er). Skróty jak u nas: m, cm, km, g, kg, l, ml. Tysiące z przecinkiem: 1 km = 1,000 m.",
+    examples: [
+      { en: "metre, centimetre, kilometre", pl: "m, cm, km — długość" },
+      { en: "gram, kilogram", pl: "g, kg — masa" },
+      { en: "litre, millilitre", pl: "l, ml — objętość" },
+      { en: "One kilogram is one thousand grams.", pl: "1 kg = 1,000 g" },
+    ],
+    parentPl:
+      "Year 3 zamienia jednostki proste (m ↔ cm, kg ↔ g), Year 4 zapisuje też jednostki mieszane (1 kg 200 g = 1,200 g) i czas (godziny ↔ minuty). Poza szkołą Anglicy mówią też milami (drogowskazy), pintami (mleko) i stopami (wzrost) — w programie Year 3–4 tego nie ma, więc tu nie ćwiczymy, ale dziecko usłyszy to na ulicy.",
+  };
+  const words = pickSome(UNIT_WORDS, 4).map(
+    (item, i): Exercise => ({
+      id: `units-word-${item.id}-${i}`,
+      kind: "choice",
+      exercise: "unit-word",
+      item: item.id,
+      visual: { kind: "big", text: item.shown },
+      promptEn: "How do you say this?",
+      sound: say("How do you say this?"),
+      options: shuffle(item.options).map((option) => ({ id: option, label: option, sound: say(option) })),
+      answer: item.answer,
+      columns: 1,
+      explainPl: item.explainPl,
+    }),
+  );
+  const conversions = pickSome(UNIT_CONVERSIONS, 5).map(
+    (item, i): Exercise => ({
+      id: `units-convert-${item.id}-${i}`,
+      kind: "typed",
+      exercise: "unit-convert",
+      item: item.id,
+      promptEn: item.en,
+      sound: say(item.en),
+      answer: item.answer,
+      revealText: item.workingEn,
+      explainPl: `${item.workingEn} (${item.hintPl}).`,
+    }),
+  );
+  return [learn, ...words, ...conversions];
+}
+
+// --- Tysiące i poniżej zera ---------------------------------------------------------
+
+/**
+ * Year 4: liczby czterocyfrowe i „count backwards through zero to include
+ * negative numbers". Ze słuchu myli się 1,500 („one thousand, five hundred")
+ * z 1,050 („one thousand and fifty"); liczby ujemne mają „minus" przed
+ * liczbą, a klawiatura odpowiedzi dostaje klawisz − tylko w tych ćwiczeniach.
+ */
+export type NegativeItem = {
+  id: string;
+  en: string;
+  answer: number;
+  workingPl: string;
+  visual?: Visual;
+};
+
+export const NEGATIVE_ITEMS: NegativeItem[] = [
+  { id: "less-than-1", en: "What is 2 less than 1?", answer: -1, workingPl: "1 − 2 = −1", visual: { kind: "sequence", items: [3, 2, 1, 0, -1, -2] } },
+  { id: "less-than-3", en: "What is 5 less than 3?", answer: -2, workingPl: "3 − 5 = −2" },
+  {
+    id: "count-back",
+    en: "Start at 2 and count back 4. Where do you land?",
+    answer: -2,
+    workingPl: "2 → 1 → 0 → −1 → −2",
+    visual: { kind: "sequence", items: [2, 1, 0, -1, null] },
+  },
+  {
+    id: "temp-rise",
+    en: "The temperature is minus three degrees. It rises by two degrees. What is the temperature now?",
+    answer: -1,
+    workingPl: "−3 + 2 = −1 (rises = rośnie)",
+    visual: { kind: "big", text: "−3 °C" },
+  },
+  {
+    id: "temp-fall",
+    en: "The temperature is two degrees. It falls by five degrees. What is the temperature now?",
+    answer: -3,
+    workingPl: "2 − 5 = −3 (falls = spada)",
+    visual: { kind: "big", text: "2 °C" },
+  },
+  { id: "sequence-down", en: "What is the missing number?", answer: -1, workingPl: "3, 2, 1, 0, −1 — liczymy wstecz przez zero", visual: { kind: "sequence", items: [3, 2, 1, 0, null] } },
+  { id: "sequence-up", en: "What is the missing number?", answer: 0, workingPl: "−3, −2, −1, 0, 1 — zero też jest liczbą w ciągu", visual: { kind: "sequence", items: [-3, -2, -1, null, 1] } },
+];
+
+/** Jak się mówi liczbę ujemną — termometr. */
+const SAY_NEGATIVE = {
+  shown: "−3 °C",
+  promptEn: "How do you say this temperature?",
+  answer: "minus three degrees",
+  options: ["minus three degrees", "three degrees", "minus thirty degrees"],
+  explainPl: "−3 °C = „minus three degrees” (na lekcji też „negative three”). Prognoza pogody powie: „It's minus three tonight.”",
+};
+
+function thousandsSession(): Exercise[] {
+  const learn: Exercise = {
+    id: "thousands-learn",
+    kind: "learn",
+    exercise: "learn",
+    item: "thousands",
+    heading: "Tysiące i poniżej zera",
+    visual: { kind: "big", text: "2,500   −3" },
+    promptEn: "two thousand, five hundred",
+    sound: say("two thousand, five hundred"),
+    bodyPl:
+      "Year 4 liczy w tysiącach i poniżej zera. W zapisie tysiące oddziela PRZECINEK (2,500), a ułamek KROPKA (2.5) — odwrotnie niż u nas. Liczby ujemne mają „minus” przed liczbą: −3 = minus three. W tych ćwiczeniach klawiatura ma klawisz −.",
+    examples: [
+      { en: "two thousand, five hundred", pl: "2,500 — przecinek w zapisie, pauza w mowie" },
+      { en: "one thousand and fifty", pl: "1,050 — nie ma setek, więc od razu „and”" },
+      { en: "minus three", pl: "−3 — trzy poniżej zera; na lekcji też „negative three”" },
+      { en: "three, two, one, zero, minus one, minus two", pl: "liczenie wstecz przez zero" },
+    ],
+    parentPl:
+      "Program Year 4: liczby czterocyfrowe i „count backwards through zero to include negative numbers”. Ze słuchu myli się 1,500 („one thousand, five hundred”) z 1,050 („one thousand and fifty”) — po „and” nie ma już setek. Termometr za oknem to najlepsze ćwiczenie liczb ujemnych: „It's minus two degrees today.”",
+  };
+  // 10,000 ma pięć cyfr — klawiatura odpowiedzi mieści cztery, więc trafia tylko do słuchania/czytania.
+  const values = pickSome(THOUSANDS_POOL, 7).sort((a, b) => (a === 10000 ? -1 : b === 10000 ? 1 : 0));
+  const numbers: Exercise[] = [
+    ...values.slice(0, 3).map((v, i) => hearNumberChoice(v, `thousands-hear-${i}`)),
+    ...values.slice(3, 5).map((v, i) => readNumberChoice(v, `thousands-read-${i}`)),
+    ...values.slice(5).map((v, i) => hearNumberTyped(v, `thousands-type-${i}`)),
+  ];
+  const negatives = pickSome(NEGATIVE_ITEMS, 3).map(
+    (item, i): Exercise => ({
+      id: `negative-${item.id}-${i}`,
+      kind: "typed",
+      exercise: "negative",
+      item: item.id,
+      promptEn: item.en,
+      sound: say(item.en),
+      visual: item.visual,
+      answer: item.answer,
+      allowNegative: true,
+      revealText: item.workingPl,
+      explainPl: `${item.workingPl}. Minus wpisujesz klawiszem −.`,
+    }),
+  );
+  const sayNegative: Exercise = {
+    id: "negative-say",
+    kind: "choice",
+    exercise: "negative-say",
+    item: "minus-three",
+    visual: { kind: "big", text: SAY_NEGATIVE.shown },
+    promptEn: SAY_NEGATIVE.promptEn,
+    sound: say(SAY_NEGATIVE.promptEn),
+    options: shuffle(SAY_NEGATIVE.options).map((option) => ({ id: option, label: option, sound: say(option) })),
+    answer: SAY_NEGATIVE.answer,
+    columns: 1,
+    explainPl: SAY_NEGATIVE.explainPl,
+  };
+  return [learn, ...shuffle([...numbers, ...negatives, sayNegative])];
+}
+
+// --- Zeszyt: jak zapisuje się działania w angielskiej szkole ---------------------------
+
+/**
+ * Treść zakładki „Jak pisać w zeszycie" — bez ćwiczeń, do przepisania na
+ * kartkę. Układy według White Rose Maths / NCETM (program Anglii): kolumny
+ * z nagłówkami H T O, „exchange" (nie „borrow", nie „carry"), przeniesiona
+ * cyfra mała POD kreską wyniku, w odejmowaniu przekreślona cyfra z nową nad
+ * nią i mała 1 przy jednościach, dzielenie „bus stop" z wynikiem NAD kreską.
+ *
+ * Komórka to jedna kratka zeszytu. Znaczniki: ^1^ = mała cyfra (exchange),
+ * ~7~ = przekreślona; „^1^2" = mała 1 przed 2 w tej samej kratce.
+ */
+export type NotebookRow = { cells: string[]; muted?: boolean; frameFrom?: number } | "rule";
+
+export type NotebookMethod = {
+  id: string;
+  emoji: string;
+  titlePl: string;
+  /** Działanie, które pokazuje przykład. */
+  sumEn: string;
+  rows: NotebookRow[];
+  /** Kroki tak, jak dziecko ma je wykonać ręką. */
+  stepsPl: string[];
+  /** Co mówi nauczycielka — z nagraniami. */
+  phrases: string[];
+  /** Czym różni się od polskiego zeszytu. */
+  differencePl: string;
+  yearPl: string;
+};
+
+export const NOTEBOOK_METHODS: NotebookMethod[] = [
+  {
+    id: "column-addition",
+    emoji: "➕",
+    titlePl: "Dodawanie w słupku (column addition)",
+    sumEn: "347 + 285 = 632",
+    rows: [
+      { cells: ["", "H", "T", "O"], muted: true },
+      { cells: ["", "3", "4", "7"] },
+      { cells: ["+", "2", "8", "5"] },
+      "rule",
+      { cells: ["", "6", "3", "2"] },
+      { cells: ["", "^1^", "^1^", ""] },
+    ],
+    stepsPl: [
+      "Nad słupkiem litery H T O (hundreds, tens, ones) — jedna cyfra w jednej kratce.",
+      "Zaczynamy od jedności: 7 + 5 = 12. Piszemy 2, a małą 1 (jedna dziesiątka) POD kreską wyniku, w kolumnie dziesiątek.",
+      "Dziesiątki: 4 + 8 + 1 = 13. Piszemy 3, mała 1 pod kreską w kolumnie setek.",
+      "Setki: 3 + 2 + 1 = 6.",
+    ],
+    phrases: [
+      "Line up the digits.",
+      "Start with the ones.",
+      "Seven add five is twelve. Write the two and exchange ten ones for one ten.",
+      "Don't forget the one you exchanged.",
+    ],
+    differencePl:
+      "W polskim zeszycie przeniesioną jedynkę pisze się nad słupkiem. W Anglii (White Rose) — małą cyfrą pod kreską wyniku. Słowo to „exchange” (wymiana): dziesięć jedności wymieniamy na jedną dziesiątkę.",
+    yearPl: "Year 3 (do 3 cyfr), Year 4 (do 4 cyfr)",
+  },
+  {
+    id: "column-subtraction",
+    emoji: "➖",
+    titlePl: "Odejmowanie w słupku (column subtraction)",
+    sumEn: "572 − 238 = 334",
+    rows: [
+      { cells: ["", "H", "T", "O"], muted: true },
+      { cells: ["", "", "^6^", ""] },
+      { cells: ["", "5", "~7~", "^1^2"] },
+      { cells: ["−", "2", "3", "8"] },
+      "rule",
+      { cells: ["", "3", "3", "4"] },
+    ],
+    stepsPl: [
+      "Jedności: 2 − 8 nie da się. Trzeba „wymienić” (exchange) jedną dziesiątkę na dziesięć jedności.",
+      "Przekreślamy 7 w dziesiątkach i piszemy nad nim małe 6. Przy 2 w jednościach dopisujemy małą 1 — teraz jest tam 12.",
+      "12 − 8 = 4. Dziesiątki: 6 − 3 = 3. Setki: 5 − 2 = 3.",
+    ],
+    phrases: [
+      "Two take away eight — we can't do that. We need to exchange.",
+      "Exchange one ten for ten ones.",
+      "Cross out the seven and write six.",
+      "Now twelve take away eight is four.",
+    ],
+    differencePl:
+      "Po polsku „pożyczamy” i pamiętamy w głowie albo stawiamy kropkę. W Anglii wszystko widać na kartce: przekreślona 7, małe 6 nad nią i mała 1 przy jednościach. Nauczycielka mówi „exchange”, nie „borrow”.",
+    yearPl: "Year 3 (do 3 cyfr), Year 4 (do 4 cyfr)",
+  },
+  {
+    id: "short-multiplication",
+    emoji: "✖️",
+    titlePl: "Mnożenie pisemne krótkie (short multiplication)",
+    sumEn: "234 × 3 = 702",
+    rows: [
+      { cells: ["", "H", "T", "O"], muted: true },
+      { cells: ["", "2", "3", "4"] },
+      { cells: ["×", "", "", "3"] },
+      "rule",
+      { cells: ["", "7", "0", "2"] },
+      { cells: ["", "^1^", "^1^", ""] },
+    ],
+    stepsPl: [
+      "Mnożnik (3) piszemy pod jednościami. Zaczynamy od jedności: 4 × 3 = 12. Piszemy 2, mała 1 pod kreską w kolumnie dziesiątek.",
+      "Dziesiątki: 3 × 3 = 9, plus 1 = 10. Piszemy 0, mała 1 pod kreską w kolumnie setek.",
+      "Setki: 2 × 3 = 6, plus 1 = 7.",
+    ],
+    phrases: [
+      "Multiply the ones first.",
+      "Four times three is twelve. Write the two and exchange the one.",
+      "Three times three is nine, add one is ten.",
+    ],
+    differencePl:
+      "Układ podobny do polskiego, ale przeniesiona cyfra znów idzie POD kreskę, nie nad słupek. Słyszy się „exchange”, czasem też „carry”.",
+    yearPl: "Year 4 (liczba 2- i 3-cyfrowa razy jednocyfrowa)",
+  },
+  {
+    id: "bus-stop",
+    emoji: "🚌",
+    titlePl: "Dzielenie „bus stop” (short division)",
+    sumEn: "54 ÷ 4 = 13 r 2",
+    rows: [
+      { cells: ["", "1", "3", "r 2"] },
+      { cells: ["4", "5", "^1^4", ""], frameFrom: 1 },
+    ],
+    stepsPl: [
+      "Rysujemy „przystanek”: kreska nad dzielną (54) i kreska z lewej. Dzielnik (4) stoi PRZED przystankiem, wynik piszemy NAD kreską.",
+      "Od lewej: ile czwórek w 5? Jedna, reszta 1. Piszemy 1 nad 5, a małą 1 dopisujemy przed 4 — teraz jest tam 14.",
+      "Ile czwórek w 14? Trzy, reszta 2. Piszemy 3 nad 4. Resztę zapisujemy obok wyniku: r 2 (remainder 2).",
+    ],
+    phrases: [
+      "How many fours in five? One, remainder one.",
+      "Carry the one to the next digit.",
+      "How many fours in fourteen? Three, remainder two.",
+      "The answer is thirteen remainder two.",
+    ],
+    differencePl:
+      "Zupełnie inny obrazek niż polskie dzielenie pisemne: dzielna jest w środku „przystanku”, wynik nad kreską, nic się nie odejmuje pod spodem. Reszta to „remainder”, w zapisie „r 2”.",
+    yearPl: "W programie krajowym formalnie Year 5; wiele szkół pokazuje układ już w Year 4",
+  },
+];
+
+/** Drobiazgi zapisu, które w Polsce wyglądają inaczej — do przepisania jako wzór. */
+export const NOTEBOOK_NOTATION: Array<{ shown: string; pl: string }> = [
+  { shown: "1  7", pl: "Jedynka to jedna prosta kreska (bez daszka), siódemka bez kreski w poprzek. Polska 1 z długim daszkiem bywa czytana jako 7." },
+  { shown: "2.5", pl: "Ułamek dziesiętny z KROPKĄ (decimal point). Czyta się „two point five”." },
+  { shown: "2,500", pl: "Przecinek oddziela TYSIĄCE. Czyta się „two thousand, five hundred”." },
+  { shown: "£3.50   75p", pl: "Funt (£) przed liczbą, kropka między funtami a pensami. Pensy: „p” po liczbie. Nigdy razem: £0.75p to błąd." },
+  { shown: "Monday 5th October", pl: "Data u góry strony, słownie z końcówką (1st, 2nd, 3rd, 4th…). Skrótowo dzień/miesiąc/rok jak u nas: 05/10/2026." },
+];
+
+export const NOTEBOOK_PHRASES = ["One digit in each square.", "Write the date and underline it with a ruler.", "Remember the decimal point."];
+
 // --- Tematy ----------------------------------------------------------------------
 
 const range = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => from + i);
@@ -802,6 +1423,15 @@ export const MATHS_TOPICS: MathsTopic[] = [
     build: numbersTopic("n1000", HUNDREDS_POOL, { hear: 3, type: 5, read: 3 }),
   },
   {
+    id: "thousands",
+    titlePl: "Tysiące i poniżej zera",
+    emoji: "🌡️",
+    goalPl: "Two thousand, five hundred — i minus three.",
+    parentIntroPl:
+      "Year 4: liczby czterocyfrowe (z przecinkiem w tysiącach: 2,500) i liczenie wstecz przez zero. Ze słuchu myli się 1,500 z 1,050 — „five hundred” kontra „and fifty”. Przy liczbach ujemnych klawiatura dostaje klawisz −.",
+    build: thousandsSession,
+  },
+  {
     id: "operations",
     titlePl: "Słowa działań",
     emoji: "➗",
@@ -823,10 +1453,19 @@ export const MATHS_TOPICS: MathsTopic[] = [
     id: "time",
     titlePl: "Zegar po angielsku",
     emoji: "🕒",
-    goalPl: "O'clock, half past, quarter past, quarter to.",
+    goalPl: "Half past, twenty to, five past — do minuty, plus am/pm i 24 h.",
     parentIntroPl:
-      "Pułapka dla polskich dzieci: „half past three” to 3:30, a po polsku „wpół do czwartej”. Dziecko słyszy „three” i ustawia 2:30. Ćwiczenie celowo podsuwa ten błąd, żeby go oswoić.",
+      "Pułapka dla polskich dzieci: „half past three” to 3:30, a po polsku „wpół do czwartej”. Dziecko słyszy „three” i ustawia 2:30. Ćwiczenie celowo podsuwa ten błąd, żeby go oswoić. Do tego minuty („twenty past”, „ten to” — Year 3 czyta zegar do minuty), am/pm z pory dnia i zamiana na zapis 24-godzinny (Year 4).",
     build: timeSession,
+  },
+  {
+    id: "units",
+    titlePl: "Jednostki miary",
+    emoji: "📏",
+    goalPl: "Metre, kilogram, litre — i 2 km = 2,000 m.",
+    parentIntroPl:
+      "Te same jednostki, inne słowa i brytyjska pisownia (metre, litre). Year 3 zamienia m ↔ cm i kg ↔ g, Year 4 zapisuje jednostki mieszane (1 kg 200 g = 1,200 g) i czas (godziny ↔ minuty). Tysiące z przecinkiem: 2,000 m.",
+    build: unitsSession,
   },
   {
     id: "notation",
@@ -863,5 +1502,15 @@ export function mathsPhrases(): string[] {
     add(item.promptEn);
     item.options.forEach(add);
   });
+  DAY_TIMES.forEach((item) => add(item.en));
+  ["metre, centimetre, kilometre", "gram, kilogram", "litre, millilitre", "One kilogram is one thousand grams.", "How do you say this?"].forEach(add);
+  UNIT_WORDS.forEach((item) => item.options.forEach(add));
+  UNIT_CONVERSIONS.forEach((item) => add(item.en));
+  ["two thousand, five hundred", "one thousand and fifty", "minus three", "three, two, one, zero, minus one, minus two"].forEach(add);
+  NEGATIVE_ITEMS.forEach((item) => add(item.en));
+  add(SAY_NEGATIVE.promptEn);
+  SAY_NEGATIVE.options.forEach(add);
+  NOTEBOOK_METHODS.forEach((method) => method.phrases.forEach(add));
+  NOTEBOOK_PHRASES.forEach(add);
   return [...phrases];
 }
