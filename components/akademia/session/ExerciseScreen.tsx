@@ -596,7 +596,8 @@ function TypedExercise({ exercise, mode, onAnswer, onNext, paused, firstAttempt,
   );
 
   function submit(value: string) {
-    if (value === "" || paused) return;
+    // Sam minus to jeszcze nie liczba — Enter nic nie robi, jak przy pustym okienku.
+    if (value === "" || value === "-" || paused) return;
     if (phase === "answer") {
       const ms = answerMs();
       const isRight = Number(value) === exercise.answer;
@@ -686,13 +687,19 @@ function TypedExercise({ exercise, mode, onAnswer, onNext, paused, firstAttempt,
             <Speaker size="sm" onPlay={() => void playSound(exercise.revealSound!)} ariaLabel="Posłuchaj odpowiedzi" />
           )}
           <p className="text-sm font-bold text-hero-gold">
-            Wpisz {exercise.answer} i Enter, żeby iść dalej.
+            Wpisz {String(exercise.answer).replace(/^-/, "−")} i Enter, żeby iść dalej.
           </p>
         </div>
       )}
 
       {(phase === "answer" || phase === "repair") && (
-        <NumberPad value={value} onChange={setValue} onEnter={submit} disabled={paused} />
+        <NumberPad
+          value={value}
+          onChange={setValue}
+          onEnter={submit}
+          disabled={paused}
+          allowNegative={exercise.allowNegative}
+        />
       )}
 
       {resolved && <AfterAnswer exercise={exercise} mode={mode} wrong={wasWrong} />}

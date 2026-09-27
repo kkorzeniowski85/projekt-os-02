@@ -91,6 +91,8 @@ export type Exercise = Base &
     | {
         kind: "typed";
         answer: number;
+        /** Klawiatura z klawiszem − (liczby ujemne, Year 4); domyślnie go nie ma, żeby nie mylić przy tabliczce. */
+        allowNegative?: boolean;
         /** Tabliczka: pokaż błyskawicę za odpowiedź w tym czasie. */
         fastMs?: number;
         /** Co pokazać i odtworzyć po błędzie: „7 × 8 = 56". */

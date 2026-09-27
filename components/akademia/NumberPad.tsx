@@ -43,6 +43,7 @@ export function NumberPad({
   onEnter,
   disabled = false,
   maxLength = 4,
+  allowNegative = false,
 }: {
   value: string;
   onChange: (next: string) => void;
@@ -50,6 +51,8 @@ export function NumberPad({
   onEnter: (value: string) => void;
   disabled?: boolean;
   maxLength?: number;
+  /** Klawisz „−" (liczby ujemne, Year 4). Domyślnie schowany, żeby nie mylić przy tabliczce. */
+  allowNegative?: boolean;
 }) {
   // Bieżąca wartość w refie: dziecko potrafi wpisać „56" szybciej, niż React
   // zdąży przerysować ekran, a wtedy obie cyfry widziałyby tę samą starą
@@ -63,11 +66,17 @@ export function NumberPad({
     valueRef.current = next;
     handlers.current.onChange(next);
   };
+  // Minus nie zajmuje miejsca cyfrom: „-1000" mieści się przy maxLength 4.
   const press = (d: string) => {
-    if (valueRef.current.length < maxLength) type(valueRef.current + d);
+    if (valueRef.current.replace("-", "").length < maxLength) type(valueRef.current + d);
   };
   const erase = () => type(valueRef.current.slice(0, -1));
   const enter = () => handlers.current.onEnter(valueRef.current);
+  // Znak stoi zawsze z przodu; drugie stuknięcie go zdejmuje (jak na kalkulatorze „+/−").
+  const toggleSign = () => {
+    const current = valueRef.current;
+    type(current.startsWith("-") ? current.slice(1) : `-${current}`);
+  };
 
   useEffect(() => {
     if (disabled) return;
@@ -80,6 +89,9 @@ export function NumberPad({
       } else if (event.key === "Backspace") {
         event.preventDefault();
         erase();
+      } else if (allowNegative && (event.key === "-" || event.key === "−")) {
+        event.preventDefault();
+        toggleSign();
       } else if (event.key === "Enter") {
         // Bez preventDefault: przeglądarka sama „kliknie" element z fokusem.
         if (keyboardFocusedControl(event.target)) return;
@@ -90,7 +102,7 @@ export function NumberPad({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [disabled, maxLength]);
+  }, [disabled, maxLength, allowNegative]);
 
   const digit = (d: string) => (
     <button
@@ -106,6 +118,19 @@ export function NumberPad({
 
   return (
     <div className="no-select grid w-full max-w-xs grid-cols-3 gap-2.5">
+      {allowNegative && (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={toggleSign}
+          aria-pressed={value.startsWith("-")}
+          className={`col-span-3 min-h-14 rounded-2xl text-2xl font-black shadow-[0_5px_0_rgba(0,0,0,0.3)] transition active:translate-y-1 active:shadow-none disabled:opacity-40 ${
+            value.startsWith("-") ? "bg-hero-gold text-night" : "bg-white/15 text-paper"
+          }`}
+        >
+          − <span className="text-base font-bold opacity-80">minus</span>
+        </button>
+      )}
       {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map(digit)}
       <button
         type="button"
@@ -142,11 +167,13 @@ export function AnswerBox({
     wrong: "border-hero-pink bg-hero-pink/20 text-hero-pink",
     repair: "border-hero-gold bg-hero-gold/15 text-hero-gold",
   } as const;
+  // Wpisany „-" z klawiatury pokazujemy jak w zeszycie: minusem typograficznym.
+  const shown = value.replace(/^-/, "−");
   return (
     <span
       className={`inline-flex min-h-16 min-w-28 items-center justify-center rounded-2xl border-4 px-3 font-black tabular-nums ${styles[state]}`}
     >
-      {value || <span className="opacity-30">?</span>}
+      {shown || <span className="opacity-30">?</span>}
     </span>
   );
 }

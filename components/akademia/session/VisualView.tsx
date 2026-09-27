@@ -42,7 +42,7 @@ export function VisualView({ visual, small = false }: { visual: Visual; small?: 
                 value === null ? "border-4 border-dashed border-hero-gold text-hero-gold" : "bg-white/10"
               }`}
             >
-              {value ?? "?"}
+              {value === null ? "?" : value < 0 ? `−${-value}` : value}
             </span>
           ))}
         </div>

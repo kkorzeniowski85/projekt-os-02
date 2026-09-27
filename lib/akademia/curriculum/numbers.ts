@@ -33,9 +33,12 @@ const ONES = [
 
 const TENS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
 
-/** Liczba słownie po brytyjsku, 0–9999: 105 → „one hundred and five". */
+/**
+ * Liczba słownie po brytyjsku, 0–999 999: 105 → „one hundred and five",
+ * 2500 → „two thousand, five hundred", 1050 → „one thousand and fifty".
+ */
 export function numberToWords(n: number): string {
-  if (!Number.isInteger(n) || n < 0 || n > 9999) {
+  if (!Number.isInteger(n) || n < 0 || n > 999_999) {
     throw new Error(`numberToWords: poza zakresem (${n})`);
   }
   if (n < 20) return ONES[n];
@@ -80,12 +83,30 @@ export const HUNDREDS_POOL = [
 ];
 
 /**
+ * Tysiące do ćwiczenia ze słuchu (Year 4: liczby czterocyfrowe). Pary-pułapki:
+ * 1,500 / 1,050 („five hundred" vs „and fifty"), 2,300 / 2,030, 1,250 / 1,205,
+ * plus okrągłe tysiące i 10,000. W zapisie przecinek oddziela tysiące.
+ */
+export const THOUSANDS_POOL = [
+  1000, 1050, 1205, 1250, 1500, 2000, 2030, 2300, 2500, 3000, 4250, 5000, 7500, 9999, 10000,
+];
+
+/** Wszystko, co „w setkach i tysiącach" — pula dystraktorów dla liczb ≥ 100. */
+export const BIG_NUMBERS_POOL = [...new Set([...HUNDREDS_POOL, ...THOUSANDS_POOL])].sort((a, b) => a - b);
+
+/**
  * Wszystkie liczby, które mają nagranie w /audio/akademia/numbers. Do 150 w całości —
- * liczenie skokami sięga 12 × 12 = 144 — plus pula setek.
+ * liczenie skokami sięga 12 × 12 = 144 — plus pula setek i tysięcy.
  */
 export function numbersWithAudio(): number[] {
   const set = new Set<number>();
   for (let n = 0; n <= 150; n++) set.add(n);
-  HUNDREDS_POOL.forEach((n) => set.add(n));
+  BIG_NUMBERS_POOL.forEach((n) => set.add(n));
   return [...set].sort((a, b) => a - b);
+}
+
+/** Zapis liczby jak w angielskim zeszycie: przecinek w tysiącach (2,500), minus typograficzny (−3). */
+export function formatNumber(n: number): string {
+  const digits = Math.abs(n) >= 1000 ? Math.abs(n).toLocaleString("en-GB") : String(Math.abs(n));
+  return n < 0 ? `−${digits}` : digits;
 }
