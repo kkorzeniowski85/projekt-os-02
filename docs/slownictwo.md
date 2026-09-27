@@ -40,7 +40,7 @@ coś boli", a resztę zostawić na później.
 „I don't understand", „Can you help me, please?", „Can I go to the toilet,
 please?".
 
-## Cztery rodzaje materiału i sześć ćwiczeń
+## Cztery rodzaje materiału i ich ćwiczenia
 
 Materiał dzieli się na cztery rodzaje, bo uczą się inaczej:
 

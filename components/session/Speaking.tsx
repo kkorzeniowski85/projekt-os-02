@@ -224,11 +224,21 @@ export function SceneScreen({
   // gasi tylko odtworzenie, którego nic później nie zastąpiło.
   const playRef = useRef(0);
   const lineStartRef = useRef(Date.now());
+  // Bieżąca faza dla odroczonego startu (niżej) — timer nie widzi świeżego stanu.
+  const phaseRef = useRef<ScenePhase>("listen");
+  phaseRef.current = phase;
+  // Kwestie i poziomy przez ref: efekty niżej zależą tylko od fazy i kursora,
+  // a nie od tożsamości tablicy czy funkcji z zewnątrz — nowa tożsamość przy
+  // re-renderze rodzica nie może uruchomić rozmowy od nowa.
+  const linesRef = useRef(lines);
+  linesRef.current = lines;
+  const levelOfRef = useRef(levelOf);
+  levelOfRef.current = levelOf;
 
   const playAll = useCallback(() => {
     playRef.current += 1;
     void playPhraseSequence(
-      lines.map((line, index) => ({ text: line.en, onStart: () => setCurrent(index) })),
+      linesRef.current.map((line, index) => ({ text: line.en, onStart: () => setCurrent(index) })),
       350,
     ).then((finished) => {
       if (finished) {
@@ -236,11 +246,15 @@ export function SceneScreen({
         setHeard(true);
       }
     });
-  }, [lines]);
+  }, []);
 
-  // Faza 1: rozmowa czyta się sama po chwili — najpierw uchem.
+  // Faza 1: rozmowa czyta się sama po chwili — najpierw uchem. Start tylko,
+  // jeśli ekran wciąż słucha: stuknięcie „Twoja kolej” przed upływem 400 ms
+  // uruchamiałoby całą rozmowę w poprzek fazy 2 (stopAudio nie cofa timera).
   useEffect(() => {
-    const timer = setTimeout(playAll, 400);
+    const timer = setTimeout(() => {
+      if (phaseRef.current === "listen") playAll();
+    }, 400);
     return () => {
       clearTimeout(timer);
       stopAudio();
@@ -251,30 +265,31 @@ export function SceneScreen({
   // rozmowa staje i czeka na nie (i na ocenę rodzica).
   useEffect(() => {
     if (phase !== "turn") return;
+    const kwestie = linesRef.current;
     // Stuknięta wcześniej kwestia (playLine) nie może zgasić podświetlenia,
     // które należy już do „Twojej kolei” — jej sprzątanie staje się nieaktualne.
     playRef.current += 1;
-    if (cursor >= lines.length) {
+    if (cursor >= kwestie.length) {
       setCurrent(null);
       setPhase("done");
       return;
     }
-    if (isChildLine(lines[cursor])) {
+    if (isChildLine(kwestie[cursor])) {
       setCurrent(cursor);
       setHintEn(false);
       setHintPl(false);
       setRecast(false);
       lineStartRef.current = Date.now();
       // Poziom echo: kwestia gra od razu, potem pauza na powtórzenie.
-      if (levelOf(lines[cursor].en) === 0) setEchoKey((key) => key + 1);
+      if (levelOfRef.current(kwestie[cursor].en) === 0) setEchoKey((key) => key + 1);
       return;
     }
     let end = cursor;
-    while (end < lines.length && !isChildLine(lines[end])) end += 1;
+    while (end < kwestie.length && !isChildLine(kwestie[end])) end += 1;
     let cancelled = false;
     setStalled(false);
     void playPhraseSequence(
-      lines
+      kwestie
         .slice(cursor, end)
         .map((line, offset) => ({ text: line.en, onStart: () => setCurrent(cursor + offset) })),
       350,
@@ -288,7 +303,7 @@ export function SceneScreen({
     return () => {
       cancelled = true;
     };
-  }, [phase, cursor, lines, levelOf, retry]);
+  }, [phase, cursor, retry]);
 
   const playLine = (index: number) => {
     const play = ++playRef.current;
