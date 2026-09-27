@@ -290,3 +290,49 @@ ucina czasu po 6 s, tylko mierzy, czy odpowiedź przyszła szybko.
   przechodzą w czytanie samodzielne. Pytania w formatach z angielskiej szkoły:
   *Tick one*, *Find and copy*, *True or false*, *Number the events*.
 - Wszystkie nagrania: brytyjski głos neuronowy (en-GB-Sonia), jak w Lidze.
+
+## Audyt realiów brytyjskich w matematyce (wrzesień 2026)
+
+Treść działu „Matematyka po angielsku" sprawdzona zdanie po zdaniu ze
+źródłami pierwotnymi: *National curriculum in England: mathematics programmes
+of study* (gov.uk, Year 3 i Year 4), *Multiplication tables check assessment
+framework* i *administration guidance* (STA), statystyki *Multiplication tables
+check attainment 2024/25* (explore-education-statistics), słownictwo
+klasowe (NCETM, White Rose, Third Space Learning). Zasada: **tak, jak jest
+naprawdę** — bez wymyślonych „brytyjskości" i bez sugerowania różnicy tam,
+gdzie jej nie ma.
+
+- **Potwierdzone (bez zmian):** kropka dziesiętna i przecinek w tysiącach
+  (program używa zapisu „1,000"); znaki × i ÷ (kropki „·" i dwukropka w
+  dzieleniu w angielskiej szkole nie ma); „half past three" = 3:30 i potoczne
+  „half four" = 4:30; „and" w setkach; £ przed liczbą, „p" po liczbie, „three
+  pounds fifty", „seventy-five pence / p"; „a half, a quarter, a third";
+  „sum" = wynik dodawania; „subtract 6 from 20" z odwróconą kolejnością;
+  „share equally / groups of / lots of / how many … in"; Year 2 ×2 ×5 ×10,
+  Year 3 ×3 ×4 ×8, Year 4 do 12 × 12; MTC 25 pytań, 6 s, 3 s przerwy, 3
+  pytania próbne, bez progu zaliczenia, okno w czerwcu (2026: 1–12 czerwca,
+  dogrywka 15–19 czerwca); wyniki 2025: średnia 21,0, komplet 37 %, dzieci z
+  innym pierwszym językiem 22,0; jedynka bez daszka i siódemka bez kreski;
+  zegar z cyframi rzymskimi (Year 3).
+- **Poprawione (przesada lub nieścisłość):** „po angielsku rzadko mówi się
+  sam znak +" (nieprawda — „plus" to nazwa znaku; teraz: na lekcji działanie
+  często pada słowami); „Year 4 pracuje na liczbach do 10 000" (program:
+  liczby czterocyfrowe, zaokrąglanie); „nauczyciel łatwo przeczyta 1 jako 7"
+  (złagodzone do „może"); „the sum of" dostało wzmiankę o potocznym „do your
+  sums"; „and" w setkach — „praktycznie wyłącznie", nie „wyłącznie".
+- **Dodane drobne (Year 3–4, potrzebne od pierwszego dnia):** „multiplied
+  by" i „divided by" (tak czyta się × i ÷), „tens / ones", „round to the
+  nearest 10"; zadania: kwota ponad 100p zapisana w funtach (120p = £1.20) i
+  czas trwania w minutach; zegar do minuty w przykładach („twenty past",
+  „ten to"); w zapisie: „3:30 pm" (am/pm — na co dzień 12-godzinny, w szkole
+  także 24-godzinny), „XII" (Roman numerals — z zaznaczeniem, że polska
+  szkoła też ich uczy, więc nowa jest tylko nazwa), „−3" („minus three",
+  na lekcji też „negative three"), „nought point five", monety i banknoty w
+  obiegu.
+- **Świadomie NIE dodane (większe tematy, do osobnej decyzji):** metody
+  pisemne — odejmowanie z „exchange" (nie „borrow") i dzielenie „bus stop"
+  (inny układ niż polski); godziny do minuty jako pełne ćwiczenia z tarczą
+  („twenty-five past", „ten to") i zapis 24-godzinny; jednostki mieszane
+  (1 kg 200 g, 5 m = 500 cm) i imperialne z życia (mile, pints — nie ma ich
+  w programie Year 3–4); liczby ujemne w zadaniach (klawiatura odpowiedzi nie
+  ma minusa); tysiące ze słuchu („two thousand, five hundred").

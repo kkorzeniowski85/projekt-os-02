@@ -3,7 +3,7 @@
  *
  * Brytyjska różnica, której uczy aplikacja: w setkach jest „and" —
  * 105 = „one hundred AND five" (Amerykanie mówią „one hundred five").
- * Dziecko usłyszy w klasie wyłącznie wersję z „and".
+ * Dziecko usłyszy w klasie praktycznie wyłącznie wersję z „and".
  *
  * Bez importów — generator nagrań czyta ten plik z Node.
  */
