@@ -251,6 +251,9 @@ export function SceneScreen({
   // rozmowa staje i czeka na nie (i na ocenę rodzica).
   useEffect(() => {
     if (phase !== "turn") return;
+    // Stuknięta wcześniej kwestia (playLine) nie może zgasić podświetlenia,
+    // które należy już do „Twojej kolei” — jej sprzątanie staje się nieaktualne.
+    playRef.current += 1;
     if (cursor >= lines.length) {
       setCurrent(null);
       setPhase("done");
@@ -297,6 +300,7 @@ export function SceneScreen({
 
   const beginTurn = () => {
     stopAudio();
+    playRef.current += 1;
     setCurrent(null);
     setCursor(0);
     setPhase("turn");
