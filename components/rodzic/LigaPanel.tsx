@@ -47,6 +47,7 @@ import {
 } from "@/lib/progress/rules";
 import { useProgress } from "@/lib/progress/store";
 import { trackOf, type SoundState } from "@/lib/progress/types";
+import { useSettings, writeSettings } from "@/lib/settings";
 import { plural, soundsWord } from "./plural";
 
 const STATUS_LABEL: Record<SoundState["status"], string> = {
@@ -167,6 +168,7 @@ function shareLabel({ own, total }: { own: number; total: number }): string {
 
 export function LigaPanel() {
   const { state, setChildName, resetAll } = useProgress();
+  const settings = useSettings();
   const [sync, setSync] = useState<SyncStatus | null>(null);
   useEffect(() => subscribeSync(setSync), []);
   const audioImportRef = useRef<HTMLInputElement>(null);
@@ -399,6 +401,24 @@ export function LigaPanel() {
             </ul>
           </ParentTip>
         </div>
+      </Card>
+
+      <Card>
+        <h2 className="mb-1 text-lg font-bold">Ćwiczenia ruchowe</h2>
+        <p className="mb-3 text-sm text-paper/70">
+          „Pokaż ruchem!” i „Teraz ty rządzisz” w sesjach z rodzicem (tor 2). Ruch wzmacnia pamięć
+          i uczy formatu lekcji (nauczycielka mówi — dziecko robi), ale dla dziecka, które już dużo
+          rozumie, ważniejsze bywa mówienie. Ustawienie tylko na tym urządzeniu.
+        </p>
+        <label className="flex min-h-11 cursor-pointer items-center gap-3 text-base">
+          <input
+            type="checkbox"
+            className="h-6 w-6 accent-hero-gold"
+            checked={settings.noMovement}
+            onChange={(event) => writeSettings({ noMovement: event.target.checked })}
+          />
+          Bez ćwiczeń ruchowych
+        </label>
       </Card>
 
       <Card>
