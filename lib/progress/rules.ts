@@ -18,6 +18,7 @@ import {
   emptySoundState,
   emptyTopicState,
   trackOf,
+  type Attempt,
   type ProgressState,
   type SessionRecord,
   type SoundState,
@@ -342,5 +343,101 @@ export function recommendNextTopic(state: ProgressState, now = Date.now()): Topi
     reason: "all-done",
     labelPl:
       "Wszystkie tematy opanowane — warto wrócić do „Ratunek!” na powtórkę i dopisać kolejne tematy.",
+  };
+}
+
+// --- Mówienie: drabinka podpowiedzi -----------------------------------------
+
+/**
+ * Poziom podpowiedzi dla zwrotu: 0 = echo (nagranie gra od razu, dziecko
+ * powtarza), 1 = z podpowiedzią (widzi sytuację i polskie znaczenie, angielski
+ * po stuknięciu „Podpowiedz”), 2 = sam (tylko sytuacja; znaczenie i angielski
+ * schowane za przyciskami).
+ *
+ * To „znikające rusztowanie” (fading scaffolding): pomoc jest pełna, gdy zwrot
+ * jest nowy, i cofa się w miarę, jak dziecko radzi sobie samo — a wraca po
+ * potknięciu. Liczona z historii, nie trzymana w danych: schemat postępu się
+ * nie zmienia, a poziom da się zawsze przeliczyć (także po scaleniu z innego
+ * urządzenia).
+ *
+ * Reguła: próby `say` tego zwrotu ocenione przez rodzica (correct !== null),
+ * chronologicznie; start na 0; dwa KOLEJNE „Powiedział sam” → poziom w górę
+ * (max 2), każde „Z pomocą” → poziom w dół (min 0) i seria od nowa. Próby bez
+ * oceny (tryb samodzielny) poziomu nie ruszają — nikt ich nie słyszał.
+ * Dziecko poziomu nie widzi; rodzic tak (panel, raport).
+ */
+export function speakingLevel(state: ProgressState, phraseEn: string): 0 | 1 | 2 {
+  const attempts = state.attempts
+    .filter(
+      (attempt) =>
+        attempt.exercise === "say" && attempt.item === phraseEn && attempt.correct !== null,
+    )
+    .sort((a, b) => a.ts - b.ts);
+
+  let level: 0 | 1 | 2 = 0;
+  let streak = 0;
+  for (const attempt of attempts) {
+    if (attempt.correct) {
+      streak += 1;
+      if (streak >= 2) {
+        level = level < 2 ? ((level + 1) as 0 | 1 | 2) : 2;
+        streak = 0;
+      }
+    } else {
+      level = level > 0 ? ((level - 1) as 0 | 1 | 2) : 0;
+      streak = 0;
+    }
+  }
+  return level;
+}
+
+export type SpeakingStats = {
+  /** Zwroty tematów, które dziecko już ćwiczyło mówiąc — per poziom (0, 1, 2). */
+  byLevel: [string[], string[], string[]];
+  /** „Powiedział sam” vs wszystkie oceny rodzica — ostatnie 4 tygodnie. */
+  recent: { own: number; total: number };
+  /** To samo dla 4 tygodni wcześniej — do porównania kierunku, nie do oceny. */
+  previous: { own: number; total: number };
+};
+
+const FOUR_WEEKS_MS = 28 * 24 * 60 * 60 * 1000;
+
+/**
+ * Liczby dla panelu rodzica i raportu. Bierze pod uwagę wyłącznie zwroty z
+ * TOPICS (kwestie-riposty ze scenek, np. „Thank you.”, budują własną historię
+ * i poziom, ale nie są „zwrotami tematu”, więc nie wchodzą do zestawienia).
+ * Tylko próby z rodzicem: w trybie samodzielnym nikt nie słyszał, co dziecko
+ * powiedziało, więc nie ma czego liczyć.
+ */
+export function speakingStats(state: ProgressState, now = Date.now()): SpeakingStats {
+  const said = new Set(
+    state.attempts.filter((attempt) => attempt.exercise === "say").map((attempt) => attempt.item),
+  );
+  const byLevel: SpeakingStats["byLevel"] = [[], [], []];
+  const seen = new Set<string>();
+  for (const topic of TOPICS) {
+    for (const phrase of topic.phrases) {
+      if (seen.has(phrase.en) || !said.has(phrase.en)) continue;
+      seen.add(phrase.en);
+      byLevel[speakingLevel(state, phrase.en)].push(phrase.en);
+    }
+  }
+
+  const share = (from: number, to: number) => {
+    const rated = state.attempts.filter(
+      (attempt: Attempt) =>
+        attempt.exercise === "say" &&
+        attempt.mode === "parent" &&
+        attempt.correct !== null &&
+        attempt.ts >= from &&
+        attempt.ts < to,
+    );
+    return { own: rated.filter((attempt) => attempt.correct).length, total: rated.length };
+  };
+
+  return {
+    byLevel,
+    recent: share(now - FOUR_WEEKS_MS, now + 1),
+    previous: share(now - 2 * FOUR_WEEKS_MS, now - FOUR_WEEKS_MS),
   };
 }

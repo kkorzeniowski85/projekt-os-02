@@ -21,7 +21,18 @@
  * umieć powiedzieć (stąd dodatkowo `say`), a polecenia nauczyciela wyłącznie
  * zrozumieć. Dlatego przy poleceniach nie ma ćwiczenia mówionego — uczenie
  * dziecka wypowiadania „Line up, please” byłoby uczeniem roli, której nie
- * będzie grało.
+ * będzie grało. Jedyny wyjątek to `order` niżej — i nie po to, by nauczyć roli
+ * nauczyciela, tylko by mówienie miało natychmiastowy, widoczny skutek.
+ *
+ * MÓWIENIE (rozruszanie przy niskiej stawce — patrz Speaking.tsx):
+ *  - `warmup` — rozgrzewka: trzy zdania ratunkowe w echu, na start każdej sesji,
+ *  - `scene`  — scenka: cała rozmowa do posłuchania, potem „Twoja kolej”,
+ *  - `order`  — „Teraz ty rządzisz”: dziecko MÓWI polecenie, rodzic je wykonuje
+ *    (odwrócone TPR; tylko z rodzicem),
+ *  - `say` ma drabinkę podpowiedzi (echo → z podpowiedzią → sam), liczoną z
+ *    historii ocen rodzica (lib/progress/rules.ts → speakingLevel).
+ * Aplikacja nigdy nie nagrywa ani nie ocenia mowy dziecka; wszystkie próby
+ * mówienia zapisują się jako `say` (correct od rodzica albo null).
  */
 
 import Link from "next/link";
@@ -29,6 +40,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Celebration } from "@/components/Celebration";
 import { HeroAvatar } from "@/components/HeroAvatar";
 import { InterruptDialog } from "@/components/session/InterruptDialog";
+import { Echo, SceneScreen, type SpeakingLevel } from "@/components/session/Speaking";
 import {
   BigButton,
   Card,
@@ -47,6 +59,7 @@ import {
   stopVictoryFanfare,
   unlockAudio,
 } from "@/lib/audio";
+import { pickScenePhrases } from "@/lib/curriculum/scenes";
 import {
   TOPICS,
   type Collocation,
@@ -55,21 +68,33 @@ import {
   type Topic,
   type VocabWord,
 } from "@/lib/curriculum/vocab";
-import { phraseNote, phraseScene, wordExample } from "@/lib/curriculum/vocabParent";
+import {
+  phraseNote,
+  phraseScene,
+  wordExample,
+  type ScenkaKwestia,
+} from "@/lib/curriculum/vocabParent";
 import { getHero } from "@/lib/heroes";
+import { speakingLevel } from "@/lib/progress/rules";
 import { useProgress, type PendingAttempt, type SessionOutcome } from "@/lib/progress/store";
 import type { DeviceRole, SessionMode, TopicStatus } from "@/lib/progress/types";
 import { useBusy } from "@/lib/sessionBusy";
 import { useDeviceRole } from "@/lib/useDeviceRole";
 
 type Screen =
+  | { kind: "warmup" }
   | { kind: "meet"; word: VocabWord }
   | { kind: "vocab"; word: VocabWord; options: VocabWord[] }
   | { kind: "phrase"; phrase: Phrase; options: Phrase[] }
+  | { kind: "scene"; phrase: Phrase; lines: ScenkaKwestia[] }
   | { kind: "command"; command: Command; options: Command[] }
   | { kind: "collocation"; collocation: Collocation; options: string[] }
   | { kind: "say"; phrase: Phrase }
-  | { kind: "act"; command: Command };
+  | { kind: "act"; command: Command }
+  | { kind: "order"; command: Command };
+
+/** Ekrany, które powtórka (↩) pokazuje w wspólnym układzie „to już było”. */
+type ReplayableScreen = Exclude<Screen, { kind: "warmup" | "scene" }>;
 
 /** Fisher-Yates na kopii — wywoływane po kliknięciu startu, nigdy w renderze. */
 function shuffled<T>(items: readonly T[]): T[] {
@@ -124,7 +149,12 @@ const ALL_COMMANDS = TOPICS.flatMap((topic) => topic.commands);
  * z tego samego tematu przerabia inne słowa i inne zwroty; przy ośmiu słowach i
  * pięciu zwrotach temat wystarcza na kilka różnych sesji.
  */
-function buildScreens(topic: Topic, role: DeviceRole, mode: SessionMode): Screen[] {
+function buildScreens(
+  topic: Topic,
+  role: DeviceRole,
+  mode: SessionMode,
+  levelOf: (phraseEn: string) => SpeakingLevel,
+): Screen[] {
   const short = role === "phone";
   const ile = (pelne: number, krotkie: number) => (short ? krotkie : pelne);
 
@@ -135,6 +165,8 @@ function buildScreens(topic: Topic, role: DeviceRole, mode: SessionMode): Screen
   const pytane = [...words.slice(meet.length), ...meet].slice(0, ile(3, 2));
 
   const screens: Screen[] = [
+    // Rozgrzewka mówienia przed wszystkim innym — patrz WarmupScreen.
+    { kind: "warmup" },
     ...meet.map<Screen>((word) => ({ kind: "meet", word })),
     ...pytane.map<Screen>((word) => ({
       kind: "vocab",
@@ -148,6 +180,12 @@ function buildScreens(topic: Topic, role: DeviceRole, mode: SessionMode): Screen
         phrase,
         options: withDistractors(phrase, topic.phrases, ALL_PHRASES, 3, (item) => item.en),
       })),
+    // Scenki zaraz po zwrotach: zwrot, który dziecko przed chwilą rozpoznało
+    // ze słuchu, od razu wraca w rozmowie do powiedzenia. „Ratunek!” dostaje
+    // dwie — te zdania mają stać się odruchem. W obu trybach.
+    ...pickScenePhrases(topic.phrases, levelOf, topic.id === "rescue" ? ile(2, 1) : 1).map<Screen>(
+      (phrase) => ({ kind: "scene", phrase, lines: phraseScene(phrase.en) }),
+    ),
     ...shuffled(topic.commands)
       .slice(0, ile(3, 1))
       .map<Screen>((command) => ({
@@ -171,6 +209,14 @@ function buildScreens(topic: Topic, role: DeviceRole, mode: SessionMode): Screen
   if (mode === "parent") {
     const doPokazania = shuffled(topic.commands).slice(0, ile(2, 1));
     screens.push(...doPokazania.map<Screen>((command) => ({ kind: "act", command })));
+
+    // „Teraz ty rządzisz”: odwrócone TPR — dziecko WYDAJE polecenie, rodzic
+    // je wykonuje. Jedno na sesję, najlepiej inne niż te dopiero pokazane
+    // ruchem, żeby nie było to samo polecenie trzeci raz z rzędu.
+    const doWydania =
+      shuffled(topic.commands).find((command) => !doPokazania.includes(command)) ??
+      doPokazania[0];
+    if (doWydania) screens.push({ kind: "order", command: doWydania });
   }
 
   // Mówienie na koniec: dziecko powtarza zwrot, który przed chwilą słyszało
@@ -199,14 +245,24 @@ export function VocabRunner({ topic }: { topic: Topic }) {
   const [outcome, setOutcome] = useState<SessionOutcome | null>(null);
   const [pytanieOWyjscie, setPytanieOWyjscie] = useState(false);
 
-  /** Wynik per ekran, zapisany przy PIERWSZEJ odpowiedzi — patrz tor 1. */
-  const attemptsByIndexRef = useRef(new Map<number, PendingAttempt>());
+  /**
+   * Próby per ekran, zapisane przy PIERWSZEJ odpowiedzi na daną pozycję —
+   * patrz tor 1. Lista, nie pojedyncza próba: scenka ma kilka kwestii dziecka
+   * (własny zwrot i ripostę), każda to osobna próba `say`.
+   */
+  const attemptsByIndexRef = useRef(new Map<number, PendingAttempt[]>());
   const frontierRef = useRef(0);
   const startedTsRef = useRef(0);
   /** Indeks pierwszego ekranu rundy bonusowej; null = bonus jeszcze nie ruszyl. */
   const bonusStartRef = useRef<number | null>(null);
   /** Wynik zapisany przy wejściu w bonus — ekran nagrody pokazuje właśnie jego. */
   const outcomeRef = useRef<SessionOutcome | null>(null);
+  /**
+   * Poziom podpowiedzi zwrotów — policzony przy starcie i stały do końca sesji.
+   * Nie może skoczyć w środku scenki dlatego, że dziecko właśnie dobrze
+   * powiedziało; zmiana ma być widoczna od następnej sesji.
+   */
+  const levelOfRef = useRef<(phraseEn: string) => SpeakingLevel>(() => 0);
 
   useEffect(() => primeSpeech(), []);
   // Od startu do ekranu nagrody aktualizacja aplikacji nie przeładuje strony.
@@ -217,8 +273,18 @@ export function VocabRunner({ topic }: { topic: Topic }) {
       // Kliknięcie startu to gest użytkownika — jedyny moment, w którym iOS
       // pozwala „odblokować" audio na resztę sesji.
       unlockAudio();
+      const cache = new Map<string, SpeakingLevel>();
+      const levelOf = (phraseEn: string): SpeakingLevel => {
+        let level = cache.get(phraseEn);
+        if (level === undefined) {
+          level = speakingLevel(state, phraseEn);
+          cache.set(phraseEn, level);
+        }
+        return level;
+      };
+      levelOfRef.current = levelOf;
       setMode(chosenMode);
-      setScreens(buildScreens(topic, role, chosenMode));
+      setScreens(buildScreens(topic, role, chosenMode, levelOf));
       attemptsByIndexRef.current = new Map();
       frontierRef.current = 0;
       bonusStartRef.current = null;
@@ -229,7 +295,7 @@ export function VocabRunner({ topic }: { topic: Topic }) {
       setOutcome(null);
       setStage("running");
     },
-    [topic, role],
+    [topic, role, state],
   );
 
   const zapisz = useCallback(
@@ -243,7 +309,7 @@ export function VocabRunner({ topic }: { topic: Topic }) {
         endedTs: Date.now(),
         attempts: [...attemptsByIndexRef.current.entries()]
           .sort(([a], [b]) => a - b)
-          .map(([, attempt]) => attempt),
+          .flatMap(([, list]) => list),
       }),
     [commitSession, mode, role, topic.id],
   );
@@ -254,12 +320,18 @@ export function VocabRunner({ topic }: { topic: Topic }) {
     setStage("done");
   }, [zapisz]);
 
-  /** Ocena ekranu — pierwszy wybór jest ostateczny, kolejne wpisy się nie liczą. */
+  /**
+   * Ocena ekranu — pierwszy wybór dla danej pozycji jest ostateczny, kolejne
+   * wpisy się nie liczą. Pozycją jest `item`, nie ekran: scenka zgłasza kilka
+   * kwestii dziecka i każda liczy się osobno.
+   */
   const onAnswer = useCallback((attempt: PendingAttempt) => {
     // Runda bonusowa nie zapisuje prób — patrz komentarz przy jej starcie.
     if (bonusStartRef.current !== null && frontierRef.current >= bonusStartRef.current) return;
     const map = attemptsByIndexRef.current;
-    if (!map.has(frontierRef.current)) map.set(frontierRef.current, attempt);
+    const list = map.get(frontierRef.current) ?? [];
+    if (list.some((saved) => saved.item === attempt.item)) return;
+    map.set(frontierRef.current, [...list, attempt]);
   }, []);
 
   /** Ekran ukończony — dalej. Ekrany bez oceny (poznanie słowa) wołają tylko to. */
@@ -282,8 +354,14 @@ export function VocabRunner({ topic }: { topic: Topic }) {
     if (stage !== "running" || screens.length === 0 || frontier < screens.length) return;
 
     if (bonusStartRef.current === null) {
+      // Scenki nie wracają w bonusie: naprawę mają w sobie (po „Z pomocą”
+      // kwestia gra jeszcze raz w echu), a cała rozmowa drugi raz podwoiłaby
+      // sesję.
       const nieudane = [...attemptsByIndexRef.current.entries()]
-        .filter(([, attempt]) => attempt.correct === false)
+        .filter(
+          ([i, list]) =>
+            screens[i]?.kind !== "scene" && list.some((attempt) => attempt.correct === false),
+        )
         .slice(0, 3)
         .map(([i]) => screens[i])
         .filter(Boolean);
@@ -325,9 +403,9 @@ export function VocabRunner({ topic }: { topic: Topic }) {
           zrobione={frontier}
           wszystkich={screens.length}
           ocenianych={
-            [...attemptsByIndexRef.current.values()].filter(
-              (attempt) => attempt.correct !== null,
-            ).length
+            [...attemptsByIndexRef.current.values()]
+              .flat()
+              .filter((attempt) => attempt.correct !== null).length
           }
           zapisane={bonusStartRef.current !== null}
           onZapisz={zapisz}
@@ -370,16 +448,39 @@ export function VocabRunner({ topic }: { topic: Topic }) {
           </p>
         )}
 
-        {powtorka && screen && (
+        {/* Rozgrzewka i scenka mają własny widok powtórki: ten sam ekran,
+            tylko bez oceny (scenka: sam odsłuch z podświetlaniem). */}
+        {powtorka && screen?.kind === "warmup" && (
+          <WarmupScreen
+            key={`powtorka-${index}`}
+            review
+            onNext={() => setIndex((previous) => previous + 1)}
+          />
+        )}
+        {powtorka && screen?.kind === "scene" && (
+          <SceneScreen
+            key={`powtorka-${index}`}
+            phrase={screen.phrase}
+            lines={screen.lines}
+            hero={hero}
+            mode="listen"
+            levelOf={levelOfRef.current}
+            onNext={() => setIndex((previous) => previous + 1)}
+          />
+        )}
+        {powtorka && screen && screen.kind !== "warmup" && screen.kind !== "scene" && (
           <PowtorkaEkranu
             key={`powtorka-${index}`}
             screen={screen}
-            attempt={attemptsByIndexRef.current.get(index)}
+            attempts={attemptsByIndexRef.current.get(index) ?? []}
             mode={mode}
             onDalej={() => setIndex((previous) => previous + 1)}
           />
         )}
 
+        {!powtorka && screen?.kind === "warmup" && (
+          <WarmupScreen key={`warmup-${index}`} onNext={onNext} />
+        )}
         {!powtorka && screen?.kind === "meet" && (
           <MeetScreen key={`meet-${index}`} word={screen.word} mode={mode} onNext={onNext} />
         )}
@@ -402,6 +503,27 @@ export function VocabRunner({ topic }: { topic: Topic }) {
             topicId={topic.id}
             mode={mode}
             onAnswer={onAnswer}
+            onNext={onNext}
+          />
+        )}
+        {!powtorka && screen?.kind === "scene" && (
+          <SceneScreen
+            key={`scene-${index}`}
+            phrase={screen.phrase}
+            lines={screen.lines}
+            hero={hero}
+            mode={mode}
+            levelOf={levelOfRef.current}
+            onSay={(item, correct, responseMs) =>
+              onAnswer({
+                ts: Date.now(),
+                soundId: topic.id,
+                exercise: "say",
+                item,
+                correct,
+                responseMs,
+              })
+            }
             onNext={onNext}
           />
         )}
@@ -435,12 +557,22 @@ export function VocabRunner({ topic }: { topic: Topic }) {
             onNext={onNext}
           />
         )}
+        {!powtorka && screen?.kind === "order" && (
+          <OrderScreen
+            key={`order-${index}`}
+            command={screen.command}
+            topicId={topic.id}
+            onAnswer={onAnswer}
+            onNext={onNext}
+          />
+        )}
         {!powtorka && screen?.kind === "say" && (
           <SayScreen
             key={`say-${index}`}
             phrase={screen.phrase}
             topicId={topic.id}
             mode={mode}
+            level={levelOfRef.current(screen.phrase.en)}
             onAnswer={onAnswer}
             onNext={onNext}
           />
@@ -489,6 +621,7 @@ function IntroScreen({
 }) {
   const hero = getHero(topic.heroId);
   const phone = role === "phone";
+  const maScenki = topic.phrases.some((phrase) => phraseScene(phrase.en).length > 0);
 
   const parentTip = (
     <div className="w-full max-w-xl">
@@ -528,6 +661,15 @@ function IntroScreen({
       <p className="max-w-md text-xs text-paper/50">
         W tym torze nic nie trzeba czytać — wystarczy słuchać i patrzeć na obrazki.
       </p>
+      {/* Scenki poza sesją: do posłuchania i zagrania bez punktów i zapisu. */}
+      {maScenki && (
+        <Link
+          href={`/slownictwo/${topic.id}/scenki`}
+          className="flex min-h-11 items-center gap-2 rounded-full bg-white/10 px-5 text-sm font-bold"
+        >
+          <span aria-hidden>🎭</span> Scenki — posłuchaj i zagraj poza sesją
+        </Link>
+      )}
       {phone && parentTip}
     </div>
   );
@@ -719,10 +861,17 @@ function PhraseScreen({
 }) {
   const [picked, setPicked] = useState<string | null>(null);
   const [naprawione, setNaprawione] = useState(false);
+  const [echoUsed, setEchoUsed] = useState(false);
   const startRef = useRef(Date.now());
 
   const correct = picked !== null && picked === phrase.en;
   const wNaprawie = picked !== null && !correct && !naprawione;
+  // Ekran nie ucieka, gdy jest co czytać albo co powtarzać: niuans dla rodzica
+  // („Warto wiedzieć”) potrzebuje chwili, a stuknięte echo musi dograć do
+  // końca. Wtedy dalej idzie się przyciskiem, jak przy zdaniu ze słowem.
+  const niuans = mode === "parent" ? phraseNote(phrase.en) : null;
+  const czekaNaDalej = niuans !== null || echoUsed;
+  const rozstrzygniete = correct || naprawione;
 
   useEffect(() => {
     void playPhrase(phrase.en);
@@ -732,18 +881,20 @@ function PhraseScreen({
     if (picked === null) return;
     playFeedbackTone(correct ? "good" : "try-again");
     if (correct) {
+      if (czekaNaDalej) return;
       const timer = setTimeout(onNext, 1200);
       return () => clearTimeout(timer);
     }
     void playPhrase(phrase.en);
-  }, [picked, correct, phrase.en, onNext]);
+  }, [picked, correct, czekaNaDalej, phrase.en, onNext]);
 
   useEffect(() => {
     if (!naprawione) return;
     playFeedbackTone("good");
+    if (czekaNaDalej) return;
     const timer = setTimeout(onNext, 900);
     return () => clearTimeout(timer);
-  }, [naprawione, onNext]);
+  }, [naprawione, czekaNaDalej, onNext]);
 
   function pick(option: string) {
     setPicked(option);
@@ -799,16 +950,21 @@ function PhraseScreen({
       )}
 
       {picked !== null && (
-        <p className="animate-pop-in text-lg text-hero-cyan">
-          <span className="font-reading font-bold">{phrase.en}</span> — {phrase.pl}
-        </p>
+        <div className="animate-pop-in flex flex-wrap items-center justify-center gap-3 text-lg text-hero-cyan">
+          <p>
+            <span className="font-reading font-bold">{phrase.en}</span> — {phrase.pl}
+          </p>
+          {/* Małe echo: każde ćwiczenie słuchania kończy się okazją, żeby zwrot
+              od razu POWIEDZIEĆ za nagraniem — bez oceny, bez punktów. */}
+          <div onClickCapture={() => setEchoUsed(true)}>
+            <Echo text={phrase.en} size="sm" />
+          </div>
+        </div>
       )}
 
-      {/* Scenka pokazuje się, gdy przepływ i tak stoi (naprawa po błędzie) —
-          po poprawnej odpowiedzi ekran za chwilę idzie dalej i nie byłoby
-          czasu jej odegrać. Scenka jest też zawsze w powtórce (strzałka ↩)
-          i na ekranie mówienia. */}
-      {mode === "parent" && wNaprawie && <Scenka zwrot={phrase.en} />}
+      {niuans && picked !== null && <Niuans tekst={niuans} />}
+
+      {czekaNaDalej && rozstrzygniete && <BigButton onClick={onNext}>Dalej ▸</BigButton>}
 
       {mode === "parent" && picked === null && (
         <p className="text-xs text-paper/50">
@@ -1065,24 +1221,33 @@ function CollocationScreen({
 
 // --- Ćwiczenie 6: powiedz to -----------------------------------------------
 
+/**
+ * Drabinka podpowiedzi (`level`, lib/progress/rules.ts → speakingLevel):
+ *  0 — echo: wzór gra od razu z pauzą na powtórzenie, tekst widoczny;
+ *  1 — z podpowiedzią: sytuacja i polskie znaczenie, angielski i nagranie
+ *      dopiero po „Podpowiedz”;
+ *  2 — sam: tylko sytuacja; znaczenie i angielski za przyciskami.
+ * Rusztowanie znika w miarę, jak dziecko mówi samo, i wraca po potknięciu —
+ * dziecko poziomu nie widzi, po prostu ma mniej albo więcej pomocy.
+ */
 function SayScreen({
   phrase,
   topicId,
   mode,
+  level,
   onAnswer,
   onNext,
 }: {
   phrase: Phrase;
   topicId: string;
   mode: SessionMode;
+  level: SpeakingLevel;
   onAnswer: (attempt: PendingAttempt) => void;
   onNext: () => void;
 }) {
   const startRef = useRef(Date.now());
-
-  useEffect(() => {
-    void playPhrase(phrase.en);
-  }, [phrase.en]);
+  const [hintEn, setHintEn] = useState(level === 0);
+  const [hintPl, setHintPl] = useState(level < 2);
 
   // Mówienie ocenia rodzic — bramki naprawy nie ma, korekta dzieje się w
   // rozmowie ("posłuchaj i powtórz"), nie na ekranie.
@@ -1105,10 +1270,41 @@ function SayScreen({
         {phrase.emoji}
       </div>
       <p className="max-w-md text-lg text-paper/80">{phrase.situationPl}</p>
-      <PhraseSpeaker text={phrase.en} label="Posłuchaj wzoru" size="lg" />
-      <p className="text-lg text-hero-cyan">{phrase.pl}</p>
 
-      {mode === "parent" && <Scenka zwrot={phrase.en} />}
+      {hintPl ? (
+        <p className="text-lg text-hero-cyan">{phrase.pl}</p>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setHintPl(true)}
+          className="min-h-11 rounded-blob bg-white/10 px-4 py-2 text-base font-bold"
+        >
+          Pokaż znaczenie
+        </button>
+      )}
+
+      {hintEn ? (
+        <p className="font-reading animate-pop-in max-w-md text-2xl font-bold">{phrase.en}</p>
+      ) : (
+        <p className="text-sm text-paper/60">Spróbuj najpierw sam. Jeśli trzeba — podpowiedź.</p>
+      )}
+
+      <div className="flex flex-wrap justify-center gap-3">
+        {!hintEn && (
+          <button
+            type="button"
+            onClick={() => {
+              setHintEn(true);
+              void playPhrase(phrase.en);
+            }}
+            className="flex min-h-14 items-center gap-3 rounded-blob bg-hero-gold px-6 py-3 text-xl font-bold text-night shadow-[0_6px_0_#c99a1f] transition active:translate-y-1 active:shadow-none"
+          >
+            <span aria-hidden>🔊</span> Podpowiedz
+          </button>
+        )}
+        {/* Poziom echo: wzór gra sam po wejściu (auto), wyżej — po stuknięciu. */}
+        <Echo text={phrase.en} auto={level === 0 ? 1 : 0} onReveal={() => setHintEn(true)} />
+      </div>
 
       {mode === "parent" ? (
         <>
@@ -1258,19 +1454,20 @@ function RewardScreen({
  */
 function PowtorkaEkranu({
   screen,
-  attempt,
+  attempts,
   mode,
   onDalej,
 }: {
-  screen: Screen;
-  attempt: PendingAttempt | undefined;
+  screen: ReplayableScreen;
+  attempts: PendingAttempt[];
   mode: SessionMode;
   onDalej: () => void;
 }) {
+  const oceny = attempts.filter((attempt) => attempt.correct !== null);
   const wynik =
-    attempt === undefined || attempt.correct === null
+    oceny.length === 0
       ? null
-      : attempt.correct
+      : oceny.every((attempt) => attempt.correct)
         ? ("dobrze" as const)
         : ("do-powtorki" as const);
 
@@ -1302,6 +1499,14 @@ function PowtorkaEkranu({
           pl: screen.command.pl,
           audio: <PhraseSpeaker text={screen.command.en} label="Posłuchaj" size="lg" showText={false} />,
           opis: screen.command.actionPl,
+        };
+      case "order":
+        return {
+          emoji: screen.command.emoji,
+          en: screen.command.en,
+          pl: screen.command.pl,
+          audio: <Echo text={screen.command.en} />,
+          opis: "Ty wydajesz polecenie — rodzic je wykonuje.",
         };
       case "collocation":
         return {
@@ -1344,13 +1549,14 @@ function PowtorkaEkranu({
       {tresc.audio}
 
       {/* Powtórka to najlepszy moment na materiał rodzica: nic nie tyka,
-          można spokojnie odegrać scenkę albo posłuchać słowa w zdaniu. */}
+          można spokojnie posłuchać słowa w zdaniu albo przeczytać niuans. */}
       {mode === "parent" && (screen.kind === "meet" || screen.kind === "vocab") && (
         <ZdanieZeSlowem slowo={screen.word.en} />
       )}
       {mode === "parent" && (screen.kind === "phrase" || screen.kind === "say") && (
-        <Scenka zwrot={screen.phrase.en} />
+        <NiuansZwrotu zwrot={screen.phrase.en} />
       )}
+      {(screen.kind === "phrase" || screen.kind === "say") && <Echo text={screen.phrase.en} />}
 
       <BigButton onClick={onDalej}>Dalej ▸</BigButton>
     </Card>
@@ -1405,66 +1611,25 @@ function ZdanieZeSlowem({ slowo }: { slowo: string }) {
   );
 }
 
-/**
- * Scenka do odegrania + niuans — tryb z rodzicem.
- *
- * To jest serce „modułu z rodzicem": zwrot odegrany w roli utrwala się lepiej
- * niż zwrot wyjaśniony. Rodzic gra podpisaną rolę (nauczycielkę, kolegę, panią
- * ze stołówki), dziecko odpowiada swoją kwestią — tą samą, którą właśnie
- * ćwiczyło. Każdą kwestię można odsłuchać, żeby nie zgadywać wymowy.
- */
-function Scenka({ zwrot }: { zwrot: string }) {
-  const kwestie = phraseScene(zwrot);
-  const niuans = phraseNote(zwrot);
-  if (kwestie.length === 0 && !niuans) return null;
-
+/** Niuans do zwrotu — ramka „Warto wiedzieć” dla rodzica. */
+function Niuans({ tekst }: { tekst: string }) {
   return (
-    <div className="w-full max-w-xl rounded-2xl border border-hero-cyan/40 bg-hero-cyan/10 p-4 text-left">
-      {kwestie.length > 0 && (
-        <>
-          <p className="mb-2 text-xs font-bold tracking-wide text-hero-cyan uppercase">
-            Dla rodzica — odegrajcie scenkę
-          </p>
-          <div className="flex flex-col gap-2">
-            {kwestie.map((kwestia, numer) => {
-              const dziecko = kwestia.kto === "Ty";
-              return (
-                <div
-                  key={numer}
-                  className={`flex items-start gap-3 rounded-xl p-2 ${
-                    dziecko ? "bg-hero-gold/15" : "bg-black/20"
-                  }`}
-                >
-                  <MalyGlosnik tekst={kwestia.en} />
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-bold text-paper/50 uppercase">
-                      {dziecko ? "🌟 dziecko" : `Ty grasz: ${kwestia.kto}`}
-                    </p>
-                    <p className="font-reading font-bold">{kwestia.en}</p>
-                    <p className="text-xs text-paper/60">{kwestia.pl}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <p className="mt-2 text-xs text-paper/50">
-            Zamieńcie się potem rolami — dziecko lubi grać nauczycielkę, a pytanie uczy tak
-            samo jak odpowiedź.
-          </p>
-        </>
-      )}
-      {niuans && (
-        <p
-          className={`rounded-xl bg-black/20 p-3 text-xs leading-relaxed text-paper/80 ${
-            kwestie.length > 0 ? "mt-3" : ""
-          }`}
-        >
-          <strong className="text-hero-cyan">💡 Warto wiedzieć: </strong>
-          {niuans}
-        </p>
-      )}
-    </div>
+    <p className="w-full max-w-xl rounded-2xl border border-hero-cyan/40 bg-hero-cyan/10 p-3 text-left text-xs leading-relaxed text-paper/85">
+      <strong className="text-hero-cyan">💡 Warto wiedzieć: </strong>
+      {tekst}
+    </p>
   );
+}
+
+/**
+ * Niuans zwrotu, jeśli jest. Scenki nie są już „materiałem dla rodzica” —
+ * stały się ćwiczeniem dziecka (ekran „scene”, components/session/Speaking.tsx),
+ * więc w ramce dla rodzica zostaje tylko to, czego dziecko nie potrzebuje:
+ * różnice rejestru, brytyjskie realia, pułapki kalki.
+ */
+function NiuansZwrotu({ zwrot }: { zwrot: string }) {
+  const niuans = phraseNote(zwrot);
+  return niuans ? <Niuans tekst={niuans} /> : null;
 }
 
 // --- Ćwiczenie: pokaż ruchem (TPR) ------------------------------------------
@@ -1539,6 +1704,146 @@ function ActScreen({
       <p className="animate-pop-in text-lg text-hero-cyan">
         <span className="font-reading font-bold">{command.en}</span> — {command.pl}
       </p>
+    </Card>
+  );
+}
+
+// --- Ćwiczenie: teraz ty rządzisz (odwrócone TPR) ----------------------------
+
+/**
+ * Dziecko MÓWI polecenie, rodzic je wykonuje. Dlaczego: to mówienie z
+ * natychmiastowym, widocznym skutkiem — rodzic naprawdę wstaje albo podnosi
+ * rękę — a skutek własnych słów jest najsilniejszą nagrodą za odezwanie się,
+ * jaką zna dziecko w cichym okresie. Zamiana ról to zresztą klasyczny krok TPR
+ * (Asher): najpierw rozumiesz polecenie, potem sam je wydajesz. Polecenia
+ * nauczyciela nie stają się przez to „zwrotami dziecka” — chodzi o odwagę
+ * mówienia, nie o rolę.
+ *
+ * Tylko z rodzicem (buildScreens): bez wykonawcy polecenie wisi w powietrzu.
+ */
+function OrderScreen({
+  command,
+  topicId,
+  onAnswer,
+  onNext,
+}: {
+  command: Command;
+  topicId: string;
+  onAnswer: (attempt: PendingAttempt) => void;
+  onNext: () => void;
+}) {
+  const startRef = useRef(Date.now());
+  // Angielski pojawia się dopiero z nagraniem (podpowiedź albo echo) — dziecko
+  // ma najpierw spróbować powiedzieć to, co pamięta ze słuchu.
+  const [hintEn, setHintEn] = useState(false);
+
+  function report(correct: boolean) {
+    onAnswer({
+      ts: Date.now(),
+      soundId: topicId,
+      exercise: "say",
+      item: command.en,
+      correct,
+      responseMs: Date.now() - startRef.current,
+    });
+    onNext();
+  }
+
+  return (
+    <Card className="no-select flex flex-col items-center gap-5 text-center">
+      <h2 className="text-2xl font-bold">
+        <span className="text-hero-gold">Teraz ty rządzisz!</span>
+      </h2>
+      <div className="animate-pop-in text-8xl" aria-hidden>
+        {command.emoji}
+      </div>
+      <p className="max-w-md text-lg text-paper/80">
+        Powiedz rodzicowi po angielsku:{" "}
+        <strong className="text-hero-cyan">„{command.pl}”</strong>
+      </p>
+      <p className="text-sm text-paper/60">Rodzic zrobi to, co powiesz — naprawdę!</p>
+
+      {hintEn && (
+        <p className="font-reading animate-pop-in max-w-md text-2xl font-bold">{command.en}</p>
+      )}
+
+      <div className="flex flex-wrap justify-center gap-3">
+        {!hintEn && (
+          <button
+            type="button"
+            onClick={() => {
+              setHintEn(true);
+              void playPhrase(command.en);
+            }}
+            className="flex min-h-14 items-center gap-3 rounded-blob bg-hero-gold px-6 py-3 text-xl font-bold text-night shadow-[0_6px_0_#c99a1f] transition active:translate-y-1 active:shadow-none"
+          >
+            <span aria-hidden>🔊</span> Podpowiedz
+          </button>
+        )}
+        <Echo text={command.en} onReveal={() => setHintEn(true)} />
+      </div>
+
+      <div className="flex w-full max-w-md flex-col gap-3 sm:flex-row">
+        <BigButton tone="yes" onClick={() => report(true)} full>
+          Powiedział sam
+        </BigButton>
+        <BigButton tone="no" onClick={() => report(false)} full>
+          Z pomocą
+        </BigButton>
+      </div>
+      <p className="max-w-md text-xs text-paper/50">
+        Wykonaj polecenie od razu, nawet gdy dziecko powie tylko jedno słowo — skutek
+        jest nagrodą. Potem możecie zamienić się rolami.
+      </p>
+    </Card>
+  );
+}
+
+// --- Rozgrzewka: trzy zdania, które ratują ------------------------------------
+
+/** Zdania ratunkowe — te same co w temacie „Ratunek!” (mają nagrania). */
+const RESCUE_LINES = ["I don't understand.", "Can you help me, please?", "Can I go to the toilet, please?"];
+
+/**
+ * Pierwszy ekran KAŻDEJ sesji toru 2. Te trzy zdania mają stać się odruchem —
+ * dziecko sięga po nie zestresowane, gdy nic nie rozumie — a odruch buduje się
+ * liczbą luźnych powtórzeń, nie sprawdzianem. Stąd echo zamiast pytania: bez
+ * oceny, bez zapisu, bez przymusu („Dalej” działa od razu). Kto chce, stuka
+ * trzy razy i mówi; kto nie chce dziś mówić, słucha — to też się liczy.
+ */
+function WarmupScreen({ review = false, onNext }: { review?: boolean; onNext: () => void }) {
+  const lines = RESCUE_LINES.map((en) => ALL_PHRASES.find((phrase) => phrase.en === en)).filter(
+    (phrase): phrase is Phrase => phrase !== undefined,
+  );
+
+  return (
+    <Card className="no-select flex flex-col items-center gap-5 text-center">
+      {review && (
+        <span className="rounded-full bg-white/10 px-3 py-1 text-sm font-bold text-paper/60">
+          ↩ Powtórka — to już było
+        </span>
+      )}
+      <h2 className="text-2xl font-bold">Rozgrzewka: trzy zdania, które ratują</h2>
+      <p className="text-sm text-paper/70">Stuknij, posłuchaj i powtórz — jak echo.</p>
+
+      <div className="flex w-full max-w-xl flex-col gap-3">
+        {lines.map((phrase) => (
+          <div
+            key={phrase.en}
+            className="flex flex-col items-center gap-2 rounded-2xl bg-white/5 p-3 sm:flex-row sm:justify-between sm:text-left"
+          >
+            <div>
+              <p className="font-reading text-lg font-bold">
+                <span aria-hidden>{phrase.emoji}</span> {phrase.en}
+              </p>
+              <p className="text-sm text-hero-cyan">{phrase.pl}</p>
+            </div>
+            <Echo text={phrase.en} />
+          </div>
+        ))}
+      </div>
+
+      <BigButton onClick={onNext}>Dalej ▸</BigButton>
     </Card>
   );
 }
