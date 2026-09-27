@@ -5,7 +5,7 @@
  * JĘZYKA, w którym angielska lekcja ją podaje: liczb ze słuchu, słów działań
  * („the difference between", „share equally"), zadań z treścią, zegara i
  * zapisu, który w Anglii wygląda inaczej niż w Polsce (2.5 zamiast 2,5,
- * ÷ zamiast :, „half past three" = 3:30, a nie 2:30).
+ * ÷ zamiast :, „half past three" = 3:30, a nie 2:30, „3:30 pm" zamiast 15:30).
  *
  * Wszystkie zdania brytyjskie, w rejestrze angielskiej klasy Year 3–4.
  * Każdy tekst, który pada w ćwiczeniu, ma nagranie (generator zbiera je z
@@ -206,7 +206,7 @@ export const OPERATIONS: OperationItem[] = [
   { id: "add", en: "What is 8 add 5?", answer: 13, keyPl: "add = dodać", workingPl: "8 + 5 = 13" },
   { id: "plus", en: "What is 7 plus 6?", answer: 13, keyPl: "plus = plus", workingPl: "7 + 6 = 13" },
   { id: "total", en: "What is the total of 9 and 6?", answer: 15, keyPl: "the total of = suma, razem", workingPl: "9 + 6 = 15" },
-  { id: "sum", en: "What is the sum of 12 and 8?", answer: 20, keyPl: "the sum of = suma (to NIE jest odejmowanie!)", workingPl: "12 + 8 = 20" },
+  { id: "sum", en: "What is the sum of 12 and 8?", answer: 20, keyPl: "the sum of = suma, czyli dodawanie (potoczne „do your sums” to po prostu „policz działania”)", workingPl: "12 + 8 = 20" },
   { id: "more-than", en: "What is 10 more than 47?", answer: 57, keyPl: "10 more than = o 10 więcej niż", workingPl: "47 + 10 = 57" },
   { id: "take-away", en: "What is 15 take away 7?", answer: 8, keyPl: "take away = zabierz, odejmij", workingPl: "15 − 7 = 8" },
   { id: "subtract-from", en: "Subtract 6 from 20.", answer: 14, keyPl: "subtract 6 from 20 = odejmij 6 OD 20 (kolejność odwrotna niż w zdaniu!)", workingPl: "20 − 6 = 14" },
@@ -225,6 +225,10 @@ export const OPERATIONS: OperationItem[] = [
   { id: "half", en: "What is half of 18?", answer: 9, keyPl: "half of = połowa", workingPl: "18 ÷ 2 = 9" },
   { id: "halve", en: "Halve 30.", answer: 15, keyPl: "halve = podziel na pół", workingPl: "30 ÷ 2 = 15" },
   { id: "one-more", en: "What is one more than 99?", answer: 100, keyPl: "one more than = o jeden więcej niż", workingPl: "99 + 1 = 100" },
+  { id: "multiplied-by", en: "What is 6 multiplied by 4?", answer: 24, keyPl: "multiplied by = pomnożone przez (tak czyta się znak ×)", workingPl: "6 × 4 = 24" },
+  { id: "divided-by", en: "What is 24 divided by 6?", answer: 4, keyPl: "divided by = podzielone przez (tak czyta się znak ÷)", workingPl: "24 ÷ 6 = 4" },
+  { id: "tens", en: "How many tens are there in 70?", answer: 7, keyPl: "tens = dziesiątki, ones = jedności (tak nazywa się miejsca w liczbie)", workingPl: "70 = 7 dziesiątek, więc odpowiedź = 7" },
+  { id: "round", en: "Round 47 to the nearest 10.", answer: 50, keyPl: "round to the nearest 10 = zaokrąglij do najbliższej dziesiątki", workingPl: "47 zaokrąglone do dziesiątek = 50 (bliżej 50 niż 40)" },
 ];
 
 function operationsSession(): Exercise[] {
@@ -236,7 +240,7 @@ function operationsSession(): Exercise[] {
     heading: "Słowa działań",
     promptEn: "add, take away, lots of, share",
     bodyPl:
-      "Po angielsku rzadko mówi się sam znak „+” — działanie nazywa się słowami, a każde ma kilka nazw:",
+      "Na lekcji działanie często pada słowami, nie znakiem — a każde ma kilka nazw:",
     examples: [
       { en: "add, plus, the total of, the sum of", pl: "dodawanie (+)" },
       { en: "take away, subtract, minus, the difference between", pl: "odejmowanie (−)" },
@@ -403,6 +407,22 @@ export const WORD_PROBLEMS: WordProblem[] = [
     keyPl: "5 psów po 4 nogi → mnożymy",
     workingPl: "5 × 4 = 20",
   },
+  {
+    id: "rubber",
+    en: "A pen costs 45p and a rubber costs 75p. How much do they cost altogether? Answer in pence.",
+    answer: 120,
+    keyword: "altogether",
+    keyPl: "„altogether” = razem → dodajemy („rubber” to gumka do ścierania). Od 100p kwotę zapisuje się już w funtach: 120p = £1.20",
+    workingPl: "45p + 75p = 120p (£1.20)",
+  },
+  {
+    id: "lesson",
+    en: "A lesson starts at quarter past nine and finishes at ten o'clock. How many minutes long is it?",
+    answer: 45,
+    keyword: "how many minutes long",
+    keyPl: "„how many minutes long” = ile minut trwa → od 9:15 do 10:00",
+    workingPl: "9:15 → 10:00 = 45 minut",
+  },
 ];
 
 function wordProblemsSession(): Exercise[] {
@@ -507,10 +527,12 @@ function timeSession(): Exercise[] {
         { en: "quarter past three", pl: "3:15 — kwadrans po trzeciej" },
         { en: "half past three", pl: "3:30 — wpół do czwartej!" },
         { en: "quarter to four", pl: "3:45 — za kwadrans czwarta" },
+        { en: "twenty past three", pl: "3:20 — dwadzieścia po trzeciej (past = po)" },
+        { en: "ten to four", pl: "3:50 — za dziesięć czwarta (to = za)" },
         { en: "half four", pl: "potocznie: 4:30 (half past four), NIE „wpół do czwartej”!" },
       ],
       parentPl:
-        "W Year 3–4 dzieci czytają zegar wskazówkowy (także z cyframi rzymskimi) i piszą godziny cyfrowo. Uwaga na potoczne „half four” (tak mówią rodzice na placu zabaw: „pick-up at half four”) — to 4:30, a polskie ucho słyszy „wpół do czwartej”, czyli 3:30. Warto w domu mówić godziny po angielsku przy okazji: „It's quarter past seven — time for breakfast!”",
+        "W Year 3–4 dzieci czytają zegar wskazówkowy do minuty („twenty past”, „ten to”; także tarcze z cyframi rzymskimi), znają am/pm i zapis 24-godzinny. Na co dzień mówi się 12-godzinnie: „half past three” to i 3:30, i 15:30. Uwaga na potoczne „half four” (tak mówią rodzice na placu zabaw: „pick-up at half four”) — to 4:30, a polskie ucho słyszy „wpół do czwartej”, czyli 3:30. Warto w domu mówić godziny po angielsku przy okazji: „It's quarter past seven — time for breakfast!”",
     },
   ];
 
@@ -607,7 +629,7 @@ export const NOTATION: NotationItem[] = [
     promptEn: "How do you say this number?",
     options: ["two point five", "twenty-five", "two thousand, five hundred"],
     answer: "two point five",
-    explainPl: "W Anglii ułamek dziesiętny zapisuje się z KROPKĄ: 2.5 (czytaj „two point five”). Nasze 2,5 to po angielsku 2.5.",
+    explainPl: "W Anglii ułamek dziesiętny zapisuje się z KROPKĄ: 2.5 (czytaj „two point five”). Nasze 2,5 to po angielsku 2.5. Zero przed kropką Brytyjczycy często czytają „nought”: 0.5 = „nought point five”.",
   },
   {
     id: "thousands",
@@ -673,6 +695,30 @@ export const NOTATION: NotationItem[] = [
     answer: "a quarter",
     explainPl: "¼ = „a quarter” — to samo słowo co w „quarter past three” (kwadrans = ćwierć godziny).",
   },
+  {
+    id: "am-pm",
+    shown: "3:30 pm",
+    promptEn: "What time is it?",
+    options: ["half past three in the afternoon", "half past three in the morning", "half past four in the afternoon"],
+    answer: "half past three in the afternoon",
+    explainPl: "am = od północy do południa, pm = od południa do północy. Na co dzień w Anglii zegar jest 12-godzinny: nasze 15:30 to „3:30 pm”. Zapis 24-godzinny (15:30) też jest w szkole, ale spotyka się go głównie w rozkładach jazdy.",
+  },
+  {
+    id: "roman",
+    shown: "XII",
+    promptEn: "What number is this?",
+    options: ["twelve", "eleven", "seven"],
+    answer: "twelve",
+    explainPl: "Cyfry rzymskie po angielsku to „Roman numerals”. Są na tarczach zegarów i w zadaniach — tak jak w polskiej szkole, więc nowa jest tylko nazwa. XII = twelve, IX = nine, IV = four.",
+  },
+  {
+    id: "negative",
+    shown: "−3",
+    promptEn: "How do you say this number?",
+    options: ["minus three", "three", "a third"],
+    answer: "minus three",
+    explainPl: "Liczba poniżej zera: −3 czyta się „minus three” (na lekcji także „negative three”). Znaczenie jak po polsku — najczęściej przy temperaturze: „It's minus three degrees.”",
+  },
 ];
 
 function notationSession(): Exercise[] {
@@ -684,9 +730,15 @@ function notationSession(): Exercise[] {
     heading: "Zapis jak w Anglii",
     visual: { kind: "big", text: "2.5   2,500   ÷" },
     bodyPl:
-      "Matematyka ta sama, zapis trochę inny: ułamek dziesiętny z kropką (2.5), tysiące z przecinkiem (2,500), dzielenie znakiem ÷, pieniądze w funtach (£) i pensach (p).",
+      "Matematyka ta sama, zapis trochę inny: ułamek dziesiętny z kropką (2.5), tysiące z przecinkiem (2,500), dzielenie znakiem ÷, pieniądze w funtach (£) i pensach (p), godziny z am i pm.",
+    examples: [
+      {
+        en: "One pound is one hundred pence.",
+        pl: "£1 = 100p. Monety: 1p, 2p, 5p, 10p, 20p, 50p, £1, £2; banknoty: £5, £10, £20, £50.",
+      },
+    ],
     parentPl:
-      "Praktyczna rzecz na zeszyt: polską „jedynkę” z długim daszkiem angielski nauczyciel łatwo przeczyta jako 7. W Anglii 1 pisze się jedną prostą kreską, a 7 bez przekreślenia. Warto przećwiczyć zapis cyfr przed wrześniem.",
+      "Praktyczna rzecz na zeszyt: polską „jedynkę” z długim daszkiem angielski nauczyciel może przeczytać jako 7. W Anglii 1 pisze się jedną prostą kreską, a 7 bez przekreślenia. Druga rzecz: przecinek dziesiętny — w Anglii przecinek oddziela tysiące, więc 2,5 nic nie znaczy; trzeba pisać 2.5. Warto przećwiczyć zapis cyfr i kropki przed wrześniem.",
   };
   return [
     learn,
@@ -746,7 +798,7 @@ export const MATHS_TOPICS: MathsTopic[] = [
     emoji: "🏛️",
     goalPl: "One hundred AND five — liczby do 1000 po brytyjsku.",
     parentIntroPl:
-      "Year 4 pracuje na liczbach do 10 000. Brytyjczycy mówią „and” po setkach: 406 = „four hundred and six”. Zera w środku i na końcu (406 / 460 / 46) to typowa pomyłka ze słuchu.",
+      "Year 4 pracuje na liczbach czterocyfrowych (do 9 999) i zaokrąglaniu. Brytyjczycy mówią „and” po setkach: 406 = „four hundred and six”. Zera w środku i na końcu (406 / 460 / 46) to typowa pomyłka ze słuchu.",
     build: numbersTopic("n1000", HUNDREDS_POOL, { hear: 3, type: 5, read: 3 }),
   },
   {
@@ -780,9 +832,9 @@ export const MATHS_TOPICS: MathsTopic[] = [
     id: "notation",
     titlePl: "Zapis jak w Anglii",
     emoji: "✏️",
-    goalPl: "2.5 zamiast 2,5, ÷ zamiast :, £ i p.",
+    goalPl: "2.5 zamiast 2,5, ÷ zamiast :, £ i p, am i pm.",
     parentIntroPl:
-      "Rzeczy, których nikt nie tłumaczy, bo w Anglii są oczywiste: kropka dziesiętna, przecinek w tysiącach, znak ÷, funty i pensy.",
+      "Rzeczy, których nikt nie tłumaczy, bo w Anglii są oczywiste: kropka dziesiętna, przecinek w tysiącach, znak ÷, funty i pensy, am/pm, cyfry rzymskie na zegarze i „minus” przed liczbą ujemną.",
     build: notationSession,
   },
 ];
@@ -800,7 +852,7 @@ export function mathsPhrases(): string[] {
   OPERATIONS.forEach((item) => add(item.en));
   WORD_PROBLEMS.forEach((item) => add(item.en));
   add("What time is it?");
-  add("half four");
+  ["half four", "twenty past three", "ten to four", "One pound is one hundred pence."].forEach(add);
   for (let hour = 1; hour <= 12; hour++) {
     for (const kind of TIME_KINDS) {
       add(timePhrase(hour, kind));

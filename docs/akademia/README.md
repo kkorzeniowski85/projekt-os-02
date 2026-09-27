@@ -9,7 +9,7 @@ przygotowuje do reszty tego, czego angielska szkoła wymaga od pierwszego dnia:
 | Dział | Bohater | Co ćwiczy |
 | --- | --- | --- |
 | Tabliczka | SPEED | 66 faktów 2–12 pod **Multiplication Tables Check** (Year 4, czerwiec 2028): codzienny trening z pudełkami Leitnera, lekcje „Liczymy co N”, wierny próbny test (25 pytań, 6 s) |
-| Matematyka po angielsku | SPARK | liczby ze słuchu (-teen/-ty, „and” w setkach), słowa działań, zadania z treścią, zegar, zapis inny niż w Polsce |
+| Matematyka po angielsku | SPARK | liczby ze słuchu (-teen/-ty, „and” w setkach), słowa działań, zadania z treścią, zegar (także am/pm), zapis inny niż w Polsce |
 | Czytanie | GLEAM | 8 tekstów na 3 poziomach, najpierw słuchanie; pytania w formatach Tick one / Find and copy / True or false / Number the events |
 | Język klasy | THUNDER | polecenia nauczyciela, rutyny lekcji, polecenia na kartce (Tick, Circle, Show your working…) |
 
