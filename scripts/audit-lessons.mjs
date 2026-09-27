@@ -289,9 +289,25 @@ for (const topic of TOPICS) {
     }
   }
 
-  for (const phrase of [...topic.phrases, ...topic.commands]) {
+  const situations = topic.situations ?? [];
+  for (const phrase of [...topic.phrases, ...topic.commands, ...situations]) {
     if (!audioSlug(phrase.en)) {
       note("BŁĄD", "zwrot", `"${topic.id}": zwrot "${phrase.en}" daje pustą nazwę pliku`);
+    }
+  }
+
+  // Sytuacje („Pokaż ruchem!”) mają stały format: dziecko słyszy zawsze to samo
+  // pytanie-ramkę i uczy się, że po „Show me!” ma pokazać. Odstępstwo w danych
+  // zepsułoby ten nawyk. Dwie to minimum, bo sesja na komputerze bierze dwie.
+  if (topic.situations && situations.length < 2) {
+    note("UWAGA", "temat", `"${topic.id}": tylko ${situations.length} sytuacji (sesja bierze 2)`);
+  }
+  for (const situation of situations) {
+    if (!/^What do you do when .+\? Show me!$/.test(situation.en)) {
+      note("BŁĄD", "sytuacja", `"${topic.id}": "${situation.en}" nie ma formatu „What do you do when …? Show me!”`);
+    }
+    if (!situation.actionPl?.trim() || !situation.pl?.trim()) {
+      note("BŁĄD", "sytuacja", `"${topic.id}": "${situation.en}" bez tłumaczenia albo bez opisu reakcji`);
     }
   }
 
@@ -340,6 +356,7 @@ for (const topic of TOPICS) {
     ...topic.words.map((w) => w.emoji),
     ...topic.phrases.map((p) => p.emoji),
     ...topic.commands.map((c) => c.emoji),
+    ...situations.map((s) => s.emoji),
     ...topic.collocations.map((c) => c.emoji),
   ];
   for (const znak of emoji) {

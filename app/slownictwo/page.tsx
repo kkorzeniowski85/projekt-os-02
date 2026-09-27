@@ -115,6 +115,7 @@ export default function VocabHomePage() {
                       {topic.words.length} słów ·{" "}
                       {topic.phrases.length} zwrotów ·{" "}
                       {topic.commands.length} poleceń ·{" "}
+                      {topic.situations?.length ? `${topic.situations.length} sytuacji · ` : ""}
                       {topic.collocations.length} kolokacji
                       {sessions > 0 && ` · ćwiczone ${sessions}×`}
                     </p>

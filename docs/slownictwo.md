@@ -49,7 +49,18 @@ Materiał dzieli się na cztery rodzaje, bo uczą się inaczej:
 | `words` | słowo + obrazek | „Które słowo słyszysz?" (nagranie → obrazek) |
 | `phrases` | zwroty, które dziecko **mówi** | „Kiedy to mówisz?" + scenka + „Powiedz to na głos" |
 | `commands` | zwroty, które dziecko tylko **rozumie** | „Nauczyciel mówi… co robisz?" + „Pokaż ruchem!" + „Teraz ty rządzisz" |
+| `situations` (opcjonalne) | „What do you do when…? Show me!" — dziecko **pokazuje** swoją reakcję | „Co robisz, gdy…? Pokaż!" zamiast „Pokaż ruchem!" z poleceń |
 | `collocations` | które słowa chodzą razem | „Które słowo pasuje?" (luka w wyrażeniu) |
+
+`situations` mają tematy, w których „polecenia" to pytania albo informacje
+nauczycielki („Are you OK?", „It's wet play today", „Cheer up!") — czegoś takiego
+nie da się wykonać ruchem, a własną reakcję („podnoszę rękę i mówię *Can you
+help me, please?*") już tak. Gdy temat ma sytuacje, „Pokaż ruchem!" bierze je
+zamiast poleceń, wzorcowa reakcja (`actionPl`) jest schowana do „Pokaż
+podpowiedź" albo do oceny rodzica, a „Teraz ty rządzisz" w tym temacie odpada
+(pytania-sytuacji dziecko nie wydaje). Polecenia-pytania zostają w `commands`,
+bo w „Nauczyciel mówi… co robisz?" (wybór reakcji) działają dobrze. Rodzic może
+wszystkie ćwiczenia ruchowe wyłączyć w panelu (`lib/settings.ts` → `noMovement`).
 
 ### Dlaczego `phrases` i `commands` to osobne rzeczy
 
