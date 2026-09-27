@@ -54,21 +54,26 @@ export function echoPauseMs(text: string, durationMs: number | undefined): numbe
 type EchoPhase = "idle" | "play" | "pause" | "replay";
 
 /**
- * Duży przycisk echa. `auto` > 0 uruchamia sekwencję bez stuknięcia (przy
- * kwestii dziecka na poziomie echo i po „Z pomocą”) — każda zmiana wartości to
- * kolejne uruchomienie. `onReveal` woła się przy pierwszym odtworzeniu, żeby
- * ekran odsłonił angielski tekst; `onDone(ok)` po zakończeniu albo przerwaniu.
+ * Duży przycisk echa: na nim samo zdanie (jak w PhraseSpeaker — stuka się w
+ * tekst, nie w ikonkę), pod spodem mały napis, co się dzieje. `auto` > 0
+ * uruchamia sekwencję bez stuknięcia (przy kwestii dziecka na poziomie echo i
+ * po „Z pomocą”) — każda zmiana wartości to kolejne uruchomienie. `onReveal`
+ * woła się przy pierwszym odtworzeniu, żeby ekran odsłonił angielski tekst;
+ * `showText` = false chowa zdanie także na przycisku, dopóki ekran go nie
+ * odsłoni (drabinka podpowiedzi). `onDone(ok)` po zakończeniu albo przerwaniu.
  */
 export function Echo({
   text,
   size = "lg",
   auto = 0,
+  showText = true,
   onReveal,
   onDone,
 }: {
   text: string;
   size?: "lg" | "sm";
   auto?: number;
+  showText?: boolean;
   onReveal?: () => void;
   onDone?: (ok: boolean) => void;
 }) {
@@ -152,25 +157,30 @@ export function Echo({
       type="button"
       onClick={() => void run()}
       aria-label={`Mów ze mną: ${text}`}
-      className={`flex items-center justify-center gap-3 rounded-blob bg-hero-cyan font-bold text-night shadow-[0_6px_0_rgba(0,0,0,0.3)] transition active:translate-y-1 active:shadow-none ${
-        size === "lg" ? "min-h-14 px-7 py-3 text-2xl" : "min-h-11 px-4 py-2 text-base"
+      className={`flex max-w-full flex-col items-center justify-center rounded-blob bg-hero-cyan text-center font-bold text-night shadow-[0_6px_0_rgba(0,0,0,0.3)] transition active:translate-y-1 active:shadow-none ${
+        size === "lg" ? "min-h-14 gap-1 px-6 py-3" : "min-h-11 gap-0.5 px-4 py-2"
       }`}
     >
-      <span aria-hidden>{icon}</span>
-      {label}
-      {phase === "pause" && (
-        // Trzy kropki gasną jak odliczanie — dziecko widzi, ile ma czasu.
-        <span className="flex gap-1.5" aria-hidden>
-          {[3, 2, 1].map((dot) => (
-            <span
-              key={dot}
-              className={`h-3 w-3 rounded-full bg-night transition-opacity duration-500 ${
-                dot <= dots ? "opacity-100" : "opacity-20"
-              }`}
-            />
-          ))}
-        </span>
+      {showText && (
+        <span className={`font-reading ${size === "lg" ? "text-2xl" : "text-base"}`}>{text}</span>
       )}
+      <span className={`flex items-center gap-2 ${size === "lg" ? "text-sm" : "text-xs"}`}>
+        <span aria-hidden>{icon}</span>
+        {label}
+        {phase === "pause" && (
+          // Trzy kropki gasną jak odliczanie — dziecko widzi, ile ma czasu.
+          <span className="flex gap-1.5" aria-hidden>
+            {[3, 2, 1].map((dot) => (
+              <span
+                key={dot}
+                className={`h-3 w-3 rounded-full bg-night transition-opacity duration-500 ${
+                  dot <= dots ? "opacity-100" : "opacity-20"
+                }`}
+              />
+            ))}
+          </span>
+        )}
+      </span>
     </button>
   );
 }
@@ -466,6 +476,7 @@ export function SceneScreen({
             <Echo
               text={pendingLine.en}
               auto={echoKey}
+              showText={hintEn}
               onReveal={() => setHintEn(true)}
               onDone={onEchoDone}
             />

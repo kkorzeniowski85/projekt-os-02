@@ -734,11 +734,10 @@ function VocabScreen({
 
   const correct = picked !== null && picked === word.en;
   const wNaprawie = picked !== null && !correct && !naprawione;
-  // W trybie z rodzicem pod odpowiedzią pojawia się zdanie przykładowe do
-  // odsłuchania — automatyczne przejście zabierało na to szansę (sekunda to
-  // za mało nawet na kliknięcie głośnika). Ekran czeka więc na „Dalej”.
-  // W trybie samodzielnym pudełka nie ma, tempo zostaje.
-  const czekaNaDalej = mode === "parent" && wordExample(word.en) !== null;
+  // Ekran nigdy nie ucieka sam: po odpowiedzi dziecko ma zobaczyć słowo ze
+  // znaczeniem (z rodzicem — także zdanie przykładowe), a dalej idzie
+  // przyciskiem „Dalej ▸”. Prośba rodzica (2026-09-27): przejście po sekundzie
+  // nie dawało czasu, żeby cokolwiek zauważyć.
   const rozstrzygniete = correct || naprawione;
 
   useEffect(() => {
@@ -748,23 +747,14 @@ function VocabScreen({
   useEffect(() => {
     if (picked === null) return;
     playFeedbackTone(correct ? "good" : "try-again");
-    if (correct) {
-      if (czekaNaDalej) return;
-      const timer = setTimeout(onNext, 1100);
-      return () => clearTimeout(timer);
-    }
     // Po błędzie dalej idzie się dopiero po stuknięciu dobrej odpowiedzi —
     // dziecko ma ją wykonać, nie przeczekać. Punktuje się pierwszy wybór.
-    void playWord(word.en);
-  }, [picked, correct, czekaNaDalej, word.en, onNext]);
+    if (!correct) void playWord(word.en);
+  }, [picked, correct, word.en]);
 
   useEffect(() => {
-    if (!naprawione) return;
-    playFeedbackTone("good");
-    if (czekaNaDalej) return;
-    const timer = setTimeout(onNext, 900);
-    return () => clearTimeout(timer);
-  }, [naprawione, czekaNaDalej, onNext]);
+    if (naprawione) playFeedbackTone("good");
+  }, [naprawione]);
 
   function pick(option: string) {
     setPicked(option);
@@ -835,7 +825,7 @@ function VocabScreen({
 
       {mode === "parent" && picked !== null && <ZdanieZeSlowem slowo={word.en} />}
 
-      {czekaNaDalej && rozstrzygniete && (
+      {rozstrzygniete && (
         <BigButton onClick={onNext}>Dalej ▸</BigButton>
       )}
     </Card>
@@ -861,16 +851,15 @@ function PhraseScreen({
 }) {
   const [picked, setPicked] = useState<string | null>(null);
   const [naprawione, setNaprawione] = useState(false);
-  const [echoUsed, setEchoUsed] = useState(false);
   const startRef = useRef(Date.now());
 
   const correct = picked !== null && picked === phrase.en;
   const wNaprawie = picked !== null && !correct && !naprawione;
-  // Ekran nie ucieka, gdy jest co czytać albo co powtarzać: niuans dla rodzica
-  // („Warto wiedzieć”) potrzebuje chwili, a stuknięte echo musi dograć do
-  // końca. Wtedy dalej idzie się przyciskiem, jak przy zdaniu ze słowem.
+  // Ekran nigdy nie ucieka sam: po odpowiedzi dziecko ma zobaczyć zwrot ze
+  // znaczeniem i ewentualnie powtórzyć go echem, a dalej idzie przyciskiem
+  // „Dalej ▸”. Prośba rodzica (2026-09-27): przejście po sekundzie nie dawało
+  // czasu, żeby cokolwiek zauważyć.
   const niuans = mode === "parent" ? phraseNote(phrase.en) : null;
-  const czekaNaDalej = niuans !== null || echoUsed;
   const rozstrzygniete = correct || naprawione;
 
   useEffect(() => {
@@ -880,21 +869,14 @@ function PhraseScreen({
   useEffect(() => {
     if (picked === null) return;
     playFeedbackTone(correct ? "good" : "try-again");
-    if (correct) {
-      if (czekaNaDalej) return;
-      const timer = setTimeout(onNext, 1200);
-      return () => clearTimeout(timer);
-    }
-    void playPhrase(phrase.en);
-  }, [picked, correct, czekaNaDalej, phrase.en, onNext]);
+    // Po błędzie dalej idzie się dopiero po stuknięciu dobrej odpowiedzi —
+    // dziecko ma ją wykonać, nie przeczekać. Punktuje się pierwszy wybór.
+    if (!correct) void playPhrase(phrase.en);
+  }, [picked, correct, phrase.en]);
 
   useEffect(() => {
-    if (!naprawione) return;
-    playFeedbackTone("good");
-    if (czekaNaDalej) return;
-    const timer = setTimeout(onNext, 900);
-    return () => clearTimeout(timer);
-  }, [naprawione, czekaNaDalej, onNext]);
+    if (naprawione) playFeedbackTone("good");
+  }, [naprawione]);
 
   function pick(option: string) {
     setPicked(option);
@@ -911,7 +893,7 @@ function PhraseScreen({
   return (
     <Card className="no-select flex flex-col items-center gap-5 text-center">
       <h2 className="text-2xl font-bold">Kiedy to mówisz?</h2>
-      <PhraseSpeaker text={phrase.en} label="Posłuchaj" size="lg" showText={picked !== null} />
+      <PhraseSpeaker text={phrase.en} label="Posłuchaj" size="lg" />
 
       <div className="grid w-full max-w-3xl gap-3">
         {options.map((option) => {
@@ -956,15 +938,13 @@ function PhraseScreen({
           </p>
           {/* Małe echo: każde ćwiczenie słuchania kończy się okazją, żeby zwrot
               od razu POWIEDZIEĆ za nagraniem — bez oceny, bez punktów. */}
-          <div onClickCapture={() => setEchoUsed(true)}>
-            <Echo text={phrase.en} size="sm" />
-          </div>
+          <Echo text={phrase.en} size="sm" />
         </div>
       )}
 
       {niuans && picked !== null && <Niuans tekst={niuans} />}
 
-      {czekaNaDalej && rozstrzygniete && <BigButton onClick={onNext}>Dalej ▸</BigButton>}
+      {rozstrzygniete && <BigButton onClick={onNext}>Dalej ▸</BigButton>}
 
       {mode === "parent" && picked === null && (
         <p className="text-xs text-paper/50">
@@ -996,6 +976,8 @@ function CommandScreen({
 
   const correct = picked !== null && picked === command.en;
   const wNaprawie = picked !== null && !correct && !naprawione;
+  // Dalej idzie się przyciskiem, nie po czasie — jak w „Kiedy to mówisz?”.
+  const rozstrzygniete = correct || naprawione;
 
   useEffect(() => {
     void playPhrase(command.en);
@@ -1004,19 +986,12 @@ function CommandScreen({
   useEffect(() => {
     if (picked === null) return;
     playFeedbackTone(correct ? "good" : "try-again");
-    if (correct) {
-      const timer = setTimeout(onNext, 1200);
-      return () => clearTimeout(timer);
-    }
-    void playPhrase(command.en);
-  }, [picked, correct, command.en, onNext]);
+    if (!correct) void playPhrase(command.en);
+  }, [picked, correct, command.en]);
 
   useEffect(() => {
-    if (!naprawione) return;
-    playFeedbackTone("good");
-    const timer = setTimeout(onNext, 900);
-    return () => clearTimeout(timer);
-  }, [naprawione, onNext]);
+    if (naprawione) playFeedbackTone("good");
+  }, [naprawione]);
 
   function pick(option: string) {
     setPicked(option);
@@ -1033,7 +1008,7 @@ function CommandScreen({
   return (
     <Card className="no-select flex flex-col items-center gap-5 text-center">
       <h2 className="text-2xl font-bold">Nauczyciel mówi… co robisz?</h2>
-      <PhraseSpeaker text={command.en} label="Posłuchaj" size="lg" showText={picked !== null} />
+      <PhraseSpeaker text={command.en} label="Posłuchaj" size="lg" />
 
       <div className="grid w-full max-w-3xl gap-3">
         {options.map((option) => {
@@ -1080,6 +1055,8 @@ function CommandScreen({
       <p className="text-xs text-paper/50">
         Tego zdania nie musisz mówić. Wystarczy, że wiesz, co zrobić.
       </p>
+
+      {rozstrzygniete && <BigButton onClick={onNext}>Dalej ▸</BigButton>}
     </Card>
   );
 }
@@ -1107,9 +1084,8 @@ function CollocationScreen({
 
   const correct = picked !== null && picked === collocation.answer;
   const wNaprawie = picked !== null && !correct && !naprawione;
-  // Uwaga „dlaczego kalka nie działa” potrzebuje kilku sekund czytania —
-  // w trybie z rodzicem ekran czeka na „Dalej” zamiast uciekać po 1,6 s.
-  const czekaNaDalej = mode === "parent" && Boolean(collocation.whyPl);
+  // Dalej idzie się przyciskiem, nie po czasie — dziecko ma zobaczyć całe
+  // wyrażenie, a rodzic doczytać uwagę „dlaczego kalka nie działa”.
   const rozstrzygniete = correct || naprawione;
 
   useEffect(() => {
@@ -1118,11 +1094,7 @@ function CollocationScreen({
     // Ostatnie, co dziecko słyszy, ma być POPRAWNĄ całością — także po błędzie.
     // Odtworzenie samego wybranego słowa utrwalałoby kalkę.
     void playPhrase(collocation.en);
-    if (correct && !czekaNaDalej) {
-      const timer = setTimeout(onNext, 1600);
-      return () => clearTimeout(timer);
-    }
-  }, [picked, correct, czekaNaDalej, collocation.en, onNext]);
+  }, [picked, correct, collocation.en]);
 
   useEffect(() => {
     if (!naprawione) return;
@@ -1130,10 +1102,7 @@ function CollocationScreen({
     // Naprawa = stuknięcie dobrego słowa; całość gra jeszcze raz, żeby klocek
     // wszedł do ucha w komplecie.
     void playPhrase(collocation.en);
-    if (czekaNaDalej) return;
-    const timer = setTimeout(onNext, 1600);
-    return () => clearTimeout(timer);
-  }, [naprawione, czekaNaDalej, collocation.en, onNext]);
+  }, [naprawione, collocation.en]);
 
   function pick(option: string) {
     setPicked(option);
@@ -1212,7 +1181,7 @@ function CollocationScreen({
         </p>
       )}
 
-      {czekaNaDalej && rozstrzygniete && (
+      {rozstrzygniete && (
         <BigButton onClick={onNext}>Dalej ▸</BigButton>
       )}
     </Card>
@@ -1303,7 +1272,7 @@ function SayScreen({
           </button>
         )}
         {/* Poziom echo: wzór gra sam po wejściu (auto), wyżej — po stuknięciu. */}
-        <Echo text={phrase.en} auto={level === 0 ? 1 : 0} onReveal={() => setHintEn(true)} />
+        <Echo text={phrase.en} auto={level === 0 ? 1 : 0} showText={hintEn} onReveal={() => setHintEn(true)} />
       </div>
 
       {mode === "parent" ? (
@@ -1488,7 +1457,7 @@ function PowtorkaEkranu({
           emoji: screen.phrase.emoji,
           en: screen.phrase.en,
           pl: screen.phrase.pl,
-          audio: <PhraseSpeaker text={screen.phrase.en} label="Posłuchaj" size="lg" showText={false} />,
+          audio: <PhraseSpeaker text={screen.phrase.en} label="Posłuchaj" size="lg" />,
           opis: screen.phrase.situationPl,
         };
       case "command":
@@ -1497,7 +1466,7 @@ function PowtorkaEkranu({
           emoji: screen.command.emoji,
           en: screen.command.en,
           pl: screen.command.pl,
-          audio: <PhraseSpeaker text={screen.command.en} label="Posłuchaj" size="lg" showText={false} />,
+          audio: <PhraseSpeaker text={screen.command.en} label="Posłuchaj" size="lg" />,
           opis: screen.command.actionPl,
         };
       case "order":
@@ -1514,12 +1483,7 @@ function PowtorkaEkranu({
           en: screen.collocation.en,
           pl: screen.collocation.pl,
           audio: (
-            <PhraseSpeaker
-              text={screen.collocation.en}
-              label="Posłuchaj"
-              size="lg"
-              showText={false}
-            />
+            <PhraseSpeaker text={screen.collocation.en} label="Posłuchaj" size="lg" />
           ),
           opis: null,
         };
@@ -1684,7 +1648,7 @@ function ActScreen({
       <div className="animate-pop-in text-8xl" aria-hidden>
         {command.emoji}
       </div>
-      <PhraseSpeaker text={command.en} label="Posłuchaj" size="lg" showText={false} />
+      <PhraseSpeaker text={command.en} label="Posłuchaj" size="lg" />
       <p className="max-w-md text-lg text-paper/80">
         Usłyszałeś polecenie? <strong>Zrób to naprawdę</strong> — całym ciałem, jak w szkole.
       </p>
@@ -1780,7 +1744,7 @@ function OrderScreen({
             <span aria-hidden>🔊</span> Podpowiedz
           </button>
         )}
-        <Echo text={command.en} onReveal={() => setHintEn(true)} />
+        <Echo text={command.en} showText={hintEn} onReveal={() => setHintEn(true)} />
       </div>
 
       <div className="flex w-full max-w-md flex-col gap-3 sm:flex-row">
@@ -1826,19 +1790,15 @@ function WarmupScreen({ review = false, onNext }: { review?: boolean; onNext: ()
       <h2 className="text-2xl font-bold">Rozgrzewka: trzy zdania, które ratują</h2>
       <p className="text-sm text-paper/70">Stuknij, posłuchaj i powtórz — jak echo.</p>
 
+      {/* Zdanie jest na przycisku (Echo), pod nim tylko znaczenie — bez
+          powtarzania tekstu obok, żeby było jasne, w co stukać. */}
       <div className="flex w-full max-w-xl flex-col gap-3">
         {lines.map((phrase) => (
-          <div
-            key={phrase.en}
-            className="flex flex-col items-center gap-2 rounded-2xl bg-white/5 p-3 sm:flex-row sm:justify-between sm:text-left"
-          >
-            <div>
-              <p className="font-reading text-lg font-bold">
-                <span aria-hidden>{phrase.emoji}</span> {phrase.en}
-              </p>
-              <p className="text-sm text-hero-cyan">{phrase.pl}</p>
-            </div>
+          <div key={phrase.en} className="flex flex-col items-center gap-1 rounded-2xl bg-white/5 p-3">
             <Echo text={phrase.en} />
+            <p className="text-sm text-hero-cyan">
+              <span aria-hidden>{phrase.emoji}</span> {phrase.pl}
+            </p>
           </div>
         ))}
       </div>

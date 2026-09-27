@@ -1201,7 +1201,7 @@ function PowtorkaEkranu({
         <>
           <p className="font-reading max-w-xl text-3xl font-black">{screen.sentence.en}</p>
           <p className="text-lg text-hero-cyan">{screen.sentence.pl}</p>
-          <PhraseSpeaker text={screen.sentence.en} label="Posłuchaj" showText={false} />
+          <PhraseSpeaker text={screen.sentence.en} label="Posłuchaj" />
         </>
       )}
 
@@ -1437,7 +1437,7 @@ function SentenceScreen({
       ) : (
         <div className="animate-pop-in flex flex-col items-center gap-3">
           <p className="text-lg text-hero-cyan">{sentence.pl}</p>
-          <PhraseSpeaker text={sentence.en} label="Jeszcze raz" showText={false} />
+          <PhraseSpeaker text={sentence.en} label="Jeszcze raz" />
 
           {mode === "parent" ? (
             <div className="flex w-full max-w-md flex-col gap-3 sm:flex-row">

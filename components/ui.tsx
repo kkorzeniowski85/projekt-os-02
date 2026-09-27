@@ -106,42 +106,34 @@ export function WordSpeaker({
 }
 
 /**
- * Przycisk całego zwrotu (tor 2).
- *
- * Angielski tekst jest pod spodem, nie na przycisku: w tym torze dziecko ma
- * SŁUCHAĆ, a czytanie jest opcjonalnym podparciem. Kto jeszcze nie czyta,
- * rozwiąże ćwiczenie samym uchem — i o to chodzi.
+ * Przycisk całego zwrotu (tor 2): samo zdanie JEST przyciskiem — stuknięcie
+ * w tekst odtwarza nagranie. Rodzic poprosił o to wprost (2026-09-27): duży
+ * napis łatwiej trafić niż ikonkę głośnika. Dziecko, które jeszcze nie czyta
+ * po angielsku, i tak rozwiązuje ćwiczenie uchem, a tekst na przycisku niczego
+ * nie zdradza — odpowiedzi w tym torze są po polsku.
  */
 export function PhraseSpeaker({
   text,
   label = "Posłuchaj",
   size = "md",
-  showText = true,
 }: {
   text: string;
+  /** Tylko dla czytnika ekranu — na przycisku widać samo zdanie. */
   label?: string;
   size?: "md" | "lg";
-  showText?: boolean;
 }) {
   return (
-    <div className="flex flex-col items-center gap-2">
-      <button
-        type="button"
-        onClick={() => void playPhrase(text)}
-        aria-label={`${label}: ${text}`}
-        className={`flex items-center gap-3 rounded-blob bg-hero-gold font-bold text-night shadow-[0_6px_0_#c99a1f] transition active:translate-y-1 active:shadow-none ${
-          size === "lg" ? "px-8 py-5 text-3xl" : "px-5 py-3 text-xl"
-        }`}
-      >
-        <span aria-hidden>🔊</span>
-        {label}
-      </button>
-      {showText && (
-        <p className="font-reading max-w-md text-center text-lg font-bold text-paper/80">
-          {text}
-        </p>
-      )}
-    </div>
+    <button
+      type="button"
+      onClick={() => void playPhrase(text)}
+      aria-label={`${label}: ${text}`}
+      className={`flex max-w-full items-center gap-3 rounded-blob bg-hero-gold text-left font-bold text-night shadow-[0_6px_0_#c99a1f] transition active:translate-y-1 active:shadow-none ${
+        size === "lg" ? "min-h-14 px-6 py-4 text-2xl" : "min-h-11 px-5 py-3 text-lg"
+      }`}
+    >
+      <span aria-hidden>🔊</span>
+      <span className="font-reading">{text}</span>
+    </button>
   );
 }
 
