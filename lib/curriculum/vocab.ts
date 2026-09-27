@@ -16,7 +16,10 @@
  *  - `words`        — słowo + obrazek (rozpoznawanie ze słuchu),
  *  - `phrases`      — zwroty, które dziecko MÓWI (sytuacja po polsku → zwrot),
  *  - `commands`     — zwroty, które dziecko tylko ROZUMIE (polecenie → reakcja),
- *  - `collocations` — które słowa chodzą razem („brush your teeth”, nie „wash”).
+ *  - `collocations` — które słowa chodzą razem („brush your teeth”, nie „wash”),
+ *  - `situations`   — (opcjonalnie) „What do you do when…? Show me!” — dziecko
+ *                     POKAZUJE swoją reakcję; zastępują polecenia w „Pokaż
+ *                     ruchem!” tam, gdzie polecenia to pytania nauczycielki.
  *
  * Rozdział `phrases` / `commands` jest celowy i jest najważniejszą decyzją w
  * tym pliku. Polecenia nauczyciela („line up”, „tidy up”) dziecko ma rozumieć,
@@ -72,6 +75,25 @@ export type Command = {
 };
 
 /**
+ * Sytuacja do POKAZANIA („Pokaż ruchem!”): pytanie „What do you do when…?
+ * Show me!” — dziecko odgrywa, co wtedy robi. Osobno od `commands`, bo
+ * polecenie da się wykonać („line up”), a pytania nauczycielki („Are you
+ * OK?”) nie — a właśnie one są materiałem tematów o ratunku, uczuciach czy
+ * grzeczności. Kierunek jest odwrotny niż w poleceniu: nie „zrób, co mówię”,
+ * lecz „pokaż, co robisz”. Aplikacja niczego nie mierzy — ocenia rodzic.
+ */
+export type Situation = {
+  en: string;
+  pl: string;
+  /**
+   * Co dziecko ma pokazać — krótko, językiem dziecka. Może łączyć gest ze
+   * zwrotem („podnosisz rękę i mówisz…”); gest wystarczy, zwrot to bonus.
+   */
+  actionPl: string;
+  emoji: string;
+};
+
+/**
  * Kolokacja z luką. `gap` zawiera dokładnie jedno „___”, a `answer` jest
  * zawsze POJEDYNCZYM słowem (dzięki temu ma własne nagranie w /audio/words).
  * `distractors` to kalki, które polskie ucho podpowiada jako pierwsze — one są
@@ -104,6 +126,12 @@ export type Topic = {
   words: VocabWord[];
   phrases: Phrase[];
   commands: Command[];
+  /**
+   * Gdy są, „Pokaż ruchem!” bierze je ZAMIAST poleceń, a „Teraz ty rządzisz”
+   * odpada (pytania-sytuacji dziecko nie wydaje). Polecenia zostają w
+   * „Nauczyciel mówi… co robisz?” — tam pytania działają dobrze.
+   */
+  situations?: Situation[];
   collocations: Collocation[];
 };
 
@@ -212,6 +240,8 @@ export const TOPICS: Topic[] = [
         emoji: "🔁",
       },
     ],
+    // Pytania nauczycielki — do ROZUMIENIA („Nauczyciel mówi… co robisz?”).
+    // Ruchem nie da się ich wykonać, więc do „Pokaż ruchem!” idą `situations`.
     commands: [
       {
         en: "Are you OK?",
@@ -224,6 +254,42 @@ export const TOPICS: Topic[] = [
         pl: "Potrzebujesz pomocy?",
         actionPl: "Kiwasz głową albo mówisz „yes, please”.",
         emoji: "✋",
+      },
+    ],
+    // Sytuacje do pokazania ruchem (patrz typ Situation). Polecenia wyżej to
+    // pytania nauczycielki — ciałem nie da się ich wykonać; pokazać da się za
+    // to własną reakcję na kłopot. Akcje celowo łączą gest ze zwrotem z
+    // `phrases`: gest wystarczy, zwrot to bonus, a ocena należy do rodzica.
+    situations: [
+      {
+        en: "What do you do when you need help? Show me!",
+        pl: "Co robisz, gdy potrzebujesz pomocy? Pokaż!",
+        actionPl: "Podnosisz rękę i mówisz „Can you help me, please?”.",
+        emoji: "🙋",
+      },
+      {
+        en: "What do you do when you don't understand? Show me!",
+        pl: "Co robisz, gdy nie rozumiesz? Pokaż!",
+        actionPl: "Robisz zdziwioną minę i mówisz „I don't understand”.",
+        emoji: "😕",
+      },
+      {
+        en: "What do you do when you need the toilet? Show me!",
+        pl: "Co robisz, gdy musisz do toalety? Pokaż!",
+        actionPl: "Podnosisz rękę i mówisz „Can I go to the toilet, please?”.",
+        emoji: "🚻",
+      },
+      {
+        en: "What do you do when you can't hear? Show me!",
+        pl: "Co robisz, gdy nie słyszysz? Pokaż!",
+        actionPl: "Przykładasz rękę do ucha i mówisz „Sorry?”.",
+        emoji: "👂",
+      },
+      {
+        en: "What do you do when your tummy hurts? Show me!",
+        pl: "Co robisz, gdy boli Cię brzuch? Pokaż!",
+        actionPl: "Trzymasz się za brzuch i mówisz „My tummy hurts”.",
+        emoji: "🤢",
       },
     ],
     collocations: [
@@ -531,6 +597,35 @@ export const TOPICS: Topic[] = [
         emoji: "🌧️",
       },
     ],
+    // „It's wet play today” to informacja, nie polecenie — ruchem nie da się
+    // jej wykonać. Stąd sytuacje: te same ruchy co w poleceniach wyżej (dywan,
+    // rząd, kurtka), ale wywołane pytaniem „co robisz, gdy…”.
+    situations: [
+      {
+        en: "What do you do when it's carpet time? Show me!",
+        pl: "Co robisz, gdy czas na dywan? Pokaż!",
+        actionPl: "Siadasz po turecku na dywanie i patrzysz na nauczycielkę.",
+        emoji: "🧘",
+      },
+      {
+        en: "What do you do when the bell goes? Show me!",
+        pl: "Co robisz, gdy dzwoni dzwonek? Pokaż!",
+        actionPl: "Stajesz w rzędzie za innymi dziećmi.",
+        emoji: "🔔",
+      },
+      {
+        en: "What do you do when it's wet play? Show me!",
+        pl: "Co robisz, gdy przerwa jest w klasie, bo pada? Pokaż!",
+        actionPl: "Zostajesz w klasie — siadasz do zabawy przy stoliku.",
+        emoji: "☔",
+      },
+      {
+        en: "What do you do when it's home time? Show me!",
+        pl: "Co robisz, gdy to już koniec lekcji? Pokaż!",
+        actionPl: "Bierzesz kurtkę i torbę, stajesz w rzędzie do wyjścia.",
+        emoji: "🎒",
+      },
+    ],
     collocations: [
       {
         en: "wait your turn",
@@ -781,6 +876,41 @@ export const TOPICS: Topic[] = [
         emoji: "🧸",
       },
     ],
+    // „How are you?” i „Have a nice day” to pytanie i życzenie — reakcją jest
+    // słowo, nie ruch. Sytuacje zamieniają je na scenki do odegrania: gest
+    // plus zwrot z `phrases` (dziękuję, przepraszam, na zdrowie).
+    situations: [
+      {
+        en: "What do you do when someone gives you something? Show me!",
+        pl: "Co robisz, gdy ktoś Ci coś daje? Pokaż!",
+        actionPl: "Bierzesz to i mówisz „Thank you”.",
+        emoji: "🎁",
+      },
+      {
+        en: "What do you do when someone asks how you are? Show me!",
+        pl: "Co robisz, gdy ktoś pyta, jak się masz? Pokaż!",
+        actionPl: "Uśmiechasz się i mówisz „I'm fine, thank you”.",
+        emoji: "🙂",
+      },
+      {
+        en: "What do you do when someone sneezes? Show me!",
+        pl: "Co robisz, gdy ktoś kicha? Pokaż!",
+        actionPl: "Mówisz „Bless you!”.",
+        emoji: "🤧",
+      },
+      {
+        en: "What do you do when you want to get past? Show me!",
+        pl: "Co robisz, gdy chcesz przejść? Pokaż!",
+        actionPl: "Mówisz „Excuse me” i czekasz, aż zrobią Ci miejsce.",
+        emoji: "🚶",
+      },
+      {
+        en: "What do you do when you meet someone new? Show me!",
+        pl: "Co robisz, gdy poznajesz kogoś nowego? Pokaż!",
+        actionPl: "Machasz albo podajesz rękę i mówisz „Nice to meet you”.",
+        emoji: "🤝",
+      },
+    ],
     collocations: [
       {
         en: "say thank you",
@@ -1025,6 +1155,34 @@ export const TOPICS: Topic[] = [
         emoji: "🍲",
       },
     ],
+    // „It's lunchtime” to zapowiedź, nie polecenie. Sytuacje: reakcje przy
+    // stole, które da się odegrać — ze zwrotami z `phrases`.
+    situations: [
+      {
+        en: "What do you do when it's lunchtime? Show me!",
+        pl: "Co robisz, gdy czas na obiad? Pokaż!",
+        actionPl: "Wstajesz i stajesz w rzędzie do stołówki.",
+        emoji: "🍴",
+      },
+      {
+        en: "What do you do when you're thirsty? Show me!",
+        pl: "Co robisz, gdy chce Ci się pić? Pokaż!",
+        actionPl: "Mówisz „Can I have some water, please?”.",
+        emoji: "🥤",
+      },
+      {
+        en: "What do you do when you don't like the food? Show me!",
+        pl: "Co robisz, gdy nie lubisz tego, co jest na talerzu? Pokaż!",
+        actionPl: "Kręcisz głową i mówisz grzecznie „I don't like it”.",
+        emoji: "😖",
+      },
+      {
+        en: "What do you do when the food is yummy? Show me!",
+        pl: "Co robisz, gdy jedzenie jest pyszne? Pokaż!",
+        actionPl: "Kciuk w górę i „It's yummy!”.",
+        emoji: "😋",
+      },
+    ],
     collocations: [
       {
         en: "have lunch",
@@ -1141,6 +1299,35 @@ export const TOPICS: Topic[] = [
         pl: "Wszystko w porządku?",
         actionPl: "Mówisz „yes” albo „no, it hurts”.",
         emoji: "🙂",
+      },
+    ],
+    // „Are you all right?” to pytanie — odpowiada się słowem. Sytuacje
+    // odwracają kierunek: dziecko pokazuje, co robi, gdy coś się stało — gest
+    // plus zwrot z `phrases`; ostatnia uczy zadać to pytanie koledze.
+    situations: [
+      {
+        en: "What do you do when you fall over? Show me!",
+        pl: "Co robisz, gdy się przewrócisz? Pokaż!",
+        actionPl: "Wstajesz, idziesz do nauczycielki i mówisz „It hurts”.",
+        emoji: "🤕",
+      },
+      {
+        en: "What do you do when you hurt your knee? Show me!",
+        pl: "Co robisz, gdy uderzysz się w kolano? Pokaż!",
+        actionPl: "Pokazujesz kolano i mówisz „I've hurt my knee”.",
+        emoji: "🦵",
+      },
+      {
+        en: "What do you do when you feel sick? Show me!",
+        pl: "Co robisz, gdy jest Ci niedobrze? Pokaż!",
+        actionPl: "Podnosisz rękę i mówisz „I feel sick”.",
+        emoji: "🤒",
+      },
+      {
+        en: "What do you do when a friend is hurt? Show me!",
+        pl: "Co robisz, gdy kolega się skaleczy? Pokaż!",
+        actionPl: "Pytasz „Are you all right?” i wołasz nauczycielkę.",
+        emoji: "👩‍🏫",
       },
     ],
     collocations: [
@@ -1368,6 +1555,35 @@ export const TOPICS: Topic[] = [
         emoji: "👌",
       },
     ],
+    // „Don't worry”, „Cheer up”, „Never mind” to pocieszenia — nie ma tu ruchu
+    // do wykonania. Sytuacje: dziecko pokazuje, co robi z własnym uczuciem
+    // (słowa z `words`, zwroty z `phrases`) i jak samo pociesza innych.
+    situations: [
+      {
+        en: "What do you do when you miss your mum? Show me!",
+        pl: "Co robisz, gdy tęsknisz za mamą? Pokaż!",
+        actionPl: "Idziesz do nauczycielki i mówisz „I miss my mum”.",
+        emoji: "😢",
+      },
+      {
+        en: "What do you do when you don't want to do something? Show me!",
+        pl: "Co robisz, gdy czegoś nie chcesz? Pokaż!",
+        actionPl: "Kręcisz głową i mówisz „I don't want to”.",
+        emoji: "🙅",
+      },
+      {
+        en: "What do you do when you're happy? Show me!",
+        pl: "Co robisz, gdy jesteś szczęśliwy? Pokaż!",
+        actionPl: "Uśmiechasz się od ucha do ucha i mówisz „I'm happy”.",
+        emoji: "😊",
+      },
+      {
+        en: "What do you do when a friend is sad? Show me!",
+        pl: "Co robisz, gdy kolega jest smutny? Pokaż!",
+        actionPl: "Siadasz obok i mówisz „Don't worry” albo „Cheer up!”.",
+        emoji: "🤗",
+      },
+    ],
     collocations: [
       {
         en: "feel better",
@@ -1565,6 +1781,7 @@ export function topicSize(topic: Topic): number {
     topic.words.length +
     topic.phrases.length +
     topic.commands.length +
+    (topic.situations?.length ?? 0) +
     topic.collocations.length
   );
 }
@@ -1618,6 +1835,7 @@ export function vocabPhrases(): string[] {
   for (const topic of TOPICS) {
     topic.phrases.forEach((phrase) => phrases.add(phrase.en));
     topic.commands.forEach((command) => phrases.add(command.en));
+    topic.situations?.forEach((situation) => phrases.add(situation.en));
     topic.collocations.forEach((collocation) => phrases.add(collocation.en));
   }
   return [...phrases].sort();
