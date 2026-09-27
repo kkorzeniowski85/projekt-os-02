@@ -20,6 +20,7 @@ import { isChildLine } from "@/lib/curriculum/scenes";
 import { getHero } from "@/lib/heroes";
 import { speakingLevel } from "@/lib/progress/rules";
 import { useProgress } from "@/lib/progress/store";
+import { useBusy } from "@/lib/sessionBusy";
 
 function kwestieWord(n: number): string {
   return n === 5 ? "kwestii" : "kwestie";
@@ -29,6 +30,8 @@ export function ScenkiList({ topic }: { topic: Topic }) {
   const { state } = useProgress();
   const hero = getHero(topic.heroId);
   const [open, setOpen] = useState<Phrase | null>(null);
+  // Otwarta scenka to też ćwiczenie: ekran nie gaśnie, a aktualizacja czeka.
+  useBusy(open !== null);
   const scenes = topic.phrases.filter((phrase) => phraseScene(phrase.en).length > 0);
 
   // Ten sam poziom co w sesji: dziecko dostaje tyle pomocy, na ile wskazuje
