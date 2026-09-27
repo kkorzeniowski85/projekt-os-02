@@ -47,8 +47,8 @@ Materiał dzieli się na cztery rodzaje, bo uczą się inaczej:
 | Rodzaj | Co to | Ćwiczenie |
 | --- | --- | --- |
 | `words` | słowo + obrazek | „Które słowo słyszysz?" (nagranie → obrazek) |
-| `phrases` | zwroty, które dziecko **mówi** | „Kiedy to mówisz?" + „Powiedz to na głos" |
-| `commands` | zwroty, które dziecko tylko **rozumie** | „Nauczyciel mówi… co robisz?" |
+| `phrases` | zwroty, które dziecko **mówi** | „Kiedy to mówisz?" + scenka + „Powiedz to na głos" |
+| `commands` | zwroty, które dziecko tylko **rozumie** | „Nauczyciel mówi… co robisz?" + „Pokaż ruchem!" + „Teraz ty rządzisz" |
 | `collocations` | które słowa chodzą razem | „Które słowo pasuje?" (luka w wyrażeniu) |
 
 ### Dlaczego `phrases` i `commands` to osobne rzeczy
@@ -157,6 +157,63 @@ npm run audio
 ```
 
 Trasa `/slownictwo/<id>` i kafelek na liście pojawią się same.
+
+## Mówienie
+
+Stan wyjściowy dziecka: dużo rozumie ze słuchu, prawie nie mówi, po angielsku
+jeszcze nie czyta. Priorytet rodzica: **rozruszać mówienie przy niskiej
+stawce**. Stąd cztery ćwiczenia w torze 2 (kod: `components/session/Speaking.tsx`,
+`VocabRunner.tsx`), wszystkie zaczynające się od ucha — angielski tekst pojawia
+się najpóźniej przy pierwszym odtworzeniu, nigdy jako warunek.
+
+- **Echo („Mów ze mną”, shadowing).** Nagranie → pauza na powtórzenie (trzy
+  gasnące kropki, ok. 1,2 × długość nagrania, 1,5–4 s) → nagranie jeszcze raz.
+  Powtarzanie tuż za wzorem to najniższy próg wejścia w mówienie: nie trzeba
+  niczego układać, wystarczy odbić usłyszany kształt zdania. Drugie odtworzenie
+  jest po to, żeby ostatnia wersja, jaką dziecko słyszy, była poprawna.
+- **Gotowe zwroty (formulaic chunks).** Z cichego okresu wychodzi się przez
+  całe, gotowe kwestie użyte w sytuacji („Can I go to the toilet, please?”),
+  nie przez składanie zdań z reguł. Dlatego jednostką mówienia jest zwrot i
+  scenka, nie słowo.
+- **Scenka jako ćwiczenie dziecka** (wcześniej: ramka dla rodzica). Faza 1:
+  cała rozmowa do posłuchania, kwestie podświetlają się po kolei, polski pod
+  spodem (domyślnie widoczny — dziecko nie czyta po angielsku), stuknięcie w
+  kwestię odtwarza ją. Faza 2 „Twoja kolej”: aplikacja gra kwestie pozostałych
+  ról (lektor, nagrania), przy kwestii dziecka staje i czeka. Bohater tematu
+  zapowiada scenkę jednym polskim zdaniem. Po kwestii dziecka rodzic ocenia
+  („Powiedział sam / Z pomocą”), a w trybie samodzielnym dziecko stuka
+  „Powiedziałem” bez oceny. Po „Z pomocą” kwestia gra jeszcze raz w echu
+  (recast) — **ostatni ruch dziecka ma być właściwy**. W sesji: 1 scenka
+  (Ratunek: 2), zaraz po „Kiedy to mówisz?”, w obu trybach; poza sesją
+  wszystkie scenki tematu pod „🎭 Scenki” (bez punktów, bez zapisu).
+- **Drabinka podpowiedzi (fading scaffolding).** Poziom zwrotu liczy się z
+  historii ocen rodzica (`lib/progress/rules.ts` → `speakingLevel`): start 0
+  (echo — wzór gra od razu, tekst widoczny), dwa kolejne „Powiedział sam” →
+  poziom wyżej (1: widać sytuację i znaczenie, angielski po „Podpowiedz”;
+  2: tylko sytuacja, znaczenie i angielski za przyciskami), każde „Z pomocą” →
+  poziom niżej. Próby bez oceny poziomu nie ruszają. Schemat danych się nie
+  zmienia — poziom da się zawsze przeliczyć. Dziecko poziomu nie widzi; rodzic
+  widzi w panelu i raporcie („Mówienie”).
+- **Odwrócone TPR („Teraz ty rządzisz”).** Dziecko MÓWI polecenie z
+  `commands`, rodzic je wykonuje. Skutek własnych słów — rodzic naprawdę wstaje
+  — jest najsilniejszą nagrodą za odezwanie się. Zamiana ról to klasyczny krok
+  TPR; nie uczy „roli nauczyciela”, uczy odwagi mówienia. Tylko z rodzicem.
+- **Rozgrzewka „trzy zdania, które ratują”.** Pierwszy ekran każdej sesji:
+  „I don't understand.”, „Can you help me, please?”, „Can I go to the toilet,
+  please?” w echu, z polskim znaczeniem. Bez oceny, bez zapisu, „Dalej” od razu
+  — odruch buduje się liczbą luźnych powtórzeń, nie sprawdzianem.
+
+Zasady dla rodzica (widoczne w panelu): cichy okres jest normalny; po błędzie
+powtórz poprawnie od niechcenia zamiast poprawiać (recast); po pytaniu odczekaj
+5 s; jedno słowo to też odpowiedź; chwal próbę; te same zdania używajcie w domu;
+zamieniajcie się rolami.
+
+Wszystkie próby mówienia zapisują się jako `exercise: "say"` z `item` = tekst
+wypowiedzianej kwestii (zwrot, riposta ze scenki, polecenie z „Teraz ty
+rządzisz”); `correct` to ocena rodzica albo `null` w trybie samodzielnym.
+**Aplikacja nigdy nie nagrywa ani nie ocenia mowy dziecka** — jedynym
+„sędzią” jest rodzic dwoma przyciskami. Nowe teksty interfejsu są po polsku;
+wszystkie angielskie kwestie mają nagrania z generatora, nic nie wymaga TTS.
 
 ## Czego ten moduł świadomie nie robi
 

@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BigButton, Card } from "@/components/ui";
+import { BigButton, Card, ParentTip } from "@/components/ui";
 import {
   auditClips,
   getVoiceStatus,
@@ -38,7 +38,13 @@ import { parentPhrases } from "@/lib/curriculum/vocabParent";
 import { importRecordingFiles, listRecordings } from "@/lib/recordings";
 import { RECORDINGS_CHANGED } from "@/lib/progress/recordingsSync";
 import { subscribeSync, type SyncStatus } from "@/lib/progress/sync";
-import { accuracyOf, recommendNext, recommendNextTopic, RULES } from "@/lib/progress/rules";
+import {
+  accuracyOf,
+  recommendNext,
+  recommendNextTopic,
+  RULES,
+  speakingStats,
+} from "@/lib/progress/rules";
 import { useProgress } from "@/lib/progress/store";
 import { trackOf, type SoundState } from "@/lib/progress/types";
 import { plural, soundsWord } from "./plural";
@@ -145,6 +151,20 @@ function PhraseClipList({
   );
 }
 
+/**
+ * Trzy poziomy drabinki podpowiedzi (lib/progress/rules.ts → speakingLevel),
+ * od najbardziej samodzielnego — tak czyta się to jak postęp.
+ */
+const SPEAKING_LEVELS: { level: 0 | 1 | 2; label: string; hint: string }[] = [
+  { level: 2, label: "sam", hint: "tylko sytuacja; znaczenie i angielski za przyciskami" },
+  { level: 1, label: "z podpowiedzią", hint: "widzi znaczenie; angielski po „Podpowiedz”" },
+  { level: 0, label: "echo", hint: "nagranie gra od razu, dziecko powtarza" },
+];
+
+function shareLabel({ own, total }: { own: number; total: number }): string {
+  return total === 0 ? "brak ocen" : `${Math.round((own / total) * 100)}% (${own} z ${total})`;
+}
+
 export function LigaPanel() {
   const { state, setChildName, resetAll } = useProgress();
   const [sync, setSync] = useState<SyncStatus | null>(null);
@@ -173,6 +193,7 @@ export function LigaPanel() {
 
   const recommendation = recommendNext(state);
   const topicRecommendation = recommendNextTopic(state);
+  const speaking = speakingStats(state);
 
   // Lista głosów ładuje się asynchronicznie, więc pytamy o nią po zamontowaniu
   // (i raz jeszcze chwilę później) zamiast w trakcie renderu.
@@ -335,6 +356,49 @@ export function LigaPanel() {
           Tematów jest {TOPICS.length}. Kolejność w aplikacji to kolejność pilności, nie
           trudności — pierwsze cztery to przetrwanie w szkole.
         </p>
+      </Card>
+
+      <Card>
+        <h2 className="mb-1 text-lg font-bold">Mówienie</h2>
+        <p className="mb-3 text-sm text-paper/60">
+          Ile pomocy dostaje dziecko przy każdym zwrocie (drabinka podpowiedzi) i jak często
+          mówi samo. Liczone wyłącznie z Twoich ocen „Powiedział sam / Z pomocą” — aplikacja
+          nie słucha dziecka i nie ocenia wymowy. Dziecko tych liczb nie widzi.
+        </p>
+        {speaking.byLevel.flat().length === 0 ? (
+          <p className="text-paper/60">
+            Jeszcze nic — zwroty pojawią się tu po pierwszej sesji z ćwiczeniem mówienia.
+          </p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-3">
+            {SPEAKING_LEVELS.map(({ level, label, hint }) => (
+              <div key={level} className="rounded-2xl bg-white/5 p-3">
+                <p className="text-2xl font-black">{speaking.byLevel[level].length}</p>
+                <p className="text-sm font-bold">{label}</p>
+                <p className="text-xs text-paper/50">{hint}</p>
+                {speaking.byLevel[level].length > 0 && (
+                  <p className="mt-2 text-xs text-paper/70">{speaking.byLevel[level].join(" · ")}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="mt-3 text-sm text-paper/80">
+          „Powiedział sam”: ostatnie 4 tygodnie — {shareLabel(speaking.recent)}; poprzednie 4
+          tygodnie — {shareLabel(speaking.previous)}.
+        </p>
+        <div className="mt-3">
+          <ParentTip>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>Cichy okres jest normalny: dziecko, które słucha i rozumie, uczy się, choć jeszcze nie mówi.</li>
+              <li>Po błędzie nie poprawiaj wprost — powtórz poprawnie od niechcenia, jakby nic się nie stało, i idź dalej.</li>
+              <li>Po pytaniu odczekaj 5 sekund. Cisza to myślenie, nie odmowa.</li>
+              <li>Jedno słowo to też odpowiedź. Chwal próbę, nie poprawność.</li>
+              <li>Te same zdania używajcie w domu — np. „Can I have some water, please?” przy kolacji.</li>
+              <li>Zamieniajcie się rolami: dziecko jako nauczycielka pyta, Ty odpowiadasz.</li>
+            </ul>
+          </ParentTip>
+        </div>
       </Card>
 
       <Card>

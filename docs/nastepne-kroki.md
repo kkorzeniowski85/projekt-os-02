@@ -133,6 +133,10 @@ Claude nie może go wykonać, bo wymaga zalogowania na konto Google rodzica.
    więcej niż jednym urządzeniu. Wcześniej to praca bez zwrotu.
 6. **Alien words** (nonsense words z Phonics Screening Check) — ćwiczenie czystego
    dekodowania. Przydatne bliżej wyjazdu, nie teraz.
+7. ~~**Mówienie w torze 2**~~ — **zrobione**: scenki jako ćwiczenie dziecka
+   (odsłuch z podświetlaniem → „Twoja kolej”), echo „Mów ze mną”, drabinka
+   podpowiedzi, rozgrzewka, „Teraz ty rządzisz”, sekcja „Mówienie” w panelu i
+   raporcie. Patrz [slownictwo.md](slownictwo.md#mówienie).
 
 ## Czego świadomie nie robimy
 

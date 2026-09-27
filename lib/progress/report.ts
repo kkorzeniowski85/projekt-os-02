@@ -11,7 +11,7 @@
 
 import { getSound } from "@/lib/curriculum/sounds";
 import { getTopic } from "@/lib/curriculum/vocab";
-import { accuracyOf, RULES } from "./rules";
+import { accuracyOf, RULES, speakingStats } from "./rules";
 import { trackOf, type ProgressState, type SoundState } from "./types";
 
 const STATUS_LABEL: Record<SoundState["status"], string> = {
@@ -99,6 +99,29 @@ export function buildMarkdownReport(state: ProgressState, now = Date.now()): str
   if (Object.keys(state.topics).length === 0) lines.push("| — | brak danych | | | | |");
   lines.push("");
 
+  // Mówienie osobno od procentów: to nie wynik, tylko ile pomocy dziecko
+  // jeszcze potrzebuje (drabinka podpowiedzi) i czy kierunek jest dobry.
+  lines.push("## Mówienie");
+  lines.push("");
+  const speaking = speakingStats(state, now);
+  const [echo, hinted, own] = speaking.byLevel;
+  const share = ({ own: said, total }: { own: number; total: number }) =>
+    total === 0 ? "brak ocen" : `${percent(said / total)} (${said} z ${total})`;
+  lines.push(
+    `Zwroty ćwiczone mówieniem: ${echo.length + hinted.length + own.length} — ` +
+      `sam: ${own.length}, z podpowiedzią: ${hinted.length}, echo: ${echo.length}`,
+  );
+  lines.push(
+    `„Powiedział sam” (ocena rodzica, tryb z rodzicem): ostatnie 4 tygodnie ${share(speaking.recent)}; ` +
+      `poprzednie 4 tygodnie ${share(speaking.previous)}`,
+  );
+  if (own.length > 0) {
+    lines.push("");
+    lines.push("Zwroty na poziomie „sam”:");
+    for (const phrase of own) lines.push(`- \`${phrase}\``);
+  }
+  lines.push("");
+
   lines.push("## Gdzie idzie trudno");
   lines.push("");
   const wrongByItem = new Map<
@@ -171,7 +194,8 @@ export function buildMarkdownReport(state: ProgressState, now = Date.now()): str
       `${Math.round(RULES.strugglingAccuracy * 100)}% przez ${RULES.strugglingSessions} sesje.`,
   );
   lines.push(
-    "Ćwiczenia mówione nie są oceniane przez aplikację (ocenia rodzic) — nie wchodzą do procentów.",
+    "Ćwiczenia mówione (`say`) ocenia rodzic, nie aplikacja; w trybie samodzielnym nie są oceniane " +
+      "(correct puste) i nie wchodzą do procentów. Poziomy mówienia: 0 = echo, 1 = z podpowiedzią, 2 = sam.",
   );
   lines.push(
     "Te same progi obowiązują w obu torach. Tor 2 (słownictwo) ćwiczy rozumienie ze słuchu — " +
