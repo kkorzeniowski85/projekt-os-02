@@ -18,6 +18,7 @@ import { ReportPanel } from "@/components/rodzic/ReportPanel";
 import { SyncPanel } from "@/components/rodzic/SyncPanel";
 import { useProgress as useAkademiaProgress } from "@/lib/akademia/progress/store";
 import { useProgress } from "@/lib/progress/store";
+import { TEST_MODE } from "@/lib/testMode";
 
 const TABS = [
   { id: "dzwieki", label: "🔤 Dźwięki" },
@@ -27,6 +28,13 @@ const TABS = [
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
+
+/**
+ * Wersja testowa Ligi (lib/testMode.ts) — ten sam kod, osobne dane „beta.*",
+ * bez synchronizacji. Rodzic klika tam do woli, a statystyki dziecka zostają
+ * nietknięte. Zwykły <a>, nie <Link>: to inna aplikacja (inny basePath).
+ */
+const TEST_VERSION_URL = "/projekt-os-05/";
 
 /** Ostatnia zakładka do zamknięcia karty — powrót z „Otwórz sesję" nie gubi miejsca. */
 const TAB_KEY = "phonics.parent-tab.v1";
@@ -64,11 +72,24 @@ function ParentPanel() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex items-center justify-between gap-4">
+      <header className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-3xl font-black">Tryb rodzica</h1>
-        <Link href="/" className="flex min-h-11 items-center rounded-full bg-white/10 px-4 text-sm">
-          ← Do aplikacji
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          {!TEST_MODE && (
+            <a
+              href={TEST_VERSION_URL}
+              target="_blank"
+              rel="noopener"
+              title="Otwiera wersję testową: te same ćwiczenia, ale nic nie liczy się do statystyk dziecka"
+              className="flex min-h-11 items-center rounded-full bg-hero-cyan/20 px-4 text-sm font-bold text-hero-cyan"
+            >
+              🧪 Wypróbuj bez liczenia
+            </a>
+          )}
+          <Link href="/" className="flex min-h-11 items-center rounded-full bg-white/10 px-4 text-sm">
+            ← Do aplikacji
+          </Link>
+        </div>
       </header>
 
       {!(ligaReady && akademiaReady) && <p className="text-paper/60">Wczytywanie danych…</p>}
