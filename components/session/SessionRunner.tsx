@@ -539,11 +539,10 @@ function ListenScreen({
   const startRef = useRef(Date.now());
 
   const correct = answer !== null && answer === item.hasTarget;
-  // Słowo-pułapka (litera jest, dźwięku nie ma — albo odwrotnie) dostaje po
-  // odpowiedzi wyjaśnienie; przy poprawnej odpowiedzi ekran musi postać
-  // dłużej, bo 1 sekunda nie starcza nawet na zerknięcie na nie.
-  const maPulapke =
-    item.hasTarget !== literaWZapisie(item.word, sound.grapheme);
+  // Ekran nigdy nie ucieka sam: po odpowiedzi dziecko ma spokojnie przeczytać
+  // słowo ze znaczeniem (i wyjaśnienie pułapki), a dalej idzie przyciskiem
+  // „Dalej ▸”. Prośba rodzica (2026-09-29): odpowiedź znikała po sekundzie.
+  const rozstrzygniete = correct || naprawione;
 
   useEffect(() => {
     // Gdy przeglądarka zablokuje automatyczne odtworzenie (iOS bez wcześniejszego
@@ -554,23 +553,17 @@ function ListenScreen({
   useEffect(() => {
     if (answer === null) return;
     playFeedbackTone(correct ? "good" : "try-again");
-    if (correct) {
-      const timer = setTimeout(onNext, maPulapke ? 2800 : 1100);
-      return () => clearTimeout(timer);
-    }
+    if (correct) return;
     // Po błędzie NIE idziemy dalej sami: słowo gra jeszcze raz, wyjaśnienie
     // zostaje na ekranie, a przejście wymaga stuknięcia poprawnej odpowiedzi.
     // Ostatni ruch dziecka ma być tym właściwym (jak w RWI: pokaz → powtórka),
     // a bierna pauza tego nie gwarantowała — dało się ją po prostu przeczekać.
     void playWord(item.word);
-  }, [answer, correct, maPulapke, item.word, onNext]);
+  }, [answer, correct, item.word]);
 
   useEffect(() => {
-    if (!naprawione) return;
-    playFeedbackTone("good");
-    const timer = setTimeout(onNext, 900);
-    return () => clearTimeout(timer);
-  }, [naprawione, onNext]);
+    if (naprawione) playFeedbackTone("good");
+  }, [naprawione]);
 
   function pick(choice: boolean) {
     setAnswer(choice);
@@ -650,6 +643,11 @@ function ListenScreen({
               <p className="text-xs text-paper/60">
                 Stuknij dobrą odpowiedź, żeby iść dalej.
               </p>
+            </div>
+          )}
+          {rozstrzygniete && (
+            <div className="mt-2">
+              <BigButton onClick={onNext}>Dalej ▸</BigButton>
             </div>
           )}
         </div>
@@ -839,6 +837,10 @@ function ChoiceScreen({
   const options = useMemo(() => round.options, [round]);
   const correct = picked !== null && picked === round.answer;
   const wNaprawie = picked !== null && !correct && !naprawione;
+  // Ekran nigdy nie ucieka sam: po odpowiedzi dziecko ma spokojnie przeczytać
+  // słowo ze znaczeniem, a dalej idzie przyciskiem „Dalej ▸”. Prośba rodzica
+  // (2026-09-29): odpowiedź znikała po sekundzie.
+  const rozstrzygniete = correct || naprawione;
 
   useEffect(() => {
     void playWord(round.answer).then((result) =>
@@ -849,23 +851,17 @@ function ChoiceScreen({
   useEffect(() => {
     if (picked === null) return;
     playFeedbackTone(correct ? "good" : "try-again");
-    if (correct) {
-      const timer = setTimeout(onNext, 1100);
-      return () => clearTimeout(timer);
-    }
+    if (correct) return;
     // Po błędzie: słowo gra jeszcze raz przy podświetlonym poprawnym zapisie,
     // a dalej idzie się dopiero PO STUKNIĘCIU tego zapisu. Dziecko ma wykonać
     // poprawny ruch, nie obejrzeć go — bierne 3 sekundy dało się przeczekać
     // bez patrzenia na ekran.
     void playWord(round.answer);
-  }, [picked, correct, round.answer, onNext]);
+  }, [picked, correct, round.answer]);
 
   useEffect(() => {
-    if (!naprawione) return;
-    playFeedbackTone("good");
-    const timer = setTimeout(onNext, 900);
-    return () => clearTimeout(timer);
-  }, [naprawione, onNext]);
+    if (naprawione) playFeedbackTone("good");
+  }, [naprawione]);
 
   function pick(option: string) {
     setPicked(option);
@@ -942,6 +938,8 @@ function ChoiceScreen({
           </p>
         </div>
       )}
+
+      {rozstrzygniete && <BigButton onClick={onNext}>Dalej ▸</BigButton>}
 
       {mode === "parent" && picked === null && (
         <p className="text-xs text-paper/50">
@@ -1262,6 +1260,10 @@ function RedWordScreen({
 
   const correct = picked !== null && picked === answer;
   const wNaprawie = picked !== null && !correct && !naprawione;
+  // Ekran nigdy nie ucieka sam: po odpowiedzi dziecko ma spokojnie przeczytać
+  // słowo ze znaczeniem, a dalej idzie przyciskiem „Dalej ▸”. Prośba rodzica
+  // (2026-09-29): odpowiedź znikała po sekundzie.
+  const rozstrzygniete = correct || naprawione;
 
   useEffect(() => {
     void playWord(answer).then((result) => setNeedsTap(result.source === "unavailable"));
@@ -1270,19 +1272,13 @@ function RedWordScreen({
   useEffect(() => {
     if (picked === null) return;
     playFeedbackTone(correct ? "good" : "try-again");
-    if (correct) {
-      const timer = setTimeout(onNext, 1100);
-      return () => clearTimeout(timer);
-    }
+    if (correct) return;
     void playWord(answer);
-  }, [picked, correct, answer, onNext]);
+  }, [picked, correct, answer]);
 
   useEffect(() => {
-    if (!naprawione) return;
-    playFeedbackTone("good");
-    const timer = setTimeout(onNext, 900);
-    return () => clearTimeout(timer);
-  }, [naprawione, onNext]);
+    if (naprawione) playFeedbackTone("good");
+  }, [naprawione]);
 
   function pick(option: string) {
     setPicked(option);
@@ -1352,6 +1348,8 @@ function RedWordScreen({
           👆 Posłuchaj i stuknij dobre słowo, żeby iść dalej.
         </p>
       )}
+
+      {rozstrzygniete && <BigButton onClick={onNext}>Dalej ▸</BigButton>}
 
       {mode === "parent" && picked === null && (
         <p className="text-xs text-paper/50">
