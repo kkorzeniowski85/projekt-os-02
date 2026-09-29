@@ -33,7 +33,7 @@ import { bookOfSession, bookReads, bookUnlocked } from "@/lib/books/progress";
 import { BOOKS, getBook } from "@/lib/curriculum/books";
 import { lessonGraphemes, lessonWords } from "@/lib/curriculum/lessons";
 import { IPA_BY_GRAPHEME, trickyHint } from "@/lib/curriculum/ipa";
-import { getSound } from "@/lib/curriculum/sounds";
+import { getSound, SET_LABEL, type SoundSet } from "@/lib/curriculum/sounds";
 import { RHYMES } from "@/lib/curriculum/rhymes";
 import { sentenceTexts } from "@/lib/curriculum/sentences";
 import { getTopic, TOPICS, vocabPhrases, vocabWords } from "@/lib/curriculum/vocab";
@@ -430,32 +430,48 @@ export function LigaPanel() {
         {BOOKS.length === 0 ? (
           <p className="text-paper/60">Jeszcze nie ma książeczek.</p>
         ) : (
-          <ul className="space-y-2 text-sm text-paper/80">
-            {BOOKS.map((book) => {
-              const own = reads.filter((read) => read.bookId === book.id);
-              const last = own[0];
-              const gate = getSound(book.afterSoundId)?.grapheme ?? book.afterSoundId;
-              return (
-                <li key={book.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span aria-hidden>{book.emoji}</span>
-                  <Link href={`/ksiazeczki/${book.id}`} className="font-bold underline">
-                    <span className="font-reading">{book.titleEn}</span>
-                  </Link>
-                  <span className="text-paper/50">
-                    po dźwięku <span className="font-reading">{gate}</span>
-                    {bookUnlocked(state, book) ? "" : " · jeszcze zablokowana"}
-                  </span>
-                  <span>
-                    {!last
-                      ? "nieczytana"
-                      : `${own.length}× · ostatnio ${new Date(last.ts).toLocaleDateString("pl-PL")}${
-                          last.judged > 0 ? ` · sam ${last.alone} z ${last.judged} stron` : ""
-                        }${last.finished ? "" : " · przerwana"}`}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+          ([1, 2, 3] as SoundSet[]).map((set) => {
+            const books = BOOKS.filter((book) => getSound(book.afterSoundId)?.set === set);
+            if (books.length === 0) return null;
+            const finished = books.filter((book) =>
+              reads.some((read) => read.bookId === book.id && read.finished),
+            ).length;
+            const anyUnlocked = books.some((book) => bookUnlocked(state, book));
+            return (
+              <details key={set} open={anyUnlocked} className="mb-2">
+                <summary className="min-h-11 cursor-pointer text-sm font-bold">
+                  {SET_LABEL[set]} · {books.length} książeczek, przeczytane: {finished}
+                  {anyUnlocked ? "" : " · jeszcze zablokowane"}
+                </summary>
+                <ul className="mt-2 space-y-2 text-sm text-paper/80">
+                  {books.map((book) => {
+                    const own = reads.filter((read) => read.bookId === book.id);
+                    const last = own[0];
+                    const gate = getSound(book.afterSoundId)?.grapheme ?? book.afterSoundId;
+                    return (
+                      <li key={book.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span aria-hidden>{book.emoji}</span>
+                        <Link href={`/ksiazeczki/${book.id}`} className="font-bold underline">
+                          <span className="font-reading">{book.titleEn}</span>
+                        </Link>
+                        <span className="text-paper/50">
+                          po dźwięku <span className="font-reading">{gate}</span>
+                          {bookUnlocked(state, book) ? "" : " · jeszcze zablokowana"}
+                        </span>
+                        <span>
+                          {!last
+                            ? "nieczytana"
+                            : `${own.length}× · ostatnio ${new Date(last.ts).toLocaleDateString("pl-PL")}${
+                                last.judged > 0 ? ` · sam ${last.alone} z ${last.judged} stron` : ""
+                              }${last.finished ? "" : " · przerwana"}`}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </details>
+            );
+          })
         )}
         <div className="mt-3">
           <ParentTip>

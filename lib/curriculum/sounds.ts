@@ -14,6 +14,13 @@ export type SoundSet = 1 | 2 | 3;
 
 export type SoundKind = "single-letter" | "special-friend" | "speed-sound";
 
+/** Etykiety zestawów — wspólne dla mapy dźwięków i listy książeczek. */
+export const SET_LABEL: Record<SoundSet, string> = {
+  1: "Set 1 — litery i „special friends”",
+  2: "Set 2 — 12 speed sounds",
+  3: "Set 3 — dalsze dźwięki",
+};
+
 export type Sound = {
   /** Identyfikator w URL i w danych postępu. Stabilny — nie zmieniać. */
   id: string;

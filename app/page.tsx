@@ -32,7 +32,7 @@ import {
 } from "@/lib/akademia/progress/types";
 import { tablesSummary } from "@/lib/akademia/tables/practice";
 import { hasLesson } from "@/lib/curriculum/lessons";
-import { getSound, SOUNDS, type Sound, type SoundSet } from "@/lib/curriculum/sounds";
+import { getSound, SET_LABEL, SOUNDS, type Sound, type SoundSet } from "@/lib/curriculum/sounds";
 import { TOPICS } from "@/lib/curriculum/vocab";
 import { combinedMission, type MissionStepView } from "@/lib/dailyMission";
 import { HEROES } from "@/lib/heroes";
@@ -40,12 +40,6 @@ import { recommendNextTopic } from "@/lib/progress/rules";
 import { useProgress } from "@/lib/progress/store";
 import type { SoundState, SoundStatus } from "@/lib/progress/types";
 import { useDeviceRole } from "@/lib/useDeviceRole";
-
-const SET_LABEL: Record<SoundSet, string> = {
-  1: "Set 1 — litery i „special friends”",
-  2: "Set 2 — 12 speed sounds",
-  3: "Set 3 — dalsze dźwięki",
-};
 
 const STATUS_STYLE: Record<SoundStatus | "locked", string> = {
   mastered: "bg-hero-lime text-night",

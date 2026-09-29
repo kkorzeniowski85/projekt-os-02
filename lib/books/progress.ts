@@ -111,11 +111,14 @@ export function bookReads(state: ProgressState): BookRead[] {
 }
 
 /**
- * Książeczka do polecenia „dla chętnych”: najłatwiejsza odblokowana, której
- * dziecko jeszcze nie doczytało do końca. Gdy wszystkie odblokowane są
- * przeczytane — null (misja wraca do drugiej sesji dźwięku).
+ * Książeczka do polecenia „dla chętnych”: nieprzeczytana do końca, najbliższa
+ * poziomu dziecka (najtrudniejsza z odblokowanych) — tak jak w szkole dziecko
+ * dostaje książeczkę z bieżącego etapu, a łatwiejsze zostają na rozgrzewkę.
+ * Gdy wszystkie odblokowane są przeczytane — null (misja wraca do drugiej
+ * sesji dźwięku).
  */
 export function suggestedBook(state: ProgressState): Book | null {
   const finished = new Set(bookReads(state).filter((read) => read.finished).map((read) => read.bookId));
-  return BOOKS.find((book) => bookUnlocked(state, book) && !finished.has(book.id)) ?? null;
+  const open = BOOKS.filter((book) => bookUnlocked(state, book) && !finished.has(book.id));
+  return open[open.length - 1] ?? null;
 }
