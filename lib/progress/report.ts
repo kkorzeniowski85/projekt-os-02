@@ -9,6 +9,8 @@
  *    samodzielnie w arkuszu.
  */
 
+import { bookReads } from "@/lib/books/progress";
+import { getBook } from "@/lib/curriculum/books";
 import { getSound } from "@/lib/curriculum/sounds";
 import { getTopic } from "@/lib/curriculum/vocab";
 import { accuracyOf, RULES, speakingStats } from "./rules";
@@ -122,6 +124,27 @@ export function buildMarkdownReport(state: ProgressState, now = Date.now()): str
   }
   lines.push("");
 
+  // Książeczki: co dziecko czyta samo, a co jeszcze z pomocą — po tytułach,
+  // bo to poziomy trudności (kolejność jak w BOOKS).
+  lines.push("## Książeczki (czytanie całych historyjek)");
+  lines.push("");
+  const reads = bookReads(state);
+  if (reads.length === 0) {
+    lines.push("Jeszcze żadnej książeczki.");
+  } else {
+    for (const read of reads.slice(0, 12)) {
+      const book = getBook(read.bookId);
+      const how =
+        read.judged > 0
+          ? `sam ${read.alone} z ${read.judged} stron (ocena rodzica)`
+          : `${read.pages} stron, tryb samodzielny (bez oceny)`;
+      lines.push(
+        `- ${formatDate(read.ts)} — \`${book?.titleEn ?? read.bookId}\`${read.finished ? "" : " (przerwana)"}: ${how}`,
+      );
+    }
+  }
+  lines.push("");
+
   lines.push("## Gdzie idzie trudno");
   lines.push("");
   const wrongByItem = new Map<
@@ -129,7 +152,8 @@ export function buildMarkdownReport(state: ProgressState, now = Date.now()): str
     { wrong: number; total: number; subjectId: string; item: string; track: string }
   >();
   for (const attempt of recentAttempts) {
-    if (attempt.correct === null) continue;
+    // Strona książeczki „z pomocą” to nie błąd — ma własną sekcję wyżej.
+    if (attempt.correct === null || attempt.exercise === "book") continue;
     const key = `${attempt.soundId}\u0000${attempt.item}`;
     const entry = wrongByItem.get(key) ?? {
       wrong: 0,
@@ -173,6 +197,7 @@ export function buildMarkdownReport(state: ProgressState, now = Date.now()): str
     command: "command (co robisz)",
     collocation: "collocation (które słowo pasuje)",
     say: "say (powiedz na głos)",
+    book: "book (strona książeczki)",
   } as const;
   for (const exercise of Object.keys(EXERCISE_LABEL) as (keyof typeof EXERCISE_LABEL)[]) {
     const times = recentAttempts

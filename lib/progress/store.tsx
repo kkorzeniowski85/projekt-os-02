@@ -365,7 +365,12 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         track: commit.track,
       }));
 
-      const scored = attempts.filter((attempt) => attempt.correct !== null);
+      // Strony książeczki nie oceniają dźwięku: „z pomocą” przy czytaniu całej
+      // historyjki to nie to samo, co chybione zadanie z lekcji. Zostają w
+      // dzienniku prób (historia czytań: lib/books/progress.ts), ale nie w wyniku.
+      const scored = attempts.filter(
+        (attempt) => attempt.correct !== null && attempt.exercise !== "book",
+      );
       const session: SessionRecord = {
         id: newId(),
         soundId: commit.soundId,

@@ -12,6 +12,7 @@
  * się WYNIEŚĆ (markdown/CSV), niż żeby ładnie wyglądały w środku.
  */
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BigButton, Card, ParentTip } from "@/components/ui";
 import {
@@ -28,6 +29,8 @@ import {
   type VoiceStatus,
 } from "@/lib/audio";
 import { PhonemeRecorder } from "@/components/PhonemeRecorder";
+import { bookOfSession, bookReads, bookUnlocked } from "@/lib/books/progress";
+import { BOOKS, getBook } from "@/lib/curriculum/books";
 import { lessonGraphemes, lessonWords } from "@/lib/curriculum/lessons";
 import { IPA_BY_GRAPHEME, trickyHint } from "@/lib/curriculum/ipa";
 import { getSound } from "@/lib/curriculum/sounds";
@@ -46,7 +49,12 @@ import {
   speakingStats,
 } from "@/lib/progress/rules";
 import { useProgress } from "@/lib/progress/store";
-import { trackOf, type SoundState } from "@/lib/progress/types";
+import {
+  trackOf,
+  type ProgressState,
+  type SessionRecord,
+  type SoundState,
+} from "@/lib/progress/types";
 import { useSettings, writeSettings } from "@/lib/settings";
 import { plural, soundsWord } from "./plural";
 
@@ -166,6 +174,14 @@ function shareLabel({ own, total }: { own: number; total: number }): string {
   return total === 0 ? "brak ocen" : `${Math.round((own / total) * 100)}% (${own} z ${total})`;
 }
 
+/** Etykieta sesji na liście: temat, książeczka albo grafem dźwięku. */
+function sessionLabel(state: ProgressState, session: SessionRecord): string {
+  if (trackOf(session) === "vocab") return getTopic(session.soundId)?.titlePl ?? session.soundId;
+  const bookId = bookOfSession(state, session);
+  if (bookId) return `📖 ${getBook(bookId)?.titleEn ?? bookId}`;
+  return getSound(session.soundId)?.grapheme ?? session.soundId;
+}
+
 export function LigaPanel() {
   const { state, setChildName, resetAll } = useProgress();
   const settings = useSettings();
@@ -196,6 +212,7 @@ export function LigaPanel() {
   const recommendation = recommendNext(state);
   const topicRecommendation = recommendNextTopic(state);
   const speaking = speakingStats(state);
+  const reads = bookReads(state);
 
   // Lista głosów ładuje się asynchronicznie, więc pytamy o nią po zamontowaniu
   // (i raz jeszcze chwilę później) zamiast w trakcie renderu.
@@ -404,6 +421,60 @@ export function LigaPanel() {
       </Card>
 
       <Card>
+        <h2 className="mb-1 text-lg font-bold">Książeczki</h2>
+        <p className="mb-3 text-sm text-paper/60">
+          Całe historyjki z poznanych dźwięków — dziecko czyta samo, potem sprawdza nagraniem.
+          „Sam” to Twoja ocena strony w trybie z rodzicem; strony nie wchodzą do oceny dźwięku.
+          Każdą książeczkę można wydrukować (przycisk w książeczce).
+        </p>
+        {BOOKS.length === 0 ? (
+          <p className="text-paper/60">Jeszcze nie ma książeczek.</p>
+        ) : (
+          <ul className="space-y-2 text-sm text-paper/80">
+            {BOOKS.map((book) => {
+              const own = reads.filter((read) => read.bookId === book.id);
+              const last = own[0];
+              const gate = getSound(book.afterSoundId)?.grapheme ?? book.afterSoundId;
+              return (
+                <li key={book.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span aria-hidden>{book.emoji}</span>
+                  <Link href={`/ksiazeczki/${book.id}`} className="font-bold underline">
+                    <span className="font-reading">{book.titleEn}</span>
+                  </Link>
+                  <span className="text-paper/50">
+                    po dźwięku <span className="font-reading">{gate}</span>
+                    {bookUnlocked(state, book) ? "" : " · jeszcze zablokowana"}
+                  </span>
+                  <span>
+                    {!last
+                      ? "nieczytana"
+                      : `${own.length}× · ostatnio ${new Date(last.ts).toLocaleDateString("pl-PL")}${
+                          last.judged > 0 ? ` · sam ${last.alone} z ${last.judged} stron` : ""
+                        }${last.finished ? "" : " · przerwana"}`}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <div className="mt-3">
+          <ParentTip>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>
+                Kolejność to poziomy trudności. Zacznijcie od najłatwiejszej odblokowanej — sukces
+                na starcie jest ważniejszy niż tempo.
+              </li>
+              <li>
+                Gdy „sam” wychodzi na większości stron — następna. Gdy na mniej niż połowie —
+                przeczytajcie ją razem i wróćcie do niej za kilka dni.
+              </li>
+              <li>Wydruk: dziecko czyta stronę i rysuje, co przeczytało — rysunek pokazuje, czy zrozumiało.</li>
+            </ul>
+          </ParentTip>
+        </div>
+      </Card>
+
+      <Card>
         <h2 className="mb-1 text-lg font-bold">Ćwiczenia ruchowe</h2>
         <p className="mb-3 text-sm text-paper/70">
           „Pokaż ruchem!” i „Teraz ty rządzisz” w sesjach z rodzicem (tor 2). Ruch wzmacnia pamięć
@@ -477,11 +548,7 @@ export function LigaPanel() {
           <ul className="space-y-1 text-sm text-paper/80">
             {recentSessions.map((session) => (
               <li key={session.id} className="flex flex-wrap gap-x-3">
-                <span className="font-bold">
-                  {trackOf(session) === "vocab"
-                    ? (getTopic(session.soundId)?.titlePl ?? session.soundId)
-                    : (getSound(session.soundId)?.grapheme ?? session.soundId)}
-                </span>
+                <span className="font-bold">{sessionLabel(state, session)}</span>
                 <span className="text-paper/50">
                   {trackOf(session) === "vocab" ? "słownictwo" : "czytanie"}
                 </span>

@@ -58,7 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {TEST_MODE && (
           <div
             role="status"
-            className="sticky z-40 bg-hero-pink px-4 py-2 text-center text-sm font-bold text-night"
+            className="sticky z-40 bg-hero-pink px-4 py-2 text-center text-sm font-bold text-night print:hidden"
             style={{ top: "env(safe-area-inset-top)" }}
           >
             Wersja testowa — działa na kopii danych; zmiany nie trafiają do prawdziwej Ligi ani

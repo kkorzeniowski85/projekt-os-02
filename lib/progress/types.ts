@@ -40,7 +40,9 @@ export type ExerciseKind =
   | "collocation"
   | "say"
   | "act"
-  | "sentence";
+  | "sentence"
+  /** Strona książeczki (lib/books/progress.ts): ocena rodzica, sam = null. */
+  | "book";
 
 /** Tryb pracy: dziecko samo vs. wspólnie z rodzicem. */
 export type SessionMode = "solo" | "parent";
@@ -79,7 +81,7 @@ export type SessionRecord = {
   startedTs: number;
   endedTs: number;
   correct: number;
-  /** Liczba ocenianych prób (bez ćwiczeń mówionych). */
+  /** Liczba ocenianych prób (bez ćwiczeń mówionych i bez stron książeczek). */
   scored: number;
 };
 

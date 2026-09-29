@@ -23,6 +23,8 @@
 
 import { dailyMission as akademiaMission, type MissionStep as AkademiaStep } from "@/lib/akademia/mission";
 import type { ProgressState as AkademiaState } from "@/lib/akademia/progress/types";
+import { bookOfSession, suggestedBook } from "@/lib/books/progress";
+import { getBook } from "@/lib/curriculum/books";
 import { hasLesson } from "@/lib/curriculum/lessons";
 import { getSound } from "@/lib/curriculum/sounds";
 import { getTopic } from "@/lib/curriculum/vocab";
@@ -82,9 +84,19 @@ function countedToday(state: LigaState, now: number): SessionRecord[] {
     .sort((a, b) => b.endedTs - a.endedTs);
 }
 
+/**
+ * Sesja, która zaliczyła krok 1: pierwsza dzisiejsza zaliczona sesja Ligi poza
+ * książeczkami. Książeczka to „więcej czytania” (bonus), nie lekcja dnia.
+ */
+function stepSessionOf(state: LigaState, now: number): SessionRecord | undefined {
+  const lessons = countedToday(state, now).filter(
+    (session) => bookOfSession(state, session) === null,
+  );
+  return lessons[lessons.length - 1];
+}
+
 function soundsStep(state: LigaState, now: number): MissionStepView {
-  const counted = countedToday(state, now);
-  const doneToday = counted[counted.length - 1];
+  const doneToday = stepSessionOf(state, now);
 
   // Zrobione dziś zostaje na liście z ✅ — pierwsza zaliczona sesja dnia (to
   // ona odhaczyła krok; kolejne sesje dźwięków pokazuje bonus).
@@ -149,7 +161,8 @@ function soundsStep(state: LigaState, now: number): MissionStepView {
  *  - krok 1 jeszcze niezrobiony: powtórka dźwięku, który dziecko już ćwiczyło
  *    i widziało najdawniej (inny niż dźwięk z kroku 1). Na samym początku
  *    nauki nie ma czego powtarzać — wtedy bonusu nie ma;
- *  - krok 1 zrobiony: to, co Liga poleca teraz (recommendNext) — zwykle
+ *  - krok 1 zrobiony: nieprzeczytana książeczka na poziomie dziecka, a gdy
+ *    takiej nie ma — to, co Liga poleca teraz (recommendNext), zwykle
  *    następny dźwięk, bo sesja przed chwilą przesunęła rekomendację;
  *  - zaliczony, gdy dziś jest sesja dźwięków INNA niż ta, która zaliczyła
  *    krok 1 (pierwsza sesja dnia). Sesja słów po kroku 1 bonusu nie zalicza —
@@ -157,9 +170,20 @@ function soundsStep(state: LigaState, now: number): MissionStepView {
  */
 function readingBonus(state: LigaState, step: MissionStepView, now: number): MissionStepView | null {
   const today = countedToday(state, now);
-  const stepSession = today[today.length - 1];
+  const stepSession = stepSessionOf(state, now);
   const extra = today.find((session) => session !== stepSession && trackOf(session) === "phonics");
   if (extra) {
+    const bookId = bookOfSession(state, extra);
+    if (bookId) {
+      return {
+        emoji: "📖",
+        title: "Książeczka",
+        titleReading: getBook(bookId)?.titleEn ?? bookId,
+        subtitle: "Dźwięki · więcej czytania",
+        href: `/ksiazeczki/${bookId}`,
+        done: true,
+      };
+    }
     return {
       emoji: "📖",
       title: "Dźwięk",
@@ -184,6 +208,23 @@ function readingBonus(state: LigaState, step: MissionStepView, now: number): Mis
       subtitle: "Dźwięki · więcej czytania",
       href: `/sesja/${oldest.soundId}`,
       done: false,
+    };
+  }
+
+  // Krok 1 zrobiony: najpierw książeczka na poziomie dziecka, której jeszcze
+  // nie doczytało — cała historyjka to lepsze „więcej czytania” niż druga
+  // lekcja tego samego dnia. Gdy wszystkie odblokowane są przeczytane, wraca
+  // drugi dźwięk.
+  const book = suggestedBook(state);
+  if (book) {
+    return {
+      emoji: "📖",
+      title: "Książeczka",
+      titleReading: book.titleEn,
+      subtitle: "Dźwięki · więcej czytania",
+      href: `/ksiazeczki/${book.id}`,
+      done: false,
+      note: "Przeczytaj sam, potem sprawdź nagraniem.",
     };
   }
 

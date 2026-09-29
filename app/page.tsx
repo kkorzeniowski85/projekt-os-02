@@ -208,6 +208,13 @@ export default function HomePage() {
               kształtu litery (to dziecko zna z polskiego), tylko tego, JAK BRZMI PO ANGIELSKU
               — przy 11 z 25 polski nawyk myli, np. „w”, „y”, „j” i „c” to zupełnie inne dźwięki.
             </p>
+            {/* Książeczki: całe historyjki z poznanych dźwięków — krok między
+                zdaniem na koniec lekcji a prawdziwą książką. */}
+            <div className="flex flex-wrap gap-3">
+              <BigButton href="/ksiazeczki" tone="quiet">
+                📖 Książeczki
+              </BigButton>
+            </div>
           </div>
 
           {/* Tor 2: słuchanie i słownictwo */}
