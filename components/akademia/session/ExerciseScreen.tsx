@@ -21,13 +21,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnswerBox, NumberPad } from "@/components/akademia/NumberPad";
 import { BigButton, Card, ParentTip, Speaker } from "@/components/akademia/ui";
 import {
+  pausePlayback,
   playFastDing,
   playFeedbackTone,
   playSequence,
   playSound,
   playText,
+  resumePlayback,
+  setPlaybackSpeed,
   stopAudio,
 } from "@/lib/akademia/audio";
+import { STORY_SPEEDS, storySpeedFactor, useSettings, writeSettings } from "@/lib/settings";
 import type { PendingAttempt } from "@/lib/akademia/progress/store";
 import type { SessionMode } from "@/lib/akademia/progress/types";
 import {
@@ -996,8 +1000,22 @@ function PassageExercise({ exercise, onNext, paused }: Props<"passage">) {
   // tylko odtworzenie, którego nic później nie zastąpiło.
   const playRef = useRef(0);
 
-  const playAll = () => {
+  // Historia nie rusza sama: dziecko (albo rodzic) włącza ją przyciskiem, może
+  // ją wstrzymać, zatrzymać (i zacząć od początku) oraz wybrać tempo. Prośba
+  // rodzica 2026-09-30 — dotąd czytała się od razu po wejściu.
+  const [playState, setPlayState] = useState<"idle" | "playing" | "paused">("idle");
+  const { storySpeed } = useSettings();
+
+  // Tempo dotyczy tylko tego ekranu: przy wyjściu wraca 1, żeby liczby i
+  // tabliczka grały tak jak nagrano.
+  useEffect(() => {
+    setPlaybackSpeed(storySpeedFactor(storySpeed));
+    return () => setPlaybackSpeed(1);
+  }, [storySpeed]);
+
+  const start = () => {
     playRef.current += 1;
+    setPlayState("playing");
     void playSequence(
       exercise.sentences.map((sentence, index) => ({
         kind: "text" as const,
@@ -1007,30 +1025,85 @@ function PassageExercise({ exercise, onNext, paused }: Props<"passage">) {
       350,
     ).then((finished) => {
       // Podświetlenie zeruje tylko naturalny koniec — przerwaniem (stuknięte
-      // zdanie, „Jeszcze raz") zajmuje się to, co przerwało.
+      // zdanie, Stop) zajmuje się to, co przerwało.
       if (finished) {
         setCurrent(null);
         setHeard(true);
+        setPlayState("idle");
       }
     });
   };
 
+  const pause = () => {
+    pausePlayback();
+    setPlayState("paused");
+  };
+
+  const resume = () => {
+    resumePlayback();
+    setPlayState("playing");
+  };
+
+  // Stop: cisza, bez podświetlenia; następny Start czyta od pierwszego zdania.
+  const stop = () => {
+    playRef.current += 1;
+    stopAudio();
+    setCurrent(null);
+    setPlayState("idle");
+  };
+
   useEffect(() => {
-    // Najpierw uchem (Simple View of Reading): tekst czyta się sam na starcie.
-    const timer = setTimeout(playAll, 400);
-    return () => {
-      clearTimeout(timer);
-      stopAudio();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Nowy tekst (albo wyjście z ekranu): nic nie gra, nic nie jest zaznaczone.
+    setCurrent(null);
+    setPlayState("idle");
+    return () => stopAudio();
   }, [exercise]);
+
+  const controlClass =
+    "flex min-h-14 items-center justify-center gap-2 rounded-blob px-6 py-3 text-xl font-bold transition active:translate-y-1 active:shadow-none disabled:opacity-40";
 
   return (
     <Card className="no-select flex flex-col items-center gap-4 text-center">
-      <p className="text-sm font-bold text-paper/60">Posłuchaj tekstu. Pytania będą potem.</p>
+      <p className="text-sm font-bold text-paper/60">
+        Włącz historię przyciskiem. Pytania będą potem.
+      </p>
       <h2 className="font-reading text-3xl font-black">{exercise.title}</h2>
       <div className="flex flex-wrap justify-center gap-2">
-        <Speaker onPlay={playAll} label={heard ? "Jeszcze raz" : "Posłuchaj całości"} />
+        {playState === "idle" && (
+          <button
+            type="button"
+            onClick={start}
+            className={`${controlClass} bg-hero-gold text-night shadow-[0_6px_0_#c99a1f]`}
+          >
+            <span aria-hidden>▶</span> {heard ? "Jeszcze raz" : "Start"}
+          </button>
+        )}
+        {playState === "playing" && (
+          <button
+            type="button"
+            onClick={pause}
+            className={`${controlClass} bg-hero-blue text-white shadow-[0_6px_0_#1c47b3]`}
+          >
+            <span aria-hidden>⏸</span> Pauza
+          </button>
+        )}
+        {playState === "paused" && (
+          <button
+            type="button"
+            onClick={resume}
+            className={`${controlClass} bg-hero-gold text-night shadow-[0_6px_0_#c99a1f]`}
+          >
+            <span aria-hidden>▶</span> Wznów
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={stop}
+          disabled={playState === "idle"}
+          className={`${controlClass} bg-white/10 text-paper shadow-[0_4px_0_rgba(0,0,0,0.25)]`}
+        >
+          <span aria-hidden>⏹</span> Stop
+        </button>
         <button
           type="button"
           onClick={() => setShowPl((value) => !value)}
@@ -1041,6 +1114,23 @@ function PassageExercise({ exercise, onNext, paused }: Props<"passage">) {
         </button>
       </div>
 
+      <div role="group" aria-label="Tempo czytania" className="flex flex-wrap items-center justify-center gap-2">
+        <span className="text-sm text-paper/60">Tempo:</span>
+        {STORY_SPEEDS.map((speed) => (
+          <button
+            key={speed.id}
+            type="button"
+            onClick={() => writeSettings({ storySpeed: speed.id })}
+            aria-pressed={storySpeed === speed.id}
+            className={`min-h-11 rounded-full px-4 text-sm font-bold transition ${
+              storySpeed === speed.id ? "bg-hero-cyan text-night" : "bg-white/10 text-paper"
+            }`}
+          >
+            {speed.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex w-full max-w-2xl flex-col gap-2 text-left">
         {exercise.sentences.map((sentence, index) => (
           <button
@@ -1048,6 +1138,8 @@ function PassageExercise({ exercise, onNext, paused }: Props<"passage">) {
             type="button"
             onClick={() => {
               const play = ++playRef.current;
+              // Stuknięte zdanie zastępuje całą historię (i kasuje pauzę).
+              setPlayState("idle");
               setCurrent(index);
               void playText(sentence.en, { wait: true }).then(() => {
                 if (play === playRef.current) setCurrent(null);

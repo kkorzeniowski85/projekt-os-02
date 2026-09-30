@@ -13,12 +13,32 @@ import { useSyncExternalStore } from "react";
 const KEY = "phonics.settings.v1";
 const CHANGE_EVENT = "phonics-settings-change";
 
+/**
+ * Tempo czytania historii (Akademia → Czytanie). „Normalnie” to tempo nagrań,
+ * jakie było od początku; dwa pozostałe są od niego WOLNIEJSZE (prośba
+ * rodzica 2026-09-30) — dziecko uczące się języka częściej potrzebuje zwolnić
+ * niż przyspieszyć.
+ */
+export type StorySpeed = "normal" | "slower" | "slowest";
+
+export const STORY_SPEEDS: { id: StorySpeed; factor: number; label: string }[] = [
+  { id: "normal", factor: 1, label: "Normalnie" },
+  { id: "slower", factor: 0.85, label: "Wolniej" },
+  { id: "slowest", factor: 0.7, label: "Najwolniej" },
+];
+
+export function storySpeedFactor(speed: StorySpeed): number {
+  return STORY_SPEEDS.find((candidate) => candidate.id === speed)?.factor ?? 1;
+}
+
 export type Settings = {
+  /** Tempo czytania historii w Czytaniu (Akademia). */
+  storySpeed: StorySpeed;
   /** Bez „Pokaż ruchem!” i „Teraz ty rządzisz” w sesjach toru 2 — decyzja rodzica. */
   noMovement: boolean;
 };
 
-const DEFAULTS: Settings = { noMovement: false };
+const DEFAULTS: Settings = { noMovement: false, storySpeed: "normal" };
 
 let cached: { raw: string | null; value: Settings } | null = null;
 
@@ -36,7 +56,13 @@ export function readSettings(): Settings {
   let value = DEFAULTS;
   try {
     const parsed = raw ? (JSON.parse(raw) as Partial<Settings>) : {};
-    value = { ...DEFAULTS, noMovement: parsed.noMovement === true };
+    value = {
+      ...DEFAULTS,
+      noMovement: parsed.noMovement === true,
+      storySpeed: STORY_SPEEDS.some((candidate) => candidate.id === parsed.storySpeed)
+        ? (parsed.storySpeed as StorySpeed)
+        : "normal",
+    };
   } catch {
     // Uszkodzony zapis — domyślne.
   }

@@ -14,7 +14,7 @@ export function ReadingSession({ textId }: { textId: string }) {
       emoji={text.emoji}
       goalPl={text.titlePl}
       parentIntroPl={text.parentPl}
-      startNotePl="Najpierw tekst przeczyta się sam. Każde zdanie i pytanie można odsłuchać."
+      startNotePl="Historię włączasz przyciskiem Start — można ją wstrzymać, zatrzymać i zacząć od początku oraz wybrać tempo. Każde zdanie i pytanie można też odsłuchać."
       exitHref="/czytanie/"
       exitLabel="Inne teksty"
       build={() => buildReadingSession(text)}

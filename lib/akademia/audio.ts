@@ -129,6 +129,85 @@ let playToken = 0;
  */
 let settlePending: (() => void) | null = null;
 
+// --- Pauza i tempo (czytanie historii) ------------------------------------------
+
+/**
+ * Pauza użytkownika: nagranie staje w miejscu (nie kończy się), a sekwencja
+ * czeka przed kolejnym krokiem. To co innego niż interrupt() — przerwanie
+ * kasuje odtwarzanie, pauza je tylko wstrzymuje i da się wznowić.
+ */
+let userPaused = false;
+let pausedMidClip = false;
+let pauseWaiters: Array<() => void> = [];
+
+function whilePaused(): Promise<void> {
+  return userPaused ? new Promise((resolve) => pauseWaiters.push(resolve)) : Promise.resolve();
+}
+
+function releasePauseWaiters(): void {
+  const waiters = pauseWaiters;
+  pauseWaiters = [];
+  waiters.forEach((resolve) => resolve());
+}
+
+/** Kasuje pauzę (stop, nowe odtworzenie) i zwalnia wszystko, co na nią czeka. */
+function clearPause(): void {
+  userPaused = false;
+  pausedMidClip = false;
+  releasePauseWaiters();
+}
+
+/**
+ * Timeout, który podczas pauzy się nie kończy: zapas na przeglądarki gubiące
+ * „ended" nie może uznać wstrzymanego nagrania za skończone. Zwraca funkcję
+ * kasującą.
+ */
+function pauseAwareTimeout(fn: () => void, ms: number): () => void {
+  let timer: ReturnType<typeof setTimeout>;
+  const arm = () => {
+    timer = setTimeout(() => (userPaused ? arm() : fn()), ms);
+  };
+  arm();
+  return () => clearTimeout(timer);
+}
+
+/** Mnożnik tempa nagrań i syntezy (1 = tak jak nagrano). Ustawia go ekran historii. */
+let speedFactor = 1;
+
+/**
+ * Tempo odtwarzania — działa od razu na to, co gra, i na kolejne nagrania.
+ * Ekran, który je zmienia, przywraca 1 przy wyjściu (inne ćwiczenia grają
+ * tak jak nagrano).
+ */
+export function setPlaybackSpeed(next: number): void {
+  speedFactor = next;
+  if (sharedAudio) {
+    sharedAudio.defaultPlaybackRate = next;
+    sharedAudio.playbackRate = next;
+  }
+}
+
+/** Wstrzymuje nagranie w miejscu; wznowienie: resumePlayback. */
+export function pausePlayback(): void {
+  if (userPaused) return;
+  userPaused = true;
+  pausedMidClip = Boolean(sharedAudio && !sharedAudio.paused && !sharedAudio.ended);
+  if (pausedMidClip) sharedAudio?.pause();
+  if (typeof window !== "undefined" && "speechSynthesis" in window && window.speechSynthesis.speaking) {
+    window.speechSynthesis.pause();
+  }
+}
+
+/** Wznawia od miejsca pauzy (a gdy pauza wypadła między nagraniami — od następnego). */
+export function resumePlayback(): void {
+  if (!userPaused) return;
+  userPaused = false;
+  if (pausedMidClip && sharedAudio) void sharedAudio.play().catch(() => undefined);
+  pausedMidClip = false;
+  if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.resume();
+  releasePauseWaiters();
+}
+
 /**
  * Gra plik; z `wait` czeka do końca nagrania (albo do przerwania przez inne
  * odtworzenie). Czekanie jest potrzebne sekwencjom: liczeniu skokami i
@@ -143,6 +222,9 @@ async function playUrl(url: string, wait: boolean): Promise<PlayStatus> {
   audio.pause();
   audio.muted = false;
   audio.src = url;
+  // Zmiana src przywraca domyślne tempo, więc ustawiamy je po niej.
+  audio.defaultPlaybackRate = speedFactor;
+  audio.playbackRate = speedFactor;
 
   const finished = wait
     ? new Promise<void>((resolve) => {
@@ -150,7 +232,7 @@ async function playUrl(url: string, wait: boolean): Promise<PlayStatus> {
           audio.removeEventListener("ended", done);
           audio.removeEventListener("error", done);
           audio.removeEventListener("pause", onPause);
-          clearTimeout(safety);
+          stopSafety();
           if (settlePending === done) settlePending = null;
           resolve();
         };
@@ -160,22 +242,40 @@ async function playUrl(url: string, wait: boolean): Promise<PlayStatus> {
         const onPause = () => {
           if (token !== playToken) done();
         };
-        // Polisa na przeglądarki, które gubią zdarzenie „ended".
-        const safety = setTimeout(done, 20000);
+        // Polisa na przeglądarki, które gubią zdarzenie „ended" (nie liczy pauzy).
+        const stopSafety = pauseAwareTimeout(done, 20000);
         audio.addEventListener("ended", done);
         audio.addEventListener("error", done);
         audio.addEventListener("pause", onPause);
       })
     : null;
 
+  // Pauza wypadła, zanim nagranie ruszyło (np. w trakcie pytania o plik).
+  if (userPaused) {
+    await whilePaused();
+    if (token !== playToken) return "interrupted";
+  }
+
   try {
     await audio.play();
   } catch (error) {
     const name = (error as DOMException)?.name;
-    // pause() albo nowy src w trakcie ładowania to przerwanie, nie brak
-    // nagrania — inaczej przerwany tekst czytałby potem syntezator.
-    if (name === "AbortError" || token !== playToken) return "interrupted";
-    return name === "NotAllowedError" ? "blocked" : "failed";
+    // Pauza tuż po starcie przerywa obietnicę play() — to nie koniec nagrania:
+    // czekamy na wznowienie i gramy dalej.
+    if (name === "AbortError" && userPaused && token === playToken) {
+      await whilePaused();
+      if (token !== playToken) return "interrupted";
+      try {
+        await audio.play();
+      } catch {
+        return "interrupted";
+      }
+    } else {
+      // pause() albo nowy src w trakcie ładowania to przerwanie, nie brak
+      // nagrania — inaczej przerwany tekst czytałby potem syntezator.
+      if (name === "AbortError" || token !== playToken) return "interrupted";
+      return name === "NotAllowedError" ? "blocked" : "failed";
+    }
   }
   if (finished) await finished;
   return token === playToken ? "ok" : "interrupted";
@@ -237,13 +337,13 @@ function speak(text: string, rate: number, wait: boolean): Promise<boolean> {
     return Promise.resolve(true);
   }
   return new Promise((resolve) => {
-    const safety = setTimeout(() => resolve(true), 15000);
+    const stopSafety = pauseAwareTimeout(() => resolve(true), 15000);
     utterance.onend = () => {
-      clearTimeout(safety);
+      stopSafety();
       resolve(true);
     };
     utterance.onerror = () => {
-      clearTimeout(safety);
+      stopSafety();
       resolve(true);
     };
     window.speechSynthesis.speak(utterance);
@@ -276,7 +376,7 @@ async function playClipOrSpeak(
     if (status === "blocked") return { source: "unavailable" };
   }
   if (stale()) return { source: "clip" };
-  return (await speak(fallbackText, options.rate, options.wait))
+  return (await speak(fallbackText, options.rate * speedFactor, options.wait))
     ? { source: "tts" }
     : { source: "unavailable" };
 }
@@ -304,6 +404,7 @@ function interrupt(): void {
  */
 function manual<T>(run: () => Promise<T>): Promise<T> {
   sequenceToken += 1;
+  clearPause();
   interrupt();
   return run();
 }
@@ -365,9 +466,15 @@ export type SequenceStep =
  */
 export async function playSequence(steps: SequenceStep[], gapMs = 220): Promise<boolean> {
   const token = ++sequenceToken;
+  clearPause();
   interrupt();
   for (const step of steps) {
     if (token !== sequenceToken) return false;
+    // Pauza między nagraniami: czekamy tu, a nie w środku zdania.
+    if (userPaused) {
+      await whilePaused();
+      if (token !== sequenceToken) return false;
+    }
     step.onStart?.();
     if (step.kind === "number") {
       await playClipOrSpeak(numberClipPath(step.value), numberToWords(step.value), {
@@ -378,7 +485,7 @@ export async function playSequence(steps: SequenceStep[], gapMs = 220): Promise<
       await playClipOrSpeak(textClipPath(step.value), step.value, { wait: true, rate: 0.8 });
     }
     if (token !== sequenceToken) return false;
-    await new Promise((resolve) => setTimeout(resolve, gapMs));
+    await new Promise((resolve) => setTimeout(resolve, gapMs / speedFactor));
   }
   return token === sequenceToken;
 }
@@ -386,6 +493,7 @@ export async function playSequence(steps: SequenceStep[], gapMs = 220): Promise<
 /** Zatrzymuje wszystko, co gra (np. przy wyjściu z ekranu). */
 export function stopAudio(): void {
   sequenceToken += 1;
+  clearPause();
   interrupt();
 }
 
