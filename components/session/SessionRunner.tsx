@@ -50,6 +50,7 @@ type Screen =
   | { kind: "blend"; card: WordCard }
   | { kind: "redword"; answer: string; options: string[] }
   | { kind: "choice"; round: ChoiceRound }
+  | { kind: "meaning"; item: MeaningItem; options: MeaningItem[] }
   | { kind: "sentence"; sentence: LessonSentence };
 
 /**
@@ -61,6 +62,48 @@ type Screen =
 function literaWZapisie(word: string, grapheme: string): boolean {
   if (grapheme.includes("-")) return false;
   return word.toLowerCase().includes(grapheme.toLowerCase());
+}
+
+/** Słowo lekcji ze znaczeniem — do ćwiczenia „Przeczytaj i pokaż”. */
+type MeaningItem = { word: string; pl: string; emoji: string };
+
+/**
+ * „Przeczytaj i pokaż”: dziecko CZYTA słowo (bez nagrania — inaczej ćwiczyłoby
+ * ucho) i wskazuje, co ono znaczy. Lekcja literki uczy wtedy nie tylko
+ * składania dźwięków, ale też słówek — prośba rodzica (2026-09-30): dziecko
+ * teraz bardziej potrzebuje słownictwa. Słowa i dystraktory bierzemy z tej
+ * samej lekcji (każde ma tłumaczenie i obrazek); dystraktor musi mieć inny
+ * obrazek i inne znaczenie, żeby wybór był jednoznaczny.
+ */
+function buildMeaning(lesson: Lesson, count: number): Screen[] {
+  const pool = new Map<string, MeaningItem>();
+  for (const item of [
+    ...lesson.blend.map((c) => ({ word: c.word, pl: c.pl, emoji: c.emoji })),
+    ...lesson.choice.map((r) => ({ word: r.answer, pl: r.pl, emoji: r.emoji })),
+    ...lesson.listen.map((i) => ({ word: i.word, pl: i.pl, emoji: i.emoji })),
+  ]) {
+    if (!pool.has(item.word)) pool.set(item.word, item);
+  }
+  const all = [...pool.values()];
+  // Do czytania tylko słowa, które dziecko w tej lekcji składa albo wybiera —
+  // słowa ze słuchania bywają pułapkami zapisu („blue” przy „u”).
+  const readable = shuffled(
+    all.filter((item) => lesson.blend.some((c) => c.word === item.word) || lesson.choice.some((r) => r.answer === item.word)),
+  );
+  const screens: Screen[] = [];
+  for (const item of readable) {
+    if (screens.length >= count) break;
+    const others = shuffled(all.filter((o) => o.emoji !== item.emoji && o.pl !== item.pl && o.word !== item.word));
+    const picked: MeaningItem[] = [];
+    for (const o of others) {
+      if (picked.length === 2) break;
+      if (picked.some((p) => p.emoji === o.emoji || p.pl === o.pl)) continue;
+      picked.push(o);
+    }
+    if (picked.length < 2) continue;
+    screens.push({ kind: "meaning", item, options: shuffled([item, ...picked]) });
+  }
+  return screens;
 }
 
 /** Fisher-Yates na kopii — wywoływane po kliknięciu startu, nigdy w renderze. */
@@ -120,9 +163,12 @@ function buildScreens(lesson: Lesson, role: DeviceRole): Screen[] {
     .slice(0, 1)
     .map<Screen>((sentence) => ({ kind: "sentence", sentence }));
 
+  const meaning = buildMeaning(lesson, short ? 2 : 3);
+
   return [
     ...listen.map<Screen>((item) => ({ kind: "listen", item })),
     ...blend.map<Screen>((card) => ({ kind: "blend", card })),
+    ...meaning,
     ...redwords,
     ...choice.map<Screen>((round) => ({ kind: "choice", round })),
     ...sentences,
@@ -373,6 +419,17 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
           <SentenceScreen
             key={`sentence-${index}`}
             sentence={screen.sentence}
+            sound={sound}
+            mode={mode}
+            onAnswer={onAnswer}
+            onNext={onNext}
+          />
+        )}
+        {!powtorka && screen?.kind === "meaning" && (
+          <MeaningScreen
+            key={`meaning-${index}`}
+            item={screen.item}
+            options={screen.options}
             sound={sound}
             mode={mode}
             onAnswer={onAnswer}
@@ -1213,6 +1270,17 @@ function PowtorkaEkranu({
         </>
       )}
 
+      {screen.kind === "meaning" && (
+        <>
+          <div className="text-7xl" aria-hidden>
+            {screen.item.emoji}
+          </div>
+          <p className="font-reading text-4xl font-black">{screen.item.word}</p>
+          <p className="text-xl text-hero-cyan">{screen.item.pl}</p>
+          <WordSpeaker word={screen.item.word} label="Posłuchaj" size="lg" />
+        </>
+      )}
+
       {screen.kind === "choice" && (
         <>
           <div className="text-7xl" aria-hidden>
@@ -1225,6 +1293,113 @@ function PowtorkaEkranu({
       )}
 
       <BigButton onClick={onDalej}>Dalej ▸</BigButton>
+    </Card>
+  );
+}
+
+// --- Ćwiczenie: przeczytaj i pokaż (znaczenie słowa) --------------------------
+
+function MeaningScreen({
+  item,
+  options,
+  sound,
+  mode,
+  onAnswer,
+  onNext,
+}: {
+  item: MeaningItem;
+  options: MeaningItem[];
+  sound: Sound;
+  mode: SessionMode;
+  onAnswer: (attempt: PendingAttempt) => void;
+  onNext: () => void;
+}) {
+  const [picked, setPicked] = useState<string | null>(null);
+  const [naprawione, setNaprawione] = useState(false);
+  const startRef = useRef(Date.now());
+
+  const correct = picked !== null && picked === item.word;
+  const wNaprawie = picked !== null && !correct && !naprawione;
+  // Ekran nigdy nie ucieka sam — jak w pozostałych ćwiczeniach (Dalej ▸).
+  const rozstrzygniete = correct || naprawione;
+
+  useEffect(() => {
+    if (picked === null) return;
+    playFeedbackTone(correct ? "good" : "try-again");
+    // Po odpowiedzi słowo gra — dziecko słyszy, czy przeczytało dobrze.
+    void playWord(item.word);
+  }, [picked, correct, item.word]);
+
+  useEffect(() => {
+    if (naprawione) playFeedbackTone("good");
+  }, [naprawione]);
+
+  function pick(option: string) {
+    setPicked(option);
+    onAnswer({
+      ts: Date.now(),
+      soundId: sound.id,
+      exercise: "meaning",
+      item: item.word,
+      correct: option === item.word,
+      responseMs: Date.now() - startRef.current,
+    });
+  }
+
+  return (
+    <Card className="no-select flex flex-col items-center gap-5 text-center">
+      <h2 className="text-2xl font-bold">Przeczytaj i pokaż!</h2>
+      <p className="font-reading text-6xl font-black">{item.word}</p>
+      <p className="text-sm text-paper/60">Co to znaczy? Przeczytaj samo — nagranie zagra po wyborze.</p>
+
+      <div className="grid w-full max-w-2xl gap-3 sm:grid-cols-3">
+        {options.map((option) => {
+          const isAnswer = option.word === item.word;
+          const state =
+            picked === null ? "idle" : isAnswer ? "correct" : option.word === picked ? "wrong" : "dim";
+          return (
+            <button
+              key={option.word}
+              type="button"
+              disabled={picked !== null && !(wNaprawie && isAnswer)}
+              onClick={() => (wNaprawie ? setNaprawione(true) : pick(option.word))}
+              className={`flex flex-col items-center gap-1 rounded-blob px-4 py-5 transition active:translate-y-1 ${
+                state === "idle"
+                  ? "bg-white/15 text-paper shadow-[0_6px_0_rgba(0,0,0,0.3)]"
+                  : state === "correct"
+                    ? `bg-hero-lime text-night ${wNaprawie ? "animate-pulse-ring" : ""}`
+                    : state === "wrong"
+                      ? "bg-hero-pink text-night"
+                      : "bg-white/5 text-paper/40"
+              }`}
+            >
+              <span className="text-6xl" aria-hidden>
+                {option.emoji}
+              </span>
+              <span className="text-lg font-bold">{option.pl}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {wNaprawie && (
+        <p className="text-sm font-bold text-hero-gold">👆 Posłuchaj i stuknij dobre znaczenie, żeby iść dalej.</p>
+      )}
+
+      {picked !== null && (
+        <p className="animate-pop-in text-xl font-bold text-hero-cyan">
+          <span className="font-reading">{item.word}</span> — {item.pl}
+        </p>
+      )}
+
+      {rozstrzygniete && <BigButton onClick={onNext}>Dalej ▸</BigButton>}
+
+      {mode === "parent" && picked === null && (
+        <p className="text-xs text-paper/50">
+          Nie czytaj za dziecko. Trudne słowo — głoska po głosce, potem skleić. Po wyborze powtórzcie
+          słowo na głos i użyjcie go w zdaniu po polsku i po angielsku.
+        </p>
+      )}
     </Card>
   );
 }

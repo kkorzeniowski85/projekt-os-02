@@ -41,6 +41,8 @@ export type ExerciseKind =
   | "say"
   | "act"
   | "sentence"
+  /** Tor 1: przeczytane słowo → wybór znaczenia (obrazek + polski). */
+  | "meaning"
   /** Strona książeczki (lib/books/progress.ts): ocena rodzica, sam = null. */
   | "book";
 

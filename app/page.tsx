@@ -36,6 +36,7 @@ import { getSound, SET_LABEL, SOUNDS, type Sound, type SoundSet } from "@/lib/cu
 import { TOPICS } from "@/lib/curriculum/vocab";
 import { combinedMission, type MissionStepView } from "@/lib/dailyMission";
 import { HEROES } from "@/lib/heroes";
+import { reviewCount } from "@/lib/progress/review";
 import { recommendNextTopic } from "@/lib/progress/rules";
 import { useProgress } from "@/lib/progress/store";
 import type { SoundState, SoundStatus } from "@/lib/progress/types";
@@ -231,6 +232,12 @@ export default function HomePage() {
                     ? "Przypomnij sobie"
                     : "Zaczynamy!"}
               </BigButton>
+              {/* Powtórka słówek pomylonych po przerwie — tylko gdy jest co powtarzać. */}
+              {ready && reviewCount(state) > 0 && (
+                <BigButton href="/powtorka" tone="yes">
+                  🔁 Powtórka ({reviewCount(state)})
+                </BigButton>
+              )}
               <BigButton href="/slownictwo" tone="quiet">
                 Wszystkie tematy
               </BigButton>

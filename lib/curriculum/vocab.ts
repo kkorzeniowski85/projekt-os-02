@@ -1756,6 +1756,1169 @@ export const TOPICS: Topic[] = [
       },
     ],
   },
+  // --- 12. Dom i rodzina (2026-09-30) ---
+  {
+    "id": "home-family",
+    "titlePl": "Dom i rodzina",
+    "goalPl": "Jak zaprosić kolegę do domu i pokazać mu swoją rodzinę.",
+    "emoji": "🏠",
+    "heroId": "flame",
+    "parentIntroPl": "W Anglii mówi się mum (nie amerykańskie mom), a na babcię dzieci mówią zwykle nan albo nana — grandma też jest poprawne. Uwaga na tea: po południu i wieczorem to często kolacja, a „Tea's ready!” znaczy „chodź jeść”. W domu kolegi dziecko zapyta o toilet (potocznie loo) — bathroom to raczej łazienka z wanną. Ćwiczcie przy okazji: oprowadźcie się nawzajem po domu po angielsku i przedstawiajcie rodzinę na zdjęciach („This is my dad”).",
+    "words": [
+      {
+        "en": "mum",
+        "pl": "mama",
+        "emoji": "👩",
+        "notePl": "Brytyjskie mum. Amerykańskie mom dziecko zna z bajek."
+      },
+      {
+        "en": "dad",
+        "pl": "tata",
+        "emoji": "👨"
+      },
+      {
+        "en": "brother",
+        "pl": "brat",
+        "emoji": "👦"
+      },
+      {
+        "en": "sister",
+        "pl": "siostra",
+        "emoji": "👧"
+      },
+      {
+        "en": "nan",
+        "pl": "babcia",
+        "emoji": "👵",
+        "notePl": "Potocznie nan albo nana; grandma też jest poprawne, ale od dzieci częściej usłyszysz nan."
+      },
+      {
+        "en": "grandad",
+        "pl": "dziadek",
+        "emoji": "👴"
+      },
+      {
+        "en": "kitchen",
+        "pl": "kuchnia",
+        "emoji": "🍳"
+      },
+      {
+        "en": "bathroom",
+        "pl": "łazienka",
+        "emoji": "🛁"
+      },
+      {
+        "en": "bedroom",
+        "pl": "pokój, sypialnia",
+        "emoji": "🛏️",
+        "notePl": "Pokój dziecka to też bedroom: my bedroom = mój pokój."
+      },
+      {
+        "en": "sofa",
+        "pl": "kanapa",
+        "emoji": "🛋️"
+      },
+      {
+        "en": "stairs",
+        "pl": "schody",
+        "emoji": "⬆️",
+        "notePl": "Zawsze w liczbie mnogiej: the stairs. Upstairs = na górze, downstairs = na dole."
+      }
+    ],
+    "phrases": [
+      {
+        "en": "This is my mum.",
+        "pl": "To jest moja mama.",
+        "situationPl": "Kolega przyszedł do Ciebie i widzi Twoją mamę.",
+        "emoji": "👩"
+      },
+      {
+        "en": "Have you got any brothers or sisters?",
+        "pl": "Masz rodzeństwo?",
+        "situationPl": "Chcesz się dowiedzieć, czy kolega ma brata albo siostrę.",
+        "emoji": "👫"
+      },
+      {
+        "en": "Do you want to come to my house?",
+        "pl": "Chcesz przyjść do mnie?",
+        "situationPl": "Chcesz zaprosić kolegę do siebie do domu.",
+        "emoji": "🏠"
+      },
+      {
+        "en": "Come and see my room!",
+        "pl": "Chodź, zobacz mój pokój!",
+        "situationPl": "Kolega jest u Ciebie, a Ty chcesz mu pokazać swoje zabawki.",
+        "emoji": "🛏️"
+      },
+      {
+        "en": "Where's the toilet?",
+        "pl": "Gdzie jest toaleta?",
+        "situationPl": "Jesteś u kolegi w domu i musisz iść do toalety.",
+        "emoji": "🚽"
+      },
+      {
+        "en": "Let's play in the garden.",
+        "pl": "Chodźmy pobawić się w ogrodzie.",
+        "situationPl": "Nudzi Ci się w domu, a na dworze jest ładnie.",
+        "emoji": "🌳"
+      }
+    ],
+    "commands": [
+      {
+        "en": "Tidy your room.",
+        "pl": "Posprzątaj pokój.",
+        "actionPl": "Sprzątasz zabawki w swoim pokoju.",
+        "emoji": "🧹"
+      },
+      {
+        "en": "Come downstairs, please.",
+        "pl": "Zejdź na dół, proszę.",
+        "actionPl": "Schodzisz po schodach na dół.",
+        "emoji": "⬇️"
+      },
+      {
+        "en": "Wipe your feet.",
+        "pl": "Wytrzyj buty.",
+        "actionPl": "Wycierasz buty o wycieraczkę przy drzwiach.",
+        "emoji": "👞"
+      }
+    ],
+    "situations": [
+      {
+        "en": "What do you do when a friend comes to your house? Show me!",
+        "pl": "Co robisz, kiedy kolega przychodzi do Ciebie? Pokaż!",
+        "actionPl": "Otwierasz drzwi, mówisz „Hi! Come in!” i prowadzisz go do swojego pokoju.",
+        "emoji": "🚪"
+      }
+    ],
+    "collocations": [
+      {
+        "en": "at home",
+        "pl": "w domu",
+        "gap": "___ home",
+        "answer": "at",
+        "distractors": [
+          "in",
+          "on"
+        ],
+        "emoji": "🏠",
+        "whyPl": "Po polsku „w domu”, więc kusi „in home”. Po angielsku mówi się at home."
+      },
+      {
+        "en": "watch TV",
+        "pl": "oglądać telewizję",
+        "gap": "___ TV",
+        "answer": "watch",
+        "distractors": [
+          "look",
+          "see"
+        ],
+        "emoji": "📺",
+        "whyPl": "Polskie „oglądać” i „patrzeć” podsuwają look albo see, ale telewizję się watch."
+      },
+      {
+        "en": "play in the garden",
+        "pl": "bawić się w ogrodzie, na podwórku",
+        "gap": "play ___ the garden",
+        "answer": "in",
+        "distractors": [
+          "on",
+          "at"
+        ],
+        "emoji": "🌳",
+        "whyPl": "Polskie „na podwórku” podsuwa on albo at, a po angielsku bawimy się in the garden."
+      }
+    ]
+  },
+
+  // --- 13. Plac zabaw i zabawy (2026-09-30) ---
+  {
+    "id": "playground",
+    "titlePl": "Plac zabaw i zabawy",
+    "goalPl": "Jak dołączyć do zabawy i bawić się z dziećmi na przerwie.",
+    "emoji": "🤸",
+    "heroId": "buzz",
+    "parentIntroPl": "Brytyjski plac zabaw ma swoje słowa: roundabout (karuzela, a nie rondo), sandpit (piaskownica, w USA sandbox), climbing frame (drabinki, w USA jungle gym). Berek to tag, ale w wielu szkołach mówią tig albo it — kto goni, ten „is it”. „Can I have a go?” to bardzo brytyjskie „Mogę spróbować?”. Najlepiej ćwiczyć w ruchu: w parku bawcie się w berka i chowanego, mówiąc tylko po angielsku „I'm it!”, „Catch me!”, „Wait for me!”.",
+    "words": [
+      {
+        "en": "swing",
+        "pl": "huśtawka",
+        "emoji": "🌳",
+        "notePl": "Na placu zwykle w liczbie mnogiej: „Let's go on the swings!”."
+      },
+      {
+        "en": "slide",
+        "pl": "zjeżdżalnia",
+        "emoji": "🎢"
+      },
+      {
+        "en": "climbing frame",
+        "pl": "drabinki (do wspinania)",
+        "emoji": "🧗",
+        "notePl": "Brytyjskie climbing frame, amerykańskie jungle gym."
+      },
+      {
+        "en": "monkey bars",
+        "pl": "drążki (przechodzi się po nich na rękach)",
+        "emoji": "🐒",
+        "notePl": "Stoją prawie na każdym brytyjskim placu zabaw i szkolnym boisku."
+      },
+      {
+        "en": "seesaw",
+        "pl": "huśtawka-ważka",
+        "emoji": "⚖️"
+      },
+      {
+        "en": "roundabout",
+        "pl": "karuzela (na placu zabaw)",
+        "emoji": "🎠",
+        "notePl": "Fałszywy przyjaciel: na ulicy roundabout to rondo, na placu zabaw — kręcąca się karuzela."
+      },
+      {
+        "en": "sandpit",
+        "pl": "piaskownica",
+        "emoji": "🏖️",
+        "notePl": "Brytyjskie sandpit, amerykańskie sandbox."
+      },
+      {
+        "en": "tag",
+        "pl": "berek",
+        "emoji": "🏃",
+        "notePl": "W wielu szkołach mówią też tig albo it. Ten, kto goni, „is it”."
+      },
+      {
+        "en": "hide and seek",
+        "pl": "chowany",
+        "emoji": "🙈"
+      },
+      {
+        "en": "skipping rope",
+        "pl": "skakanka",
+        "emoji": "➰",
+        "notePl": "Brytyjskie skipping rope, amerykańskie jump rope."
+      },
+      {
+        "en": "hopscotch",
+        "pl": "klasy (gra)",
+        "emoji": "🔢"
+      },
+      {
+        "en": "bench",
+        "pl": "ławka",
+        "emoji": "💺",
+        "notePl": "W wielu szkołach jest „buddy bench” — kto na niej usiądzie, ten szuka kolegi do zabawy."
+      }
+    ],
+    "phrases": [
+      {
+        "en": "Can I play?",
+        "pl": "Mogę się z wami bawić?",
+        "situationPl": "Dzieci się bawią, a Ty chcesz dołączyć.",
+        "emoji": "🙋"
+      },
+      {
+        "en": "Let's play hide and seek!",
+        "pl": "Zagrajmy w chowanego!",
+        "situationPl": "Kolega pyta, w co się bawicie. Ty masz pomysł.",
+        "emoji": "🙈"
+      },
+      {
+        "en": "I'm it!",
+        "pl": "Ja gonię!",
+        "situationPl": "Bawicie się w berka i teraz Ty gonisz.",
+        "emoji": "🏃"
+      },
+      {
+        "en": "Catch me!",
+        "pl": "Złap mnie!",
+        "situationPl": "Kolega goni, a Ty uciekasz.",
+        "emoji": "😄"
+      },
+      {
+        "en": "Wait for me!",
+        "pl": "Zaczekaj na mnie!",
+        "situationPl": "Dzieci biegną, a Ty zostajesz z tyłu.",
+        "emoji": "✋"
+      },
+      {
+        "en": "Can I have a go?",
+        "pl": "Mogę spróbować?",
+        "situationPl": "Kolega skacze na skakance, a Ty też chcesz.",
+        "emoji": "🙏"
+      }
+    ],
+    "commands": [
+      {
+        "en": "Line up when you hear the whistle.",
+        "pl": "Ustawcie się w rzędzie, gdy usłyszycie gwizdek.",
+        "actionPl": "Słyszysz gwizdek, przestajesz się bawić i stajesz w rzędzie.",
+        "emoji": "🚶"
+      },
+      {
+        "en": "Stand still!",
+        "pl": "Stój w miejscu!",
+        "actionPl": "Zatrzymujesz się i nie ruszasz.",
+        "emoji": "🛑"
+      },
+      {
+        "en": "One at a time on the slide.",
+        "pl": "Na zjeżdżalnię po jednym.",
+        "actionPl": "Czekasz, aż kolega zjedzie, i dopiero wtedy zjeżdżasz Ty.",
+        "emoji": "☝️"
+      },
+      {
+        "en": "Come down from there, please.",
+        "pl": "Zejdź stamtąd, proszę.",
+        "actionPl": "Schodzisz na dół z drabinek.",
+        "emoji": "⬇️"
+      }
+    ],
+    "situations": [
+      {
+        "en": "What do you do when you hear the whistle? Show me!",
+        "pl": "Co robisz, gdy słyszysz gwizdek? Pokaż!",
+        "actionPl": "Przestajesz się bawić i idziesz ustawić się w rzędzie.",
+        "emoji": "🚶"
+      },
+      {
+        "en": "What do you do when you want to play? Show me!",
+        "pl": "Co robisz, gdy chcesz się pobawić z dziećmi? Pokaż!",
+        "actionPl": "Podchodzisz i pytasz: „Can I play?”.",
+        "emoji": "🙋"
+      }
+    ],
+    "collocations": [
+      {
+        "en": "go down the slide",
+        "pl": "zjechać ze zjeżdżalni",
+        "gap": "___ down the slide",
+        "answer": "go",
+        "distractors": [
+          "ride",
+          "drive"
+        ],
+        "emoji": "🎢",
+        "whyPl": "Po polsku „zjeżdżamy”, więc kusi ride albo drive („jechać”), a po angielsku po prostu go down — „iść w dół”."
+      },
+      {
+        "en": "join in the game",
+        "pl": "dołączyć do gry",
+        "gap": "join ___ the game",
+        "answer": "in",
+        "distractors": [
+          "to",
+          "with"
+        ],
+        "emoji": "🤝",
+        "whyPl": "Polskie „dołączyć DO” podsuwa „join to”, a po angielsku mówi się join in albo samo join the game."
+      },
+      {
+        "en": "score a goal",
+        "pl": "strzelić gola",
+        "gap": "___ a goal",
+        "answer": "score",
+        "distractors": [
+          "shoot",
+          "hit"
+        ],
+        "emoji": "⚽",
+        "whyPl": "Po polsku „strzelamy” gola, więc kusi shoot. Ale shoot to tylko strzał na bramkę — gola się „score”."
+      },
+      {
+        "en": "play tag",
+        "pl": "bawić się w berka",
+        "gap": "___ tag",
+        "answer": "play",
+        "distractors": [
+          "do",
+          "make"
+        ],
+        "emoji": "🏃",
+        "whyPl": "Po polsku mówimy też „zróbmy berka”, więc kusi do albo make. Po angielsku w każdą grę po prostu play, bez „w”: play tag, play hide and seek."
+      }
+    ]
+  },
+
+  // --- 14. Zwierzęta i ogród (2026-09-30) ---
+  {
+    "id": "animals",
+    "titlePl": "Zwierzęta i ogród",
+    "goalPl": "Żeby zapytać o cudzego psa i pokazać, co widzisz w parku i w ogródku.",
+    "emoji": "🦔",
+    "heroId": "chomp",
+    "parentIntroPl": "W Anglii zwierzęta to najłatwiejszy temat do rozmowy: ludzie na spacerze chętnie mówią o swoim psie, a lisy, wiewiórki, jeże i rudziki (robin, symbol brytyjskich świąt) widać w zwykłym ogródku i parku. Pułapka: głaskać to stroke, a pet w tym znaczeniu jest amerykańskie; o zwierzaku mówi się he/she, nie it. Ćwiczcie na spacerze: kto pierwszy zawoła „Look, a squirrel!”, ten ma punkt.",
+    "words": [
+      {
+        "en": "dog",
+        "pl": "pies",
+        "emoji": "🐶"
+      },
+      {
+        "en": "cat",
+        "pl": "kot",
+        "emoji": "🐱"
+      },
+      {
+        "en": "fox",
+        "pl": "lis",
+        "emoji": "🦊",
+        "notePl": "W Anglii lisy chodzą nocą nawet po miejskich ogródkach — to normalny widok."
+      },
+      {
+        "en": "squirrel",
+        "pl": "wiewiórka",
+        "emoji": "🐿️",
+        "notePl": "Brytyjskie wiewiórki są zwykle szare, nie rude."
+      },
+      {
+        "en": "hedgehog",
+        "pl": "jeż",
+        "emoji": "🦔"
+      },
+      {
+        "en": "bird",
+        "pl": "ptak",
+        "emoji": "🐦",
+        "notePl": "Najczęstszy ptak w ogródku to robin (rudzik) — mały, z czerwonym brzuszkiem, jest na kartkach świątecznych."
+      },
+      {
+        "en": "duck",
+        "pl": "kaczka",
+        "emoji": "🦆"
+      },
+      {
+        "en": "spider",
+        "pl": "pająk",
+        "emoji": "🕷️",
+        "notePl": "Jesienią w angielskich domach pełno pająków — dzieci wołają wtedy „There's a spider!”."
+      },
+      {
+        "en": "garden",
+        "pl": "ogród, ogródek",
+        "emoji": "🏡",
+        "notePl": "Brytyjskie garden to też mały ogródek za domem. Amerykanie mówią yard."
+      },
+      {
+        "en": "grass",
+        "pl": "trawa",
+        "emoji": "🌱"
+      },
+      {
+        "en": "tree",
+        "pl": "drzewo",
+        "emoji": "🌳"
+      },
+      {
+        "en": "flower",
+        "pl": "kwiat",
+        "emoji": "🌷"
+      }
+    ],
+    "phrases": [
+      {
+        "en": "What's your dog called?",
+        "pl": "Jak się nazywa twój pies?",
+        "situationPl": "Spotykasz kolegę z psem i chcesz wiedzieć, jak pies ma na imię.",
+        "emoji": "🐶"
+      },
+      {
+        "en": "Can I stroke him?",
+        "pl": "Mogę go pogłaskać?",
+        "situationPl": "Chcesz pogłaskać cudzego psa.",
+        "emoji": "🤚"
+      },
+      {
+        "en": "Is he friendly?",
+        "pl": "Czy on jest łagodny?",
+        "situationPl": "Nie wiesz, czy pies nie ugryzie.",
+        "emoji": "🐕"
+      },
+      {
+        "en": "Have you got a pet?",
+        "pl": "Masz jakieś zwierzątko?",
+        "situationPl": "Chcesz zapytać kolegę, czy ma w domu zwierzę.",
+        "emoji": "🐱"
+      },
+      {
+        "en": "Look, a squirrel!",
+        "pl": "Patrz, wiewiórka!",
+        "situationPl": "Widzisz wiewiórkę i chcesz ją pokazać.",
+        "emoji": "🐿️"
+      },
+      {
+        "en": "There's a fox in the garden!",
+        "pl": "W ogrodzie jest lis!",
+        "situationPl": "Patrzysz przez okno i widzisz lisa.",
+        "emoji": "🦊"
+      }
+    ],
+    "commands": [
+      {
+        "en": "Be gentle.",
+        "pl": "Delikatnie.",
+        "actionPl": "Głaszczesz zwierzę powoli i delikatnie.",
+        "emoji": "🤲"
+      },
+      {
+        "en": "Leave it alone.",
+        "pl": "Zostaw go w spokoju.",
+        "actionPl": "Odsuwasz się i nie dotykasz zwierzęcia.",
+        "emoji": "✋"
+      },
+      {
+        "en": "Don't pick the flowers.",
+        "pl": "Nie zrywaj kwiatów.",
+        "actionPl": "Patrzysz na kwiaty, ale ich nie zrywasz.",
+        "emoji": "🌷"
+      },
+      {
+        "en": "Keep off the grass.",
+        "pl": "Nie wchodź na trawnik.",
+        "actionPl": "Idziesz ścieżką, nie po trawie.",
+        "emoji": "🚫"
+      }
+    ],
+    "situations": [
+      {
+        "en": "What do you do when you meet a new dog? Show me!",
+        "pl": "Co robisz, kiedy spotykasz nowego psa? Pokaż!",
+        "actionPl": "Najpierw pytasz właściciela, potem powoli wyciągasz rękę, żeby pies ją powąchał.",
+        "emoji": "🐕"
+      }
+    ],
+    "collocations": [
+      {
+        "en": "walk the dog",
+        "pl": "wyprowadzić psa",
+        "gap": "___ the dog",
+        "answer": "walk",
+        "distractors": [
+          "go",
+          "bring"
+        ],
+        "emoji": "🐕",
+        "whyPl": "Polskie „iść z psem” podsuwa go, a „wyprowadzić” — bring. Po angielsku psa się po prostu „spaceruje”: walk the dog."
+      },
+      {
+        "en": "feed the ducks",
+        "pl": "karmić kaczki",
+        "gap": "___ the ducks",
+        "answer": "feed",
+        "distractors": [
+          "give",
+          "eat"
+        ],
+        "emoji": "🦆",
+        "whyPl": "„Karmić” to jedno słowo: feed. Polskie „dać kaczkom jeść” podsuwa give albo eat, ale give wymaga jeszcze jedzenia (give the ducks some bread), a eat to jeść samemu."
+      },
+      {
+        "en": "pick flowers",
+        "pl": "zrywać kwiaty",
+        "gap": "___ flowers",
+        "answer": "pick",
+        "distractors": [
+          "tear",
+          "break"
+        ],
+        "emoji": "🌷",
+        "whyPl": "Polskie „rwać / zerwać kwiatek” podsuwa tear albo break, ale tear to drzeć (papier), a break to łamać. Kwiaty się pick."
+      },
+      {
+        "en": "climb a tree",
+        "pl": "wejść na drzewo",
+        "gap": "___ a tree",
+        "answer": "climb",
+        "distractors": [
+          "go",
+          "enter"
+        ],
+        "emoji": "🌳",
+        "whyPl": "Na drzewo się nie „wchodzi” (go / enter), tylko wspina: climb."
+      }
+    ]
+  },
+
+  // --- 15. Kolacja w domu (2026-09-30) ---
+  {
+    "id": "dinner",
+    "titlePl": "Kolacja w domu",
+    "goalPl": "Jak przy stole poprosić o więcej, podziękować i powiedzieć, że już masz dość.",
+    "emoji": "🍝",
+    "heroId": "moon",
+    "parentIntroPl": "Największa pułapka: w Anglii „tea” to często wieczorny posiłek, czyli kolacja — „What's for tea?” znaczy „Co na kolację?”, a nie pytanie o herbatę. Podobnie „pudding” to po prostu deser, a „beans” to fasolka w sosie pomidorowym z puszki, jedzona np. na tostach. Najłatwiej ćwiczyć przy prawdziwym stole: jeden posiłek w tygodniu po angielsku, z prośbami „Can you pass the…?” i „Can I have more, please?”.",
+    "words": [
+      {
+        "en": "tea",
+        "pl": "kolacja (wieczorny posiłek)",
+        "emoji": "🥘",
+        "notePl": "W Anglii „tea” to często kolacja! „Tea's ready!” = „Kolacja gotowa!”. Herbata to też tea — rozpoznajesz po sytuacji."
+      },
+      {
+        "en": "pasta",
+        "pl": "makaron",
+        "emoji": "🍝"
+      },
+      {
+        "en": "soup",
+        "pl": "zupa",
+        "emoji": "🍲"
+      },
+      {
+        "en": "toast",
+        "pl": "tost, grzanka",
+        "emoji": "🍞"
+      },
+      {
+        "en": "beans",
+        "pl": "fasolka (w sosie pomidorowym)",
+        "emoji": "🥫",
+        "notePl": "Brytyjskie baked beans — słodka fasolka z puszki, bardzo popularna, np. „beans on toast”."
+      },
+      {
+        "en": "fish fingers",
+        "pl": "paluszki rybne",
+        "emoji": "🐟",
+        "notePl": "Brytyjskie fish fingers, amerykańskie fish sticks."
+      },
+      {
+        "en": "chicken",
+        "pl": "kurczak",
+        "emoji": "🍗"
+      },
+      {
+        "en": "pudding",
+        "pl": "deser",
+        "emoji": "🍮",
+        "notePl": "W Anglii „pudding” to każdy deser po obiedzie, nie tylko budyń. „What's for pudding?” = „Co na deser?”."
+      },
+      {
+        "en": "knife",
+        "pl": "nóż",
+        "emoji": "🔪",
+        "notePl": "Litera k na początku jest niema: „najf”."
+      },
+      {
+        "en": "plate",
+        "pl": "talerz",
+        "emoji": "🍽️"
+      },
+      {
+        "en": "bowl",
+        "pl": "miska",
+        "emoji": "🥣"
+      },
+      {
+        "en": "glass",
+        "pl": "szklanka",
+        "emoji": "🥛"
+      }
+    ],
+    "phrases": [
+      {
+        "en": "What's for tea?",
+        "pl": "Co na kolację?",
+        "situationPl": "Wracasz do domu i jesteś ciekawy, co będzie do jedzenia.",
+        "emoji": "🤔"
+      },
+      {
+        "en": "Can I have more, please?",
+        "pl": "Mogę prosić o dokładkę?",
+        "situationPl": "Zjadłeś wszystko i masz ochotę na jeszcze.",
+        "emoji": "😋"
+      },
+      {
+        "en": "I'm full.",
+        "pl": "Najadłem się.",
+        "situationPl": "Dostajesz jeszcze jedzenia, a już nic nie zmieścisz.",
+        "emoji": "😌"
+      },
+      {
+        "en": "Can you pass the ketchup, please?",
+        "pl": "Podasz mi keczup, proszę?",
+        "situationPl": "Chcesz keczupu, ale stoi daleko, po drugiej stronie stołu.",
+        "emoji": "🍅"
+      },
+      {
+        "en": "Can I get down, please?",
+        "pl": "Mogę już wstać od stołu?",
+        "situationPl": "Skończyłeś jeść i chcesz już iść się bawić.",
+        "emoji": "🚶"
+      },
+      {
+        "en": "That was lovely!",
+        "pl": "To było pyszne!",
+        "situationPl": "Kolacja bardzo Ci smakowała i chcesz to powiedzieć.",
+        "emoji": "😊"
+      }
+    ],
+    "commands": [
+      {
+        "en": "Tea's ready!",
+        "pl": "Kolacja gotowa!",
+        "actionPl": "Przychodzisz do stołu.",
+        "emoji": "🔔"
+      },
+      {
+        "en": "Lay the table, please.",
+        "pl": "Nakryj do stołu.",
+        "actionPl": "Kładziesz talerze, noże i widelce na stole.",
+        "emoji": "🍽️"
+      },
+      {
+        "en": "Put your plate in the sink.",
+        "pl": "Włóż talerz do zlewu.",
+        "actionPl": "Zanosisz swój talerz do zlewu.",
+        "emoji": "🚰"
+      },
+      {
+        "en": "Use your knife and fork.",
+        "pl": "Jedz nożem i widelcem.",
+        "actionPl": "Bierzesz nóż i widelec i kroisz jedzenie.",
+        "emoji": "🍴"
+      }
+    ],
+    "situations": [
+      {
+        "en": "What do you do when you're full? Show me!",
+        "pl": "Co robisz, kiedy już się najadłeś? Pokaż!",
+        "actionPl": "Klepiesz się po brzuchu i odsuwasz talerz.",
+        "emoji": "😌"
+      },
+      {
+        "en": "What do you do when tea is ready? Show me!",
+        "pl": "Co robisz, kiedy kolacja jest gotowa? Pokaż!",
+        "actionPl": "Myjesz ręce i siadasz do stołu.",
+        "emoji": "🔔"
+      }
+    ],
+    "collocations": [
+      {
+        "en": "lay the table",
+        "pl": "nakryć do stołu",
+        "gap": "___ the table",
+        "answer": "lay",
+        "distractors": [
+          "cover",
+          "prepare"
+        ],
+        "emoji": "🍽️",
+        "whyPl": "Polskie „nakryć” podsuwa „cover”, a „przygotować stół” — „prepare”. Po angielsku stół się „kładzie”: lay the table (Amerykanie mówią set the table)."
+      },
+      {
+        "en": "clear the table",
+        "pl": "sprzątnąć ze stołu",
+        "gap": "___ the table",
+        "answer": "clear",
+        "distractors": [
+          "clean",
+          "tidy"
+        ],
+        "emoji": "🧽",
+        "whyPl": "Zabieranie naczyń po jedzeniu to „clear” — jakby „opróżnić” stół. „Clean the table” to przetrzeć go ściereczką."
+      },
+      {
+        "en": "do the washing-up",
+        "pl": "pozmywać naczynia",
+        "gap": "___ the washing-up",
+        "answer": "do",
+        "distractors": [
+          "make",
+          "wash"
+        ],
+        "emoji": "🧼",
+        "whyPl": "Polskie „zrobić zmywanie” podsuwa „make”, a „zmywać = myć” podsuwa „wash”. Brytyjskie „washing-up” to zmywanie, a obowiązki domowe się „robi” — do."
+      },
+      {
+        "en": "have tea",
+        "pl": "zjeść kolację",
+        "gap": "___ tea",
+        "answer": "have",
+        "distractors": [
+          "eat",
+          "drink"
+        ],
+        "emoji": "🥘",
+        "whyPl": "Polskie „jeść kolację” podsuwa „eat”, a słowo „tea” kusi, żeby je „pić” — drink. Posiłki po angielsku się „ma”: have tea, have breakfast."
+      }
+    ]
+  },
+
+  // --- 16. Dni tygodnia i plan dnia (2026-09-30) ---
+  {
+    "id": "days-week",
+    "titlePl": "Dni tygodnia i plan dnia",
+    "goalPl": "Żebyś wiedział, jaki dziś dzień i co będzie jutro.",
+    "emoji": "🗓️",
+    "heroId": "speed",
+    "parentIntroPl": "Dni tygodnia po angielsku zawsze piszemy wielką literą (Monday, nie monday). Brytyjczycy mówią „at the weekend”, a nie amerykańskie „on the weekend” z bajek; „w poniedziałek” to „on Monday”, a nie „in Monday”. Częsty polski błąd: „yesterday night” zamiast „last night” (wczoraj wieczorem). W domu wystarczy rano zapytać „What day is it today?”, a przy kolacji „What did you do today?”.",
+    "words": [
+      {
+        "en": "Monday",
+        "pl": "poniedziałek",
+        "emoji": "1️⃣",
+        "notePl": "Dni tygodnia piszemy wielką literą."
+      },
+      {
+        "en": "Tuesday",
+        "pl": "wtorek",
+        "emoji": "2️⃣",
+        "notePl": "Łatwo pomylić z Thursday — Tuesday zaczyna się od „tju”."
+      },
+      {
+        "en": "Wednesday",
+        "pl": "środa",
+        "emoji": "3️⃣",
+        "notePl": "Czytamy „łenzdej” — pierwsze „d” jest nieme."
+      },
+      {
+        "en": "Thursday",
+        "pl": "czwartek",
+        "emoji": "4️⃣",
+        "notePl": "Zaczyna się od „th” jak w „three”."
+      },
+      {
+        "en": "Friday",
+        "pl": "piątek",
+        "emoji": "5️⃣"
+      },
+      {
+        "en": "Saturday",
+        "pl": "sobota",
+        "emoji": "6️⃣"
+      },
+      {
+        "en": "Sunday",
+        "pl": "niedziela",
+        "emoji": "7️⃣",
+        "notePl": "W brytyjskich kalendarzach tydzień bywa zaczynany od niedzieli."
+      },
+      {
+        "en": "weekend",
+        "pl": "weekend",
+        "emoji": "🎉",
+        "notePl": "Brytyjskie „at the weekend”, amerykańskie „on the weekend”."
+      },
+      {
+        "en": "week",
+        "pl": "tydzień",
+        "emoji": "📆"
+      },
+      {
+        "en": "today",
+        "pl": "dzisiaj",
+        "emoji": "📍"
+      },
+      {
+        "en": "tomorrow",
+        "pl": "jutro",
+        "emoji": "➡️"
+      },
+      {
+        "en": "yesterday",
+        "pl": "wczoraj",
+        "emoji": "⬅️"
+      }
+    ],
+    "phrases": [
+      {
+        "en": "What day is it today?",
+        "pl": "Jaki dziś jest dzień?",
+        "situationPl": "Rano nie pamiętasz, jaki jest dzień.",
+        "emoji": "🤔"
+      },
+      {
+        "en": "It's Monday.",
+        "pl": "Jest poniedziałek.",
+        "situationPl": "Ktoś pyta Cię, jaki dziś dzień.",
+        "emoji": "📅"
+      },
+      {
+        "en": "See you on Monday!",
+        "pl": "Do zobaczenia w poniedziałek!",
+        "situationPl": "Jest piątek, żegnasz się z kolegą przed weekendem.",
+        "emoji": "👋"
+      },
+      {
+        "en": "Have a nice weekend!",
+        "pl": "Miłego weekendu!",
+        "situationPl": "Wychodzisz ze szkoły w piątek i żegnasz panią.",
+        "emoji": "😊"
+      },
+      {
+        "en": "What did you do at the weekend?",
+        "pl": "Co robiłeś w weekend?",
+        "situationPl": "Jest poniedziałek, chcesz zapytać kolegę o weekend.",
+        "emoji": "💬"
+      },
+      {
+        "en": "I went to the park.",
+        "pl": "Byłem w parku.",
+        "situationPl": "Ktoś pyta, co robiłeś w weekend.",
+        "emoji": "🌳"
+      }
+    ],
+    "commands": [
+      {
+        "en": "Say the days of the week.",
+        "pl": "Powiedz dni tygodnia.",
+        "actionPl": "Wymieniasz po kolei dni od poniedziałku.",
+        "emoji": "🗣️"
+      },
+      {
+        "en": "Tell me about your weekend.",
+        "pl": "Opowiedz mi o swoim weekendzie.",
+        "actionPl": "Mówisz jedno zdanie o tym, co robiłeś w weekend.",
+        "emoji": "🙋"
+      },
+      {
+        "en": "Bring it in tomorrow.",
+        "pl": "Przynieś to jutro.",
+        "actionPl": "Pakujesz tę rzecz do plecaka na jutro.",
+        "emoji": "🎒"
+      }
+    ],
+    "situations": [],
+    "collocations": [
+      {
+        "en": "on Monday",
+        "pl": "w poniedziałek",
+        "gap": "___ Monday",
+        "answer": "on",
+        "distractors": [
+          "in",
+          "at"
+        ],
+        "emoji": "📅",
+        "whyPl": "Przed dniem tygodnia zawsze „on”. Polskie „w poniedziałek” podsuwa „in”."
+      },
+      {
+        "en": "at the weekend",
+        "pl": "w weekend",
+        "gap": "___ the weekend",
+        "answer": "at",
+        "distractors": [
+          "in",
+          "on"
+        ],
+        "emoji": "🎉",
+        "whyPl": "W Anglii mówi się „at the weekend”. „On the weekend” to wersja amerykańska z bajek, a „in” podsuwa polskie „w weekend”."
+      },
+      {
+        "en": "at night",
+        "pl": "w nocy",
+        "gap": "___ night",
+        "answer": "at",
+        "distractors": [
+          "in",
+          "on"
+        ],
+        "emoji": "🌙",
+        "whyPl": "Mówimy „in the morning”, ale „at night”. Polskie „w nocy” podsuwa „in”, a „on” to kalka z „on Monday”."
+      },
+      {
+        "en": "last night",
+        "pl": "wczoraj wieczorem",
+        "gap": "___ night",
+        "answer": "last",
+        "distractors": [
+          "yesterday",
+          "past"
+        ],
+        "emoji": "🛌",
+        "whyPl": "Polskie „wczoraj wieczorem” podsuwa „yesterday night”, a „zeszła noc” — „past night”. Po angielsku mówi się tylko „last night”."
+      }
+    ]
+  },
+
+  // --- 17. Zakupy i sklep (2026-09-30) ---
+  {
+    "id": "shopping",
+    "titlePl": "Zakupy i sklep",
+    "goalPl": "Sam zapytasz, ile coś kosztuje, i sam zapłacisz.",
+    "emoji": "🛒",
+    "heroId": "spark",
+    "parentIntroPl": "W Anglii płaci się funtami i pensami (1 pound = 100 pence), a dzieci mówią „p” zamiast „pence”: „50p” czyta się „fifty p”. Kasa to till (AmE checkout/register), wózek to trolley (AmE cart), kolejka to queue (AmE line) — w kolejce stoi się cierpliwie, wpychanie się jest bardzo źle widziane. Pułapka: „change” przy kasie to reszta, a nie „zmiana”. Najlepiej ćwiczyć w prawdziwym sklepie: niech dziecko samo poda pieniądze przy kasie i powie „Thank you, bye!”.",
+    "words": [
+      {
+        "en": "shop",
+        "pl": "sklep",
+        "emoji": "🏪",
+        "notePl": "Brytyjskie shop; amerykańskie store dziecko zna z bajek."
+      },
+      {
+        "en": "supermarket",
+        "pl": "supermarket",
+        "emoji": "🏬"
+      },
+      {
+        "en": "trolley",
+        "pl": "wózek sklepowy",
+        "emoji": "🛒",
+        "notePl": "Brytyjskie trolley, amerykańskie cart."
+      },
+      {
+        "en": "basket",
+        "pl": "koszyk",
+        "emoji": "🧺"
+      },
+      {
+        "en": "money",
+        "pl": "pieniądze",
+        "emoji": "💰"
+      },
+      {
+        "en": "pound",
+        "pl": "funt",
+        "emoji": "💷",
+        "notePl": "Brytyjska waluta. Znak £ stoi przed liczbą: £2 = „two pounds”."
+      },
+      {
+        "en": "pence",
+        "pl": "pensy",
+        "emoji": "💸",
+        "notePl": "Brytyjskie „grosze”. Potocznie „p”: 20p = „twenty p”. 100 pence to jeden funt."
+      },
+      {
+        "en": "till",
+        "pl": "kasa (w sklepie)",
+        "emoji": "🧾",
+        "notePl": "Brytyjskie till; amerykańskie register albo checkout."
+      },
+      {
+        "en": "change",
+        "pl": "reszta",
+        "emoji": "🤲",
+        "notePl": "Fałszywy przyjaciel: przy kasie change to reszta, nie „zmiana”."
+      },
+      {
+        "en": "queue",
+        "pl": "kolejka",
+        "emoji": "🚶",
+        "notePl": "Brytyjskie queue (czyt. „kju”); amerykańskie line. W Anglii w kolejce stoi się cierpliwie."
+      },
+      {
+        "en": "pocket money",
+        "pl": "kieszonkowe",
+        "emoji": "👛"
+      }
+    ],
+    "phrases": [
+      {
+        "en": "How much is it?",
+        "pl": "Ile to kosztuje?",
+        "situationPl": "Chcesz wiedzieć, ile kosztuje zabawka.",
+        "emoji": "🏷️"
+      },
+      {
+        "en": "Can I have this, please?",
+        "pl": "Poproszę to.",
+        "situationPl": "Podajesz sprzedawcy rzecz, którą chcesz kupić.",
+        "emoji": "🙏"
+      },
+      {
+        "en": "Can I pay?",
+        "pl": "Mogę zapłacić?",
+        "situationPl": "Jesteś przy kasie z mamą i chcesz sam dać pieniądze.",
+        "emoji": "💳"
+      },
+      {
+        "en": "Can I push the trolley?",
+        "pl": "Mogę pchać wózek?",
+        "situationPl": "Wchodzisz z rodzicem do supermarketu i chcesz sam pchać wózek.",
+        "emoji": "🛒"
+      },
+      {
+        "en": "Thank you, bye!",
+        "pl": "Dziękuję, do widzenia!",
+        "situationPl": "Zapłaciłeś i wychodzisz ze sklepu.",
+        "emoji": "👋"
+      }
+    ],
+    "commands": [
+      {
+        "en": "Stay with me.",
+        "pl": "Zostań przy mnie.",
+        "actionPl": "Idziesz blisko mamy i się nie oddalasz.",
+        "emoji": "🤝"
+      },
+      {
+        "en": "Put it back, please.",
+        "pl": "Odłóż to, proszę.",
+        "actionPl": "Odkładasz rzecz z powrotem na półkę.",
+        "emoji": "↩️"
+      },
+      {
+        "en": "Wait in the queue.",
+        "pl": "Poczekaj w kolejce.",
+        "actionPl": "Stoisz spokojnie w kolejce do kasy.",
+        "emoji": "⏳"
+      },
+      {
+        "en": "Put it in the trolley.",
+        "pl": "Włóż to do wózka.",
+        "actionPl": "Wkładasz rzecz do wózka.",
+        "emoji": "📥"
+      }
+    ],
+    "situations": [
+      {
+        "en": "What do you do when you can't find your mum in the shop? Show me!",
+        "pl": "Co robisz, gdy zgubisz mamę w sklepie? Pokaż!",
+        "actionPl": "Stajesz w miejscu i prosisz pracownika sklepu o pomoc.",
+        "emoji": "🙋"
+      }
+    ],
+    "collocations": [
+      {
+        "en": "go shopping",
+        "pl": "iść na zakupy",
+        "gap": "___ shopping",
+        "answer": "go",
+        "distractors": [
+          "make",
+          "walk"
+        ],
+        "emoji": "🛍️",
+        "whyPl": "Na zakupy się „idzie” jak na basen: go shopping, go swimming. Polskie „robić zakupy” podsuwa „make”, a „iść” kusi „walk” — ale walk to iść pieszo, a nie wybrać się gdzieś."
+      },
+      {
+        "en": "spend your pocket money",
+        "pl": "wydać kieszonkowe",
+        "gap": "___ your pocket money",
+        "answer": "spend",
+        "distractors": [
+          "give",
+          "pay"
+        ],
+        "emoji": "👛",
+        "whyPl": "Polskie „wydać” kojarzy się z „dać”, więc kusi „give”. Pieniądze na coś się spend; pay to płacić komuś albo za coś."
+      },
+      {
+        "en": "join the queue",
+        "pl": "stanąć w kolejce",
+        "gap": "___ the queue",
+        "answer": "join",
+        "distractors": [
+          "stand",
+          "make"
+        ],
+        "emoji": "🚶",
+        "whyPl": "Po polsku „stajemy w kolejce”, więc kusi „stand”. Po angielsku do kolejki się dołącza: join the queue (albo stand IN the queue — z „in”)."
+      },
+      {
+        "en": "push the trolley",
+        "pl": "pchać wózek",
+        "gap": "___ the trolley",
+        "answer": "push",
+        "distractors": [
+          "drive",
+          "lead"
+        ],
+        "emoji": "🛒",
+        "whyPl": "Po polsku „prowadzimy” wózek, ale po angielsku wózek się pcha: push."
+      }
+    ]
+  },
 ];
 
 export const TOPICS_BY_ID: Record<string, Topic> = Object.fromEntries(

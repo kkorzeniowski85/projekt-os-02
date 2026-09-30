@@ -123,6 +123,287 @@ const PRZYKLADY_SLOW: Record<string, ZdaniePrzyklad> = {
   "home time": { en: "It's nearly home time.", pl: "Już prawie koniec lekcji." },
   "wet play": { en: "Wet play today, it's raining.", pl: "Dziś przerwa w klasie, bo pada." },
   snack: { en: "Eat your snack at playtime.", pl: "Przekąskę zjedz na przerwie." },
+  // --- nowe tematy (2026-09-30) ---
+  "mum": {
+    "en": "My mum makes pancakes.",
+    "pl": "Moja mama robi naleśniki."
+  },
+  "dad": {
+    "en": "My dad plays football with me.",
+    "pl": "Mój tata gra ze mną w piłkę."
+  },
+  "brother": {
+    "en": "My brother is ten.",
+    "pl": "Mój brat ma dziesięć lat."
+  },
+  "sister": {
+    "en": "His sister is four.",
+    "pl": "Jego siostra ma cztery lata."
+  },
+  "nan": {
+    "en": "My nan has got a cat.",
+    "pl": "Moja babcia ma kota."
+  },
+  "grandad": {
+    "en": "Grandad reads me a story.",
+    "pl": "Dziadek czyta mi bajkę."
+  },
+  "kitchen": {
+    "en": "Mum is in the kitchen.",
+    "pl": "Mama jest w kuchni."
+  },
+  "bathroom": {
+    "en": "Clean your teeth in the bathroom.",
+    "pl": "Umyj zęby w łazience."
+  },
+  "bedroom": {
+    "en": "My bedroom is blue.",
+    "pl": "Mój pokój jest niebieski."
+  },
+  "sofa": {
+    "en": "The cat is on the sofa.",
+    "pl": "Kot jest na kanapie."
+  },
+  "stairs": {
+    "en": "Don't run on the stairs.",
+    "pl": "Nie biegaj po schodach."
+  },
+  "swing": {
+    "en": "Push me on the swing!",
+    "pl": "Pohuśtaj mnie na huśtawce!"
+  },
+  "slide": {
+    "en": "The slide is really fast.",
+    "pl": "Zjeżdżalnia jest bardzo szybka."
+  },
+  "climbing frame": {
+    "en": "I'm at the top of the climbing frame!",
+    "pl": "Jestem na samej górze drabinek!"
+  },
+  "monkey bars": {
+    "en": "I can do the monkey bars!",
+    "pl": "Umiem przejść po drążkach!"
+  },
+  "seesaw": {
+    "en": "Let's go on the seesaw.",
+    "pl": "Chodźmy na ważkę."
+  },
+  "roundabout": {
+    "en": "The roundabout goes round and round.",
+    "pl": "Karuzela kręci się w kółko."
+  },
+  "sandpit": {
+    "en": "There's sand in my shoes from the sandpit.",
+    "pl": "Mam piasek w butach z piaskownicy."
+  },
+  "tag": {
+    "en": "Do you want to play tag?",
+    "pl": "Chcesz się bawić w berka?"
+  },
+  "hide and seek": {
+    "en": "We played hide and seek at playtime.",
+    "pl": "Na przerwie bawiliśmy się w chowanego."
+  },
+  "skipping rope": {
+    "en": "Can I use your skipping rope?",
+    "pl": "Mogę pożyczyć twoją skakankę?"
+  },
+  "hopscotch": {
+    "en": "Let's play hopscotch.",
+    "pl": "Zagrajmy w klasy."
+  },
+  "bench": {
+    "en": "Let's sit on the bench.",
+    "pl": "Usiądźmy na ławce."
+  },
+  "dog": {
+    "en": "The dog is wagging his tail.",
+    "pl": "Pies macha ogonem."
+  },
+  "cat": {
+    "en": "The cat is sleeping on my bed.",
+    "pl": "Kot śpi na moim łóżku."
+  },
+  "fox": {
+    "en": "A fox is sleeping in the garden.",
+    "pl": "W ogrodzie śpi lis."
+  },
+  "squirrel": {
+    "en": "The squirrel is eating a nut.",
+    "pl": "Wiewiórka je orzecha."
+  },
+  "hedgehog": {
+    "en": "Don't touch the hedgehog, it's prickly.",
+    "pl": "Nie dotykaj jeża, kłuje."
+  },
+  "bird": {
+    "en": "There's a bird on the fence.",
+    "pl": "Na płocie siedzi ptak."
+  },
+  "duck": {
+    "en": "The ducks are swimming in the pond.",
+    "pl": "Kaczki pływają w stawie."
+  },
+  "spider": {
+    "en": "There's a big spider in the bath!",
+    "pl": "W wannie jest duży pająk!"
+  },
+  "garden": {
+    "en": "Let's play in the garden.",
+    "pl": "Chodźmy pobawić się w ogrodzie."
+  },
+  "grass": {
+    "en": "The grass is wet.",
+    "pl": "Trawa jest mokra."
+  },
+  "tree": {
+    "en": "There's a bird in the tree.",
+    "pl": "Na drzewie jest ptak."
+  },
+  "flower": {
+    "en": "Smell this flower!",
+    "pl": "Powąchaj ten kwiat!"
+  },
+  "tea": {
+    "en": "We have tea at six o'clock.",
+    "pl": "Jemy kolację o szóstej."
+  },
+  "pasta": {
+    "en": "I love pasta with cheese.",
+    "pl": "Uwielbiam makaron z serem."
+  },
+  "soup": {
+    "en": "The soup is very hot.",
+    "pl": "Zupa jest bardzo gorąca."
+  },
+  "toast": {
+    "en": "Can I have toast, please?",
+    "pl": "Mogę dostać tosta?"
+  },
+  "beans": {
+    "en": "I like beans on toast.",
+    "pl": "Lubię fasolkę na toście."
+  },
+  "fish fingers": {
+    "en": "We've got fish fingers for tea.",
+    "pl": "Na kolację są paluszki rybne."
+  },
+  "chicken": {
+    "en": "The chicken is yummy.",
+    "pl": "Kurczak jest pyszny."
+  },
+  "pudding": {
+    "en": "What's for pudding?",
+    "pl": "Co na deser?"
+  },
+  "knife": {
+    "en": "Be careful with the knife.",
+    "pl": "Uważaj z nożem."
+  },
+  "plate": {
+    "en": "My plate is empty.",
+    "pl": "Mój talerz jest pusty."
+  },
+  "bowl": {
+    "en": "The soup is in a big bowl.",
+    "pl": "Zupa jest w dużej misce."
+  },
+  "glass": {
+    "en": "Here is a glass of milk.",
+    "pl": "Proszę, szklanka mleka."
+  },
+  "Monday": {
+    "en": "We have PE on Monday.",
+    "pl": "W poniedziałek mamy WF."
+  },
+  "Tuesday": {
+    "en": "On Tuesday we go swimming.",
+    "pl": "We wtorek chodzimy na basen."
+  },
+  "Wednesday": {
+    "en": "It's Wednesday today.",
+    "pl": "Dziś jest środa."
+  },
+  "Thursday": {
+    "en": "Grandma comes on Thursday.",
+    "pl": "Babcia przychodzi w czwartek."
+  },
+  "Friday": {
+    "en": "Friday is my favourite day.",
+    "pl": "Piątek to mój ulubiony dzień."
+  },
+  "weekend": {
+    "en": "We play football at the weekend.",
+    "pl": "W weekend gramy w piłkę."
+  },
+  "week": {
+    "en": "There are seven days in a week.",
+    "pl": "Tydzień ma siedem dni."
+  },
+  "today": {
+    "en": "It's sunny today.",
+    "pl": "Dziś jest słonecznie."
+  },
+  "tomorrow": {
+    "en": "See you tomorrow, Miss!",
+    "pl": "Do jutra, proszę pani!"
+  },
+  "yesterday": {
+    "en": "I was tired yesterday.",
+    "pl": "Wczoraj byłem zmęczony."
+  },
+  "Saturday": {
+    "en": "On Saturday we go to the shops.",
+    "pl": "W sobotę jedziemy na zakupy."
+  },
+  "Sunday": {
+    "en": "On Sunday we have pancakes.",
+    "pl": "W niedzielę jemy naleśniki."
+  },
+  "shop": {
+    "en": "Let's go to the shop.",
+    "pl": "Chodźmy do sklepu."
+  },
+  "supermarket": {
+    "en": "The supermarket is very big.",
+    "pl": "Supermarket jest bardzo duży."
+  },
+  "trolley": {
+    "en": "Put the bread in the trolley.",
+    "pl": "Włóż chleb do wózka."
+  },
+  "basket": {
+    "en": "Can I carry the basket?",
+    "pl": "Mogę nieść koszyk?"
+  },
+  "money": {
+    "en": "Mum, have you got any money?",
+    "pl": "Mamo, masz pieniądze?"
+  },
+  "pound": {
+    "en": "It costs one pound.",
+    "pl": "To kosztuje jednego funta."
+  },
+  "pence": {
+    "en": "The sweets are fifty pence.",
+    "pl": "Cukierki kosztują pięćdziesiąt pensów."
+  },
+  "till": {
+    "en": "Let's pay at the till.",
+    "pl": "Zapłaćmy przy kasie."
+  },
+  "change": {
+    "en": "Here's your change.",
+    "pl": "Oto reszta."
+  },
+  "queue": {
+    "en": "The queue is very long.",
+    "pl": "Kolejka jest bardzo długa."
+  },
+  "pocket money": {
+    "en": "I want to spend my pocket money.",
+    "pl": "Chcę wydać moje kieszonkowe."
+  },
 };
 
 const SCENKI: Record<string, ScenkaKwestia[]> = {
@@ -536,6 +817,817 @@ const SCENKI: Record<string, ScenkaKwestia[]> = {
     { kto: "kolega", en: "To the hall. Follow me!", pl: "Na salę. Chodź za mną!" },
     { kto: "Ty", en: "OK! Thank you!", pl: "Dobra! Dzięki!" },
   ],
+  // --- nowe tematy (2026-09-30) ---
+  "This is my mum.": [
+    {
+      "kto": "kolega",
+      "en": "Hello! Who's that?",
+      "pl": "Cześć! Kto to?"
+    },
+    {
+      "kto": "Ty",
+      "en": "This is my mum.",
+      "pl": "To jest moja mama."
+    },
+    {
+      "kto": "mama",
+      "en": "Hi! Come in. Do you want a drink?",
+      "pl": "Cześć! Wejdź. Chcesz coś do picia?"
+    },
+    {
+      "kto": "kolega",
+      "en": "Yes, please.",
+      "pl": "Tak, poproszę."
+    },
+    {
+      "kto": "Ty",
+      "en": "Come on!",
+      "pl": "Chodź!"
+    }
+  ],
+  "Have you got any brothers or sisters?": [
+    {
+      "kto": "Ty",
+      "en": "Have you got any brothers or sisters?",
+      "pl": "Masz rodzeństwo?"
+    },
+    {
+      "kto": "kolega",
+      "en": "Yes, a little sister. She's four.",
+      "pl": "Tak, młodszą siostrę. Ma cztery lata."
+    },
+    {
+      "kto": "Ty",
+      "en": "Cool!",
+      "pl": "Fajnie!"
+    },
+    {
+      "kto": "kolega",
+      "en": "She's a bit annoying!",
+      "pl": "Trochę mnie wkurza!"
+    }
+  ],
+  "Do you want to come to my house?": [
+    {
+      "kto": "Ty",
+      "en": "Do you want to come to my house?",
+      "pl": "Chcesz przyjść do mnie?"
+    },
+    {
+      "kto": "kolega",
+      "en": "Yes! I'll ask my mum.",
+      "pl": "Tak! Zapytam mamę."
+    },
+    {
+      "kto": "Ty",
+      "en": "OK!",
+      "pl": "Dobra!"
+    },
+    {
+      "kto": "kolega",
+      "en": "See you later!",
+      "pl": "Na razie!"
+    }
+  ],
+  "Come and see my room!": [
+    {
+      "kto": "kolega",
+      "en": "Wow, I like your house!",
+      "pl": "Ale fajny masz dom!"
+    },
+    {
+      "kto": "Ty",
+      "en": "Come and see my room!",
+      "pl": "Chodź, zobacz mój pokój!"
+    },
+    {
+      "kto": "kolega",
+      "en": "Cool! Is that your Lego?",
+      "pl": "Super! To twoje klocki Lego?"
+    },
+    {
+      "kto": "Ty",
+      "en": "Yes. Let's play!",
+      "pl": "Tak. Pobawmy się!"
+    }
+  ],
+  "Where's the toilet?": [
+    {
+      "kto": "mama kolegi",
+      "en": "Wash your hands, tea's ready.",
+      "pl": "Umyjcie ręce, kolacja gotowa."
+    },
+    {
+      "kto": "Ty",
+      "en": "Where's the toilet?",
+      "pl": "Gdzie jest toaleta?"
+    },
+    {
+      "kto": "mama kolegi",
+      "en": "Upstairs, on the left.",
+      "pl": "Na górze, po lewej."
+    },
+    {
+      "kto": "Ty",
+      "en": "Thank you.",
+      "pl": "Dziękuję."
+    }
+  ],
+  "Let's play in the garden.": [
+    {
+      "kto": "kolega",
+      "en": "I'm bored.",
+      "pl": "Nudzi mi się."
+    },
+    {
+      "kto": "Ty",
+      "en": "Let's play in the garden.",
+      "pl": "Chodźmy pobawić się w ogrodzie."
+    },
+    {
+      "kto": "kolega",
+      "en": "Good idea! Have you got a ball?",
+      "pl": "Dobry pomysł! Masz piłkę?"
+    },
+    {
+      "kto": "Ty",
+      "en": "Yes! Come on!",
+      "pl": "Tak! Chodź!"
+    }
+  ],
+  "Can I play?": [
+    {
+      "kto": "kolega",
+      "en": "We're playing tag.",
+      "pl": "Bawimy się w berka."
+    },
+    {
+      "kto": "Ty",
+      "en": "Can I play?",
+      "pl": "Mogę się z wami bawić?"
+    },
+    {
+      "kto": "kolega",
+      "en": "Yes! Come on!",
+      "pl": "Tak! Chodź!"
+    },
+    {
+      "kto": "Ty",
+      "en": "Thank you!",
+      "pl": "Dzięki!"
+    }
+  ],
+  "Let's play hide and seek!": [
+    {
+      "kto": "kolega",
+      "en": "What shall we play?",
+      "pl": "W co się bawimy?"
+    },
+    {
+      "kto": "Ty",
+      "en": "Let's play hide and seek!",
+      "pl": "Zagrajmy w chowanego!"
+    },
+    {
+      "kto": "kolega",
+      "en": "OK! I'll count to ten.",
+      "pl": "Dobra! Ja liczę do dziesięciu."
+    },
+    {
+      "kto": "Ty",
+      "en": "OK!",
+      "pl": "Dobra! (biegniesz się schować)"
+    },
+    {
+      "kto": "kolega",
+      "en": "Ready or not, here I come!",
+      "pl": "Szukam! (dosłownie: gotowi czy nie, idę!)"
+    }
+  ],
+  "I'm it!": [
+    {
+      "kto": "kolega",
+      "en": "Who's it?",
+      "pl": "Kto goni?"
+    },
+    {
+      "kto": "Ty",
+      "en": "I'm it!",
+      "pl": "Ja gonię!"
+    },
+    {
+      "kto": "kolega",
+      "en": "Run, everybody!",
+      "pl": "Uciekajcie wszyscy!"
+    },
+    {
+      "kto": "Ty",
+      "en": "Got you!",
+      "pl": "Mam cię! (dotykasz kolegę)"
+    },
+    {
+      "kto": "kolega",
+      "en": "Oh no! Now I'm it.",
+      "pl": "O nie! Teraz ja gonię."
+    }
+  ],
+  "Catch me!": [
+    {
+      "kto": "kolega",
+      "en": "I'm it! I'm going to get you!",
+      "pl": "Ja gonię! Złapię cię!"
+    },
+    {
+      "kto": "Ty",
+      "en": "Catch me!",
+      "pl": "Złap mnie! (uciekasz)"
+    },
+    {
+      "kto": "kolega",
+      "en": "Come back!",
+      "pl": "Wracaj!"
+    },
+    {
+      "kto": "Ty",
+      "en": "Too slow!",
+      "pl": "Za wolno! (śmiejesz się)"
+    }
+  ],
+  "Wait for me!": [
+    {
+      "kto": "kolega",
+      "en": "Come on, let's go to the slide!",
+      "pl": "Chodź, biegniemy na zjeżdżalnię!"
+    },
+    {
+      "kto": "Ty",
+      "en": "Wait for me!",
+      "pl": "Zaczekaj na mnie!"
+    },
+    {
+      "kto": "kolega",
+      "en": "OK. Hurry up!",
+      "pl": "Dobra. Pospiesz się!"
+    },
+    {
+      "kto": "Ty",
+      "en": "I'm coming!",
+      "pl": "Już biegnę!"
+    }
+  ],
+  "Can I have a go?": [
+    {
+      "kto": "kolega",
+      "en": "Look, I can skip twenty times!",
+      "pl": "Patrz, umiem skoczyć dwadzieścia razy!"
+    },
+    {
+      "kto": "Ty",
+      "en": "Can I have a go?",
+      "pl": "Mogę spróbować?"
+    },
+    {
+      "kto": "kolega",
+      "en": "Yes. Here you are.",
+      "pl": "Tak. Proszę."
+    },
+    {
+      "kto": "Ty",
+      "en": "Thank you!",
+      "pl": "Dzięki!"
+    }
+  ],
+  "What's your dog called?": [
+    {
+      "kto": "kolega",
+      "en": "Hi! This is my dog.",
+      "pl": "Cześć! To mój pies."
+    },
+    {
+      "kto": "Ty",
+      "en": "What's your dog called?",
+      "pl": "Jak się nazywa twój pies?"
+    },
+    {
+      "kto": "kolega",
+      "en": "He's called Buddy.",
+      "pl": "Nazywa się Buddy."
+    },
+    {
+      "kto": "Ty",
+      "en": "Hello, Buddy!",
+      "pl": "Cześć, Buddy!"
+    }
+  ],
+  "Can I stroke him?": [
+    {
+      "kto": "pani z psem",
+      "en": "Morning!",
+      "pl": "Dzień dobry!"
+    },
+    {
+      "kto": "Ty",
+      "en": "Can I stroke him?",
+      "pl": "Mogę go pogłaskać?"
+    },
+    {
+      "kto": "pani z psem",
+      "en": "Yes, of course. He loves it.",
+      "pl": "Tak, oczywiście. Uwielbia to."
+    },
+    {
+      "kto": "Ty",
+      "en": "Thank you.",
+      "pl": "Dziękuję."
+    },
+    {
+      "kto": "pani z psem",
+      "en": "Good boy!",
+      "pl": "Grzeczny piesek!"
+    }
+  ],
+  "Is he friendly?": [
+    {
+      "kto": "pan z psem",
+      "en": "Don't worry, he's just saying hello.",
+      "pl": "Nie bój się, on tylko się wita."
+    },
+    {
+      "kto": "Ty",
+      "en": "Is he friendly?",
+      "pl": "Czy on jest łagodny?"
+    },
+    {
+      "kto": "pan z psem",
+      "en": "Yes, very friendly. You can stroke him.",
+      "pl": "Tak, bardzo. Możesz go pogłaskać."
+    },
+    {
+      "kto": "Ty",
+      "en": "OK. Thank you.",
+      "pl": "Dobrze. Dziękuję."
+    }
+  ],
+  "Have you got a pet?": [
+    {
+      "kto": "Ty",
+      "en": "Have you got a pet?",
+      "pl": "Masz jakieś zwierzątko?"
+    },
+    {
+      "kto": "kolega",
+      "en": "Yes, I've got a cat. And you?",
+      "pl": "Tak, mam kota. A ty?"
+    },
+    {
+      "kto": "Ty",
+      "en": "No. I like dogs.",
+      "pl": "Nie. Lubię psy."
+    },
+    {
+      "kto": "kolega",
+      "en": "Me too!",
+      "pl": "Ja też!"
+    }
+  ],
+  "Look, a squirrel!": [
+    {
+      "kto": "Ty",
+      "en": "Look, a squirrel!",
+      "pl": "Patrz, wiewiórka!"
+    },
+    {
+      "kto": "kolega",
+      "en": "Where?",
+      "pl": "Gdzie?"
+    },
+    {
+      "kto": "Ty",
+      "en": "There! In the tree!",
+      "pl": "Tam! Na drzewie!"
+    },
+    {
+      "kto": "kolega",
+      "en": "Wow, it's so fast!",
+      "pl": "Ale szybka!"
+    }
+  ],
+  "There's a fox in the garden!": [
+    {
+      "kto": "Ty",
+      "en": "Mum!",
+      "pl": "Mamo!"
+    },
+    {
+      "kto": "rodzic",
+      "en": "What is it?",
+      "pl": "Co się stało?"
+    },
+    {
+      "kto": "Ty",
+      "en": "There's a fox in the garden!",
+      "pl": "W ogrodzie jest lis!"
+    },
+    {
+      "kto": "rodzic",
+      "en": "Oh yes! Shh, don't scare him.",
+      "pl": "O tak! Ciii, nie strasz go."
+    },
+    {
+      "kto": "Ty",
+      "en": "OK.",
+      "pl": "Dobrze."
+    }
+  ],
+  "What's for tea?": [
+    {
+      "kto": "mama",
+      "en": "Hello! How was your day?",
+      "pl": "Cześć! Jak minął dzień?"
+    },
+    {
+      "kto": "Ty",
+      "en": "What's for tea?",
+      "pl": "Co na kolację?"
+    },
+    {
+      "kto": "mama",
+      "en": "Fish fingers and chips.",
+      "pl": "Paluszki rybne i frytki."
+    },
+    {
+      "kto": "Ty",
+      "en": "Yes! Thank you, Mum!",
+      "pl": "Super! Dziękuję, mamo!"
+    }
+  ],
+  "Can I have more, please?": [
+    {
+      "kto": "tata",
+      "en": "You ate all your pasta!",
+      "pl": "Zjadłeś cały makaron!"
+    },
+    {
+      "kto": "Ty",
+      "en": "Can I have more, please?",
+      "pl": "Mogę dostać więcej?"
+    },
+    {
+      "kto": "tata",
+      "en": "Of course. Here you are.",
+      "pl": "Jasne. Proszę."
+    },
+    {
+      "kto": "Ty",
+      "en": "Thank you, Dad.",
+      "pl": "Dziękuję, tato."
+    }
+  ],
+  "I'm full.": [
+    {
+      "kto": "mama",
+      "en": "Do you want some more soup?",
+      "pl": "Chcesz jeszcze zupy?"
+    },
+    {
+      "kto": "Ty",
+      "en": "I'm full.",
+      "pl": "Najadłem się."
+    },
+    {
+      "kto": "mama",
+      "en": "OK. Well done, you ate it all!",
+      "pl": "Dobrze. Brawo, wszystko zjadłeś!"
+    },
+    {
+      "kto": "Ty",
+      "en": "Thank you, Mum.",
+      "pl": "Dziękuję, mamo."
+    }
+  ],
+  "Can you pass the ketchup, please?": [
+    {
+      "kto": "tata",
+      "en": "Here are your chips.",
+      "pl": "Proszę, twoje frytki."
+    },
+    {
+      "kto": "Ty",
+      "en": "Can you pass the ketchup, please?",
+      "pl": "Podasz mi keczup, proszę?"
+    },
+    {
+      "kto": "tata",
+      "en": "Here you are.",
+      "pl": "Proszę bardzo."
+    },
+    {
+      "kto": "Ty",
+      "en": "Thank you.",
+      "pl": "Dziękuję."
+    }
+  ],
+  "Can I get down, please?": [
+    {
+      "kto": "mama",
+      "en": "Well done, you ate it all!",
+      "pl": "Brawo, wszystko zjadłeś!"
+    },
+    {
+      "kto": "Ty",
+      "en": "Can I get down, please?",
+      "pl": "Mogę już wstać od stołu?"
+    },
+    {
+      "kto": "mama",
+      "en": "Yes, you can. Put your plate in the sink.",
+      "pl": "Tak, możesz. Włóż talerz do zlewu."
+    },
+    {
+      "kto": "Ty",
+      "en": "OK!",
+      "pl": "Dobrze!"
+    }
+  ],
+  "That was lovely!": [
+    {
+      "kto": "tata",
+      "en": "Did you like your tea?",
+      "pl": "Smakowała ci kolacja?"
+    },
+    {
+      "kto": "Ty",
+      "en": "That was lovely!",
+      "pl": "To było pyszne!"
+    },
+    {
+      "kto": "tata",
+      "en": "I'm glad. Do you want some pudding?",
+      "pl": "Cieszę się. Chcesz deser?"
+    },
+    {
+      "kto": "Ty",
+      "en": "Yes, please!",
+      "pl": "Tak, poproszę!"
+    }
+  ],
+  "What day is it today?": [
+    {
+      "kto": "Ty",
+      "en": "What day is it today?",
+      "pl": "Jaki dziś jest dzień?"
+    },
+    {
+      "kto": "rodzic",
+      "en": "It's Friday.",
+      "pl": "Jest piątek."
+    },
+    {
+      "kto": "Ty",
+      "en": "Yay!",
+      "pl": "Hura!"
+    },
+    {
+      "kto": "rodzic",
+      "en": "Yes, it's the weekend tomorrow!",
+      "pl": "Tak, jutro weekend!"
+    }
+  ],
+  "It's Monday.": [
+    {
+      "kto": "nauczycielka",
+      "en": "Good morning! What day is it today?",
+      "pl": "Dzień dobry! Jaki dziś jest dzień?"
+    },
+    {
+      "kto": "Ty",
+      "en": "It's Monday.",
+      "pl": "Jest poniedziałek."
+    },
+    {
+      "kto": "nauczycielka",
+      "en": "Well done! And tomorrow?",
+      "pl": "Brawo! A jutro?"
+    },
+    {
+      "kto": "Ty",
+      "en": "Tuesday!",
+      "pl": "Wtorek!"
+    }
+  ],
+  "See you on Monday!": [
+    {
+      "kto": "kolega",
+      "en": "Bye! I'm going home.",
+      "pl": "Cześć! Idę do domu."
+    },
+    {
+      "kto": "Ty",
+      "en": "See you on Monday!",
+      "pl": "Do zobaczenia w poniedziałek!"
+    },
+    {
+      "kto": "kolega",
+      "en": "See you! Have a good weekend.",
+      "pl": "Na razie! Udanego weekendu."
+    },
+    {
+      "kto": "Ty",
+      "en": "Thanks! You too.",
+      "pl": "Dzięki! Tobie też."
+    }
+  ],
+  "Have a nice weekend!": [
+    {
+      "kto": "nauczycielka",
+      "en": "Bye, everyone!",
+      "pl": "Do widzenia wszystkim!"
+    },
+    {
+      "kto": "Ty",
+      "en": "Have a nice weekend!",
+      "pl": "Miłego weekendu!"
+    },
+    {
+      "kto": "nauczycielka",
+      "en": "Thank you! You too.",
+      "pl": "Dziękuję! Tobie też."
+    },
+    {
+      "kto": "Ty",
+      "en": "Thank you.",
+      "pl": "Dziękuję."
+    }
+  ],
+  "What did you do at the weekend?": [
+    {
+      "kto": "kolega",
+      "en": "Hi!",
+      "pl": "Cześć!"
+    },
+    {
+      "kto": "Ty",
+      "en": "What did you do at the weekend?",
+      "pl": "Co robiłeś w weekend?"
+    },
+    {
+      "kto": "kolega",
+      "en": "I played football. And you?",
+      "pl": "Grałem w piłkę. A ty?"
+    },
+    {
+      "kto": "Ty",
+      "en": "I went to the park.",
+      "pl": "Byłem w parku."
+    },
+    {
+      "kto": "kolega",
+      "en": "Cool!",
+      "pl": "Super!"
+    }
+  ],
+  "I went to the park.": [
+    {
+      "kto": "nauczycielka",
+      "en": "What did you do at the weekend?",
+      "pl": "Co robiłeś w weekend?"
+    },
+    {
+      "kto": "Ty",
+      "en": "I went to the park.",
+      "pl": "Byłem w parku."
+    },
+    {
+      "kto": "nauczycielka",
+      "en": "Lovely! Did you go on the swings?",
+      "pl": "Super! Bujałeś się na huśtawce?"
+    },
+    {
+      "kto": "Ty",
+      "en": "Yes.",
+      "pl": "Tak."
+    }
+  ],
+  "How much is it?": [
+    {
+      "kto": "sprzedawca",
+      "en": "Hello! Can I help you?",
+      "pl": "Dzień dobry! W czym mogę pomóc?"
+    },
+    {
+      "kto": "Ty",
+      "en": "How much is it?",
+      "pl": "Ile to kosztuje? (pokazujesz zabawkę)"
+    },
+    {
+      "kto": "sprzedawca",
+      "en": "It's two pounds.",
+      "pl": "Dwa funty."
+    },
+    {
+      "kto": "Ty",
+      "en": "OK. Here you are.",
+      "pl": "Dobrze. Proszę. (podajesz pieniądze)"
+    },
+    {
+      "kto": "sprzedawca",
+      "en": "Thank you!",
+      "pl": "Dziękuję!"
+    }
+  ],
+  "Can I have this, please?": [
+    {
+      "kto": "sprzedawca",
+      "en": "Hello! Next, please.",
+      "pl": "Dzień dobry! Następny, proszę."
+    },
+    {
+      "kto": "Ty",
+      "en": "Can I have this, please?",
+      "pl": "Poproszę to."
+    },
+    {
+      "kto": "sprzedawca",
+      "en": "Of course. That's one pound.",
+      "pl": "Oczywiście. To jeden funt."
+    },
+    {
+      "kto": "Ty",
+      "en": "Here you are.",
+      "pl": "Proszę."
+    },
+    {
+      "kto": "sprzedawca",
+      "en": "Thanks! Here's your change.",
+      "pl": "Dzięki! Oto reszta."
+    }
+  ],
+  "Can I pay?": [
+    {
+      "kto": "rodzic",
+      "en": "Right, it's our turn.",
+      "pl": "Dobra, teraz my."
+    },
+    {
+      "kto": "Ty",
+      "en": "Can I pay?",
+      "pl": "Mogę zapłacić?"
+    },
+    {
+      "kto": "rodzic",
+      "en": "Yes! Here's the money.",
+      "pl": "Tak! Masz pieniądze."
+    },
+    {
+      "kto": "sprzedawca",
+      "en": "Thank you. Here's your change.",
+      "pl": "Dziękuję. Oto reszta."
+    },
+    {
+      "kto": "Ty",
+      "en": "Thank you!",
+      "pl": "Dziękuję!"
+    }
+  ],
+  "Can I push the trolley?": [
+    {
+      "kto": "rodzic",
+      "en": "Right, let's get a trolley.",
+      "pl": "Dobra, weźmy wózek."
+    },
+    {
+      "kto": "Ty",
+      "en": "Can I push the trolley?",
+      "pl": "Mogę pchać wózek?"
+    },
+    {
+      "kto": "rodzic",
+      "en": "Yes, but go slowly.",
+      "pl": "Tak, ale powoli."
+    },
+    {
+      "kto": "Ty",
+      "en": "OK!",
+      "pl": "Dobrze!"
+    }
+  ],
+  "Thank you, bye!": [
+    {
+      "kto": "sprzedawca",
+      "en": "Here's your bag.",
+      "pl": "Proszę, twoja torba."
+    },
+    {
+      "kto": "Ty",
+      "en": "Thank you, bye!",
+      "pl": "Dziękuję, do widzenia!"
+    },
+    {
+      "kto": "sprzedawca",
+      "en": "Bye! Have a nice day!",
+      "pl": "Pa! Miłego dnia!"
+    }
+  ],
 };
 
 /**
@@ -574,6 +1666,23 @@ const NIUANSE: Record<string, string> = {
     "Klasowe słowo na „utknąłem w zadaniu” — nauczycielki wręcz uczą dzieci mówić „I'm stuck” zamiast siedzieć cicho nad zeszytem. Zupełnie nie wstyd go używać.",
   "How do you say it in English?":
     "Najważniejsze pytanie dziecka uczącego się języka: zamienia każdą rozmowę w lekcję. Warto, żeby weszło w nawyk — dzieci chętnie odpowiadają i lubią rolę nauczyciela.",
+  // --- nowe tematy (2026-09-30) ---
+  "Do you want to come to my house?": "Brytyjskie dzieci mówią też „Do you want to come round?” — to samo znaczenie, warto, żeby dziecko rozumiało oba. Termin i odbiór ustalają potem rodzice.",
+  "Where's the toilet?": "U kogoś w domu Brytyjczycy mówią toilet albo potocznie loo. Grzeczniej: „Can I use the toilet, please?”.",
+  "Have you got any brothers or sisters?": "Brytyjskie „have you got”; amerykańskie „do you have” też zrozumieją. To pytanie do kolegi — dziecko nie musi nic mówić o własnej rodzinie.",
+  "I'm it!": "W berku ten, kto goni, „is it”. Dzieci krzyczą „You're it!”, gdy kogoś dotkną — tu dziecko uczy się powiedzieć to o sobie.",
+  "Can I have a go?": "Bardzo brytyjskie i bardzo częste na placu zabaw. „Can I try?” też zrozumieją, ale od dzieci usłyszy głównie „have a go”.",
+  "Wait for me!": "Przydaje się w każdej zabawie i na spacerze. Warto ćwiczyć w biegu: rodzic odbiega kawałek, a dziecko woła „Wait for me!”.",
+  "Can I stroke him?": "Stroke to po brytyjsku głaskać. Amerykańskie pet (the dog) też zrozumieją, ale w Anglii mówi się stroke. O psie mówi się him/her — tak robią właściciele.",
+  "Is he friendly?": "Friendly o psie znaczy „nie gryzie, jest łagodny”. Anglicy pytają o to przed pogłaskaniem cudzego psa — dobry nawyk.",
+  "What's your dog called?": "Brytyjczycy częściej mówią What's he called? niż What's his name? — oba są dobre.",
+  "What's for tea?": "W wielu brytyjskich domach (zwłaszcza na północy i w rodzinach z dziećmi) „tea” to kolacja jedzona ok. 17–18. Inni mówią „dinner” — dziecko usłyszy oba.",
+  "Can I get down, please?": "Typowo brytyjska, domowa formułka dziecka przy stole: „Mogę zejść (z krzesła)?”. Grzecznie jest zapytać, zanim się wstanie.",
+  "That was lovely!": "„Lovely” to jedno z najczęstszych brytyjskich słów — pochwała jedzenia, pogody, rysunku. Warto chwalić nim kolację w domu.",
+  "What did you do at the weekend?": "W brytyjskiej szkole to typowe pytanie w poniedziałek rano. Wystarczy, że dziecko odpowie jednym zdaniem z „I went to…” albo „I played…”.",
+  "I went to the park.": "Szablon do podmieniania: I went to the shop / swimming / to the cinema. Ćwiczcie z tym, co dziecko naprawdę robiło w weekend.",
+  "How much is it?": "Odpowiedź dziecko usłyszy zwykle skrótem: „two fifty” = £2.50, „fifty p” = 50 pensów.",
+  "Thank you, bye!": "Przy kasie Brytyjczycy mówią też „Cheers!” albo „Ta!” zamiast „Thank you” — dobrze, żeby dziecko rozpoznawało je ze słuchu.",
 };
 
 /** Zdanie przykładowe dla słowa albo null. */

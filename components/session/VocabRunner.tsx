@@ -169,9 +169,38 @@ function buildScreens(
   role: DeviceRole,
   mode: SessionMode,
   levelOf: (phraseEn: string) => SpeakingLevel,
+  review = false,
 ): Screen[] {
   const short = role === "phone";
   const ile = (pelne: number, krotkie: number) => (short ? krotkie : pelne);
+
+  // Powtórka (lib/progress/review.ts): tylko pytania o to, co dziecko
+  // pomyliło — bez poznawania, scenek, ruchu i mówienia. Każda pozycja raz,
+  // dystraktory z całej puli (temat-składanka nie ma własnej).
+  if (review) {
+    return shuffled<Screen>([
+      ...topic.words.map<Screen>((word) => ({
+        kind: "vocab",
+        word,
+        options: withDistractors(word, [], ALL_WORDS, 3, (item) => item.en),
+      })),
+      ...topic.phrases.map<Screen>((phrase) => ({
+        kind: "phrase",
+        phrase,
+        options: withDistractors(phrase, [], ALL_PHRASES, 3, (item) => item.en),
+      })),
+      ...topic.commands.map<Screen>((command) => ({
+        kind: "command",
+        command,
+        options: withDistractors(command, [], ALL_COMMANDS, 3, (item) => item.en),
+      })),
+      ...topic.collocations.map<Screen>((collocation) => ({
+        kind: "collocation",
+        collocation,
+        options: shuffled([collocation.answer, ...collocation.distractors]),
+      })),
+    ]);
+  }
 
   const words = shuffled(topic.words);
   const meet = words.slice(0, ile(3, 2));
@@ -267,7 +296,7 @@ function buildScreens(
   return screens;
 }
 
-export function VocabRunner({ topic }: { topic: Topic }) {
+export function VocabRunner({ topic, review = false }: { topic: Topic; review?: boolean }) {
   const { role } = useDeviceRole();
   const { commitSession, state } = useProgress();
   const hero = getHero(topic.heroId);
@@ -324,7 +353,7 @@ export function VocabRunner({ topic }: { topic: Topic }) {
       };
       levelOfRef.current = levelOf;
       setMode(chosenMode);
-      setScreens(buildScreens(topic, role, chosenMode, levelOf));
+      setScreens(buildScreens(topic, role, chosenMode, levelOf, review));
       attemptsByIndexRef.current = new Map();
       frontierRef.current = 0;
       bonusStartRef.current = null;
@@ -335,7 +364,7 @@ export function VocabRunner({ topic }: { topic: Topic }) {
       setOutcome(null);
       setStage("running");
     },
-    [topic, role, state],
+    [topic, role, state, review],
   );
 
   const zapisz = useCallback(

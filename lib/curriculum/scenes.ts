@@ -51,6 +51,19 @@ function roleInstrumental(kto: string): string {
       return "panią ze stołówki";
     case "rodzic":
       return "rodzicem";
+    // Role z tematów dopisanych 2026-09-30 (dom, zwierzęta, kolacja, sklep).
+    case "mama":
+      return "mamą";
+    case "tata":
+      return "tatą";
+    case "sprzedawca":
+      return "sprzedawcą";
+    case "pani z psem":
+      return "panią z psem";
+    case "pan z psem":
+      return "panem z psem";
+    case "mama kolegi":
+      return "mamą kolegi";
     default:
       return kto;
   }

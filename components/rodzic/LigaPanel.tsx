@@ -176,7 +176,10 @@ function shareLabel({ own, total }: { own: number; total: number }): string {
 
 /** Etykieta sesji na liście: temat, książeczka albo grafem dźwięku. */
 function sessionLabel(state: ProgressState, session: SessionRecord): string {
-  if (trackOf(session) === "vocab") return getTopic(session.soundId)?.titlePl ?? session.soundId;
+  if (trackOf(session) === "vocab") {
+    if (session.soundId === "review") return "🔁 Powtórka";
+    return getTopic(session.soundId)?.titlePl ?? session.soundId;
+  }
   const bookId = bookOfSession(state, session);
   if (bookId) return `📖 ${getBook(bookId)?.titleEn ?? bookId}`;
   return getSound(session.soundId)?.grapheme ?? session.soundId;

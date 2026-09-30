@@ -101,6 +101,15 @@ function soundsStep(state: LigaState, now: number): MissionStepView {
   // Zrobione dziś zostaje na liście z ✅ — pierwsza zaliczona sesja dnia (to
   // ona odhaczyła krok; kolejne sesje dźwięków pokazuje bonus).
   if (doneToday) {
+    if (trackOf(doneToday) === "vocab" && doneToday.soundId === "review") {
+      return {
+        emoji: "🔁",
+        title: "Powtórka słówek",
+        subtitle: "Dźwięki · słowa i zwroty",
+        href: "/powtorka",
+        done: true,
+      };
+    }
     if (trackOf(doneToday) === "vocab") {
       return {
         emoji: "💬",

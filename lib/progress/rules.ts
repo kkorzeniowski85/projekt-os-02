@@ -142,6 +142,12 @@ export function applySessionResult(
   session: SessionRecord,
 ): ProgressState {
   if (trackOf(session) === "vocab") {
+    // Powtórka to składanka z wielu tematów — nie ma własnego stanu tematu
+    // (nie może „opanować się” ani trafić do listy tematów). Zostaje w
+    // historii sesji i w dzienniku prób, z których liczy się sama powtórka.
+    if (session.soundId === "review") {
+      return { ...state, updatedTs: session.endedTs, sessions: [...state.sessions, session] };
+    }
     const previous = state.topics[session.soundId] ?? emptyTopicState(session.soundId);
     const updated: TopicState = { ...previous, ...advance(previous, session) };
     return {

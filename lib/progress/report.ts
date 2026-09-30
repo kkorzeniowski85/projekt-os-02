@@ -192,6 +192,7 @@ export function buildMarkdownReport(state: ProgressState, now = Date.now()): str
     listen: "listen (słyszysz dźwięk?)",
     blend: "blend (sklejanie)",
     choice: "choice (które słowo)",
+    meaning: "meaning (przeczytaj i pokaż znaczenie)",
     vocab: "vocab (które słowo słyszysz)",
     phrase: "phrase (kiedy to mówisz)",
     command: "command (co robisz)",
