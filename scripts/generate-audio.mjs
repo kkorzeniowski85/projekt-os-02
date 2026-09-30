@@ -40,6 +40,14 @@ const args = process.argv.slice(2);
 const force = args.includes("--force");
 const voiceArg = args.indexOf("--voice");
 const VOICE = voiceArg >= 0 ? args[voiceArg + 1] : "en-GB-SoniaNeural";
+/**
+ * --shard 2/4: co czwarte słowo i zwrot, licząc od drugiego. Usługa czeka po
+ * stronie sieci, nie CPU, więc kilka instancji naraz (1/4 … 4/4) skraca
+ * generowanie setek plików kilkukrotnie. Bez opcji: wszystko w jednej.
+ */
+const shardArg = args.indexOf("--shard");
+const [shardIndex, shardCount] = shardArg >= 0 ? args[shardArg + 1].split("/").map(Number) : [1, 1];
+const inShard = (_item, index) => index % shardCount === shardIndex - 1;
 
 const root = path.join(fileURLToPath(new URL("../", import.meta.url)));
 const wordsDir = path.join(root, "public", "audio", "words");
@@ -84,9 +92,11 @@ async function withRetry(label, run, attempts = 3) {
 
 // Oba tory naraz. Slowa toru 2 ida do tego samego katalogu co slowa lekcji,
 // wiec slowo wspolne dla obu torow ma jeden plik i generuje sie raz.
-const words = [...new Set([...lessonWords(), ...vocabWords(), ...bookWords()])].sort();
+const words = [...new Set([...lessonWords(), ...vocabWords(), ...bookWords()])].sort().filter(inShard);
 // Zwroty cwiczen + kwestie scenek i zdania przykladowe trybu z rodzicem.
-const phrases = [...new Set([...vocabPhrases(), ...parentPhrases(), ...sentenceTexts(), ...bookTexts()])].sort();
+const phrases = [...new Set([...vocabPhrases(), ...parentPhrases(), ...sentenceTexts(), ...bookTexts()])]
+  .sort()
+  .filter(inShard);
 const graphemes = lessonGraphemes().filter((grapheme) => {
   if (IPA_BY_GRAPHEME[grapheme]) return true;
   console.warn(`  ! brak zapisu IPA dla "${grapheme}" — pomijam`);
