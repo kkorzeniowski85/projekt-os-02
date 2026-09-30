@@ -73,6 +73,20 @@ export function composable(rawWord, stage) {
   return false;
 }
 
+/**
+ * Czy w słowie widać dany grafem — do liczenia stron z dźwiękiem bramki.
+ * Split digraph (a-e) nie jest ciągiem liter: samogłoska i „e” stoją po obu
+ * stronach jednej spółgłoski (cake, bike, bone, huge), także z końcówką
+ * (cakes, baked, rider, safest, lately). Zwykły grafem — po prostu podciąg.
+ */
+export function hasGrapheme(rawWord, grapheme) {
+  const word = bare(rawWord);
+  const g = grapheme.toLowerCase();
+  if (!g.includes("-")) return word.includes(g);
+  const [vowel, end] = g.split("-");
+  return new RegExp(`${vowel}[bcdfghjklmnpqrstvwxz]${end}(?:s|d|r|st|ly)?$`).test(word);
+}
+
 /** Czy słowo da się przeczytać na tym etapie: red word albo złożenie grafemów. */
 export function decodable(rawWord, stage) {
   const word = bare(rawWord);
@@ -124,7 +138,7 @@ export function checkBook(book, files) {
     if (ws.length > 14) warn(`"${id}": strona ${n} ma ${ws.length} słów (za dużo na jedną stronę)`);
     const sentences = page.en.split(/[.!?]+/).filter((s) => s.trim()).length;
     if (sentences > 2) warn(`"${id}": strona ${n} ma ${sentences} zdania (max 2)`);
-    if (gate && ws.some((w) => bare(w).includes(gate.replace("-", "")))) pagesWithGate += 1;
+    if (gate && ws.some((w) => hasGrapheme(w, gate))) pagesWithGate += 1;
     for (const w of ws) {
       const b = bare(w);
       usedWords.add(b);
