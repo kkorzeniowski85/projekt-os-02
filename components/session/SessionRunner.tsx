@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Celebration } from "@/components/Celebration";
 import { InterruptDialog } from "@/components/session/InterruptDialog";
+import { splitIndex, WordTiles } from "@/components/session/WordTiles";
 import { HeroAvatar } from "@/components/HeroAvatar";
 import { BigButton, Card, ParentTip, PhonemeSpeaker, PhraseSpeaker, StepDots, WordSpeaker } from "@/components/ui";
 import {
@@ -721,6 +722,29 @@ function ListenScreen({
 
 // --- Ćwiczenie 2: sklejanie dźwięków (Fred Talk) ---------------------------
 
+/**
+ * Podpowiedź przy split digraph: jak w UK tłumaczy się „magic e” — końcowe
+ * „e” samo nie mówi, tylko pomaga samogłosce powiedzieć jej NAZWĘ (a → /eɪ/,
+ * i → /aɪ/, o → /əʊ/, u → /juː/). Rodzicowi: jak to pokazać palcem.
+ */
+function SplitHint({ grapheme, word, mode }: { grapheme: string; word: string; mode: SessionMode }) {
+  const [vowel, end] = grapheme.split("-");
+  return (
+    <div className="flex max-w-md flex-col items-center gap-1">
+      <p className="text-sm text-hero-gold">
+        Złoty łuk łączy „{vowel}” i „{end}” — to JEDEN dźwięk. „{end}” na końcu nic nie mówi,
+        tylko pomaga „{vowel}” powiedzieć swoje imię.
+      </p>
+      {mode === "parent" && (
+        <p className="text-xs text-paper/50">
+          Pokaż palcem łuk: od „{vowel}” skacz nad literą do „{end}”. Głoskujcie razem po
+          dźwiękach, nie po literach, i sklejcie: <span className="font-reading">{word}</span>.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function BlendScreen({
   card,
   sound,
@@ -761,15 +785,11 @@ function BlendScreen({
     <Card className="no-select flex flex-col items-center gap-5 text-center">
       <h2 className="text-2xl font-bold">Sklej dźwięki w słowo</h2>
 
-      <div className="flex flex-wrap justify-center gap-3">
-        {card.graphemes.map((grapheme, position) => {
-          const isTarget = position === card.targetIndex;
-          const isTapped = tapped.includes(position);
-          return (
-            <button
-              key={`${grapheme}-${position}`}
-              type="button"
-              onClick={async () => {
+      <WordTiles
+        graphemes={card.graphemes}
+        targetIndex={card.targetIndex}
+        tapped={tapped}
+        onTap={async (position, grapheme) => {
                 setTapped((previous) =>
                   previous.includes(position) ? previous : [...previous, position],
                 );
@@ -789,21 +809,15 @@ function BlendScreen({
                 } else {
                   setTapProblem(result.reason ?? "network");
                 }
-              }}
-              className={`font-reading min-w-20 rounded-2xl px-5 py-4 text-4xl font-black transition active:translate-y-1 ${
-                isTarget
-                  ? "bg-hero-gold text-night shadow-[0_6px_0_#c99a1f]"
-                  : "bg-white/15 text-paper shadow-[0_6px_0_rgba(0,0,0,0.3)]"
-              } ${isTapped ? "opacity-60" : ""}`}
-            >
-              {grapheme}
-            </button>
-          );
-        })}
-      </div>
-      <p className="text-xs text-paper/50">
-        Żółty kawałek to „special friends” — dwie litery, jeden dźwięk.
-      </p>
+        }}
+      />
+      {splitIndex(card.graphemes) >= 0 ? (
+        <SplitHint grapheme={card.graphemes[splitIndex(card.graphemes)]} word={card.word} mode={mode} />
+      ) : (
+        <p className="text-xs text-paper/50">
+          Żółty kawałek to „special friends” — dwie litery, jeden dźwięk.
+        </p>
+      )}
       {tapProblem === "blocked" && (
         <p className="text-sm font-bold text-hero-gold">
           Stuknij kawałek jeszcze raz, żeby usłyszeć dźwięk
@@ -1226,22 +1240,11 @@ function PowtorkaEkranu({
 
       {screen.kind === "blend" && (
         <>
-          <div className="flex flex-wrap justify-center gap-3">
-            {screen.card.graphemes.map((grapheme, position) => (
-              <button
-                key={`${grapheme}-${position}`}
-                type="button"
-                onClick={() => void playPhonemeStrict(chipSoundId(grapheme, sound.id))}
-                className={`font-reading min-w-20 rounded-2xl px-5 py-4 text-4xl font-black transition active:translate-y-1 ${
-                  position === screen.card.targetIndex
-                    ? "bg-hero-gold text-night shadow-[0_6px_0_#c99a1f]"
-                    : "bg-white/15 text-paper shadow-[0_6px_0_rgba(0,0,0,0.3)]"
-                }`}
-              >
-                {grapheme}
-              </button>
-            ))}
-          </div>
+          <WordTiles
+            graphemes={screen.card.graphemes}
+            targetIndex={screen.card.targetIndex}
+            onTap={(_position, grapheme) => void playPhonemeStrict(chipSoundId(grapheme, sound.id))}
+          />
           <div className="text-6xl" aria-hidden>
             {screen.card.emoji}
           </div>
