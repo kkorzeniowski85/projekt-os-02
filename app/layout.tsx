@@ -28,6 +28,11 @@ export const metadata: Metadata = {
   description:
     "Liga: czytanie po angielsku metodą phonics i słownictwo (dział Dźwięki) oraz tabliczka mnożenia, matematyka po angielsku, czytanie ze zrozumieniem i język klasy (dział Akademia)",
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: APP_NAME },
+  // Aplikacja rodzinna, nie strona dla świata: prosimy wyszukiwarki, żeby jej
+  // nie pokazywały (decyzja rodzica 2026-10-02). Link działa dalej dla każdego,
+  // kto go ma. robots.txt nie wchodzi w grę — działa tylko w katalogu głównym
+  // domeny, a ta należy do innego repozytorium. Podstrony dziedziczą ustawienie.
+  robots: { index: false, follow: false },
 };
 
 export const viewport: Viewport = {
