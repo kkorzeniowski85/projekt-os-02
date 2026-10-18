@@ -76,7 +76,11 @@ export type Exercise = Base &
     | {
         kind: "learn";
         bodyPl?: string;
-        examples?: { en: string; pl?: string; visual?: Visual }[];
+        /**
+         * clock: stuknięcie przykładu przestawia duży zegar ekranu na tę
+         * godzinę (prośba rodzica 2026-10-18) — słowa i tarcza naraz.
+         */
+        examples?: { en: string; pl?: string; visual?: Visual; clock?: { hour: number; minute: number } }[];
         /** Liczenie skokami: liczby do odegrania po kolei z podświetleniem. */
         countAlong?: number[];
       }

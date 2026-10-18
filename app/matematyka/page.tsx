@@ -19,6 +19,22 @@ export default function MathsHubPage() {
           subtitle: topic.goalPl,
         }))}
       />
+      {/* Ściąga zegara: duży zegar przestawiany palcem — bez punktów, osobny kafelek. */}
+      <Link
+        href="/matematyka/zegar/"
+        className="flex items-start gap-3 rounded-blob border border-hero-cyan/40 bg-hero-cyan/10 p-4 transition hover:bg-hero-cyan/15 active:translate-y-0.5"
+      >
+        <span className="text-4xl" aria-hidden>
+          🕒
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="text-lg font-black leading-tight">Zegar po angielsku — ściąga</span>
+          <span className="text-sm text-paper/65">
+            Duży zegar: przesuń wskazówki palcem i zobacz, jak tę godzinę się mówi i pisze po angielsku (3:15, 3:15 pm,
+            15:15). Przykłady do stuknięcia.
+          </span>
+        </span>
+      </Link>
       {/* Zakładka bez ćwiczeń i punktów — dlatego osobny kafelek, nie temat z listy. */}
       <Link
         href="/matematyka/zeszyt/"

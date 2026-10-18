@@ -12,6 +12,7 @@
  * `mathsPhrases()`), więc dziecko, które jeszcze słabo czyta, może słuchać.
  */
 
+import { clockGuidePhrases } from "./clockGuide";
 import {
   formatNumber,
   HUNDREDS_POOL,
@@ -535,7 +536,7 @@ const MINUTE_OF: Record<TimeKind, number> = {
   "five-to": 55,
 };
 
-function kindOfMinute(minute: number): TimeKind {
+export function kindOfMinute(minute: number): TimeKind {
   const found = TIME_KINDS.find((kind) => MINUTE_OF[kind] === minute);
   if (!found) throw new Error(`kindOfMinute: brak rodzaju dla ${minute}`);
   return found;
@@ -722,14 +723,14 @@ function timeSession(): Exercise[] {
       bodyPl:
         "Uwaga, pułapka! „Half past three” to 3:30 — pół godziny PO trzeciej. Po polsku mówimy „wpół do czwartej”, więc łatwo pomylić godzinę. Anglik liczy od godziny, która minęła: do połowy mówi „past” (po), po połowie „to” (za) i już nazywa następną godzinę. Cyfrowo: 3:30 pm na co dzień, 15:30 na rozkładzie jazdy.",
       examples: [
-        { en: "three o'clock", pl: "3:00 — trzecia" },
-        { en: "quarter past three", pl: "3:15 — kwadrans po trzeciej" },
-        { en: "twenty-five past three", pl: "3:25 — do połowy godziny: „past” (po)" },
-        { en: "half past three", pl: "3:30 — wpół do czwartej!" },
-        { en: "twenty-five to four", pl: "3:35 — po połowie: „to” (za) i już „four”" },
-        { en: "quarter to four", pl: "3:45 — za kwadrans czwarta" },
-        { en: "ten to four", pl: "3:50 — za dziesięć czwarta" },
-        { en: "half four", pl: "potocznie: 4:30 (half past four), NIE „wpół do czwartej”!" },
+        { en: "three o'clock", pl: "3:00 — trzecia", clock: { hour: 3, minute: 0 } },
+        { en: "quarter past three", pl: "3:15 — kwadrans po trzeciej", clock: { hour: 3, minute: 15 } },
+        { en: "twenty-five past three", pl: "3:25 — do połowy godziny: „past” (po)", clock: { hour: 3, minute: 25 } },
+        { en: "half past three", pl: "3:30 — wpół do czwartej!", clock: { hour: 3, minute: 30 } },
+        { en: "twenty-five to four", pl: "3:35 — po połowie: „to” (za) i już „four”", clock: { hour: 3, minute: 35 } },
+        { en: "quarter to four", pl: "3:45 — za kwadrans czwarta", clock: { hour: 3, minute: 45 } },
+        { en: "ten to four", pl: "3:50 — za dziesięć czwarta", clock: { hour: 3, minute: 50 } },
+        { en: "half four", pl: "potocznie: 4:30 (half past four), NIE „wpół do czwartej”!", clock: { hour: 4, minute: 30 } },
       ],
       parentPl:
         "W Year 3–4 dzieci czytają zegar wskazówkowy do minuty („twenty past”, „ten to”; także tarcze z cyframi rzymskimi), znają am/pm i zapis 24-godzinny (Year 4 zamienia jeden na drugi). Na co dzień mówi się 12-godzinnie: „half past three” to i 3:30, i 15:30. Uwaga na potoczne „half four” (tak mówią rodzice na placu zabaw: „pick-up at half four”) — to 4:30, a polskie ucho słyszy „wpół do czwartej”, czyli 3:30. Warto w domu mówić godziny po angielsku przy okazji: „It's quarter past seven — time for breakfast!”",
@@ -1503,6 +1504,8 @@ export function mathsPhrases(): string[] {
     item.options.forEach(add);
   });
   DAY_TIMES.forEach((item) => add(item.en));
+  // Ściąga zegara (/matematyka/zegar): każda godzina co do minuty.
+  clockGuidePhrases().forEach(add);
   ["metre, centimetre, kilometre", "gram, kilogram", "litre, millilitre", "One kilogram is one thousand grams.", "How do you say this?"].forEach(add);
   UNIT_WORDS.forEach((item) => item.options.forEach(add));
   UNIT_CONVERSIONS.forEach((item) => add(item.en));

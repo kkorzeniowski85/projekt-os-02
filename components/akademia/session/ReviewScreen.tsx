@@ -13,7 +13,7 @@ import { playSound, playText } from "@/lib/akademia/audio";
 import type { PendingAttempt } from "@/lib/akademia/progress/store";
 import type { SessionMode } from "@/lib/akademia/progress/types";
 import type { Exercise } from "@/lib/akademia/session/exercise";
-import { LearnBody, PassageBelow } from "./ExerciseScreen";
+import { LearnBody, PassageBelow, useLearnClock } from "./ExerciseScreen";
 import { VisualView } from "./VisualView";
 
 export function ReviewScreen({
@@ -29,6 +29,9 @@ export function ReviewScreen({
 }) {
   const result =
     attempt === undefined || attempt.correct === null ? null : attempt.correct ? "good" : "practise";
+  // Ekran „Poznaj" z zegarem: wybrany przykład przestawia zegar także tutaj.
+  const learnClock = useLearnClock(exercise);
+  const view = learnClock.shown;
 
   return (
     <Card className="no-select flex flex-col items-center gap-4 text-center">
@@ -42,15 +45,15 @@ export function ReviewScreen({
         )}
       </div>
 
-      {exercise.heading && <p className="text-sm text-paper/60">{exercise.heading}</p>}
-      {exercise.visual && exercise.visual.kind !== "passage" && <VisualView visual={exercise.visual} />}
-      {exercise.promptEn && (
-        <p className="font-reading max-w-2xl text-2xl font-bold">{exercise.promptEn}</p>
+      {view.heading && <p className="text-sm text-paper/60">{view.heading}</p>}
+      {view.visual && view.visual.kind !== "passage" && <VisualView visual={view.visual} />}
+      {view.promptEn && (
+        <p className="font-reading max-w-2xl text-2xl font-bold">{view.promptEn}</p>
       )}
-      {exercise.promptPl && <p className="text-sm text-hero-cyan">{exercise.promptPl}</p>}
-      {exercise.sound && <Speaker onPlay={() => void playSound(exercise.sound!)} label="Posłuchaj" />}
+      {view.promptPl && <p className="text-sm text-hero-cyan">{view.promptPl}</p>}
+      {view.sound && <Speaker onPlay={() => void playSound(view.sound!)} label="Posłuchaj" />}
 
-      <Answer exercise={exercise} />
+      <Answer exercise={exercise} learnClock={learnClock} />
 
       {exercise.explainPl && (
         <p className="max-w-xl rounded-2xl bg-white/5 p-3 text-left text-sm text-paper/80">
@@ -71,7 +74,13 @@ export function ReviewScreen({
   );
 }
 
-function Answer({ exercise }: { exercise: Exercise }) {
+function Answer({
+  exercise,
+  learnClock,
+}: {
+  exercise: Exercise;
+  learnClock: ReturnType<typeof useLearnClock>;
+}) {
   switch (exercise.kind) {
     case "choice": {
       const option = exercise.options.find((candidate) => candidate.id === exercise.answer);
@@ -140,7 +149,7 @@ function Answer({ exercise }: { exercise: Exercise }) {
         </div>
       );
     case "learn":
-      return <LearnBody exercise={exercise} />;
+      return <LearnBody exercise={exercise} picked={learnClock.picked} onPick={learnClock.pick} />;
     case "passage":
       return (
         <div className="flex w-full max-w-2xl flex-col gap-1.5 text-left">

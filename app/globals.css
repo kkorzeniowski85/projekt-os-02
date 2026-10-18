@@ -171,7 +171,19 @@ html {
   animation: spin-slow 16s linear infinite;
 }
 
+/* Wskazówki zegara (components/akademia/ClockFace.tsx): obrót wokół środka
+   tarczy (100,100 w układzie viewBox), płynny przy zmianie godziny. */
+.clock-hand {
+  transform-box: view-box;
+  transform-origin: 100px 100px;
+  transition: transform 0.6s ease-in-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .clock-hand {
+    transition: none;
+  }
+
   .animate-pop-in,
   .animate-cheer,
   .animate-pulse-ring,

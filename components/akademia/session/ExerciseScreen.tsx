@@ -317,8 +317,39 @@ function holdsScreen(exercise: Exercise, mode: SessionMode): boolean {
 
 // --- Poznaj -------------------------------------------------------------------
 
+type LearnExample = NonNullable<Extract<Exercise, { kind: "learn" }>["examples"]>[number];
+
+/**
+ * Ekran „Poznaj" z przykładami-godzinami: wybrany przykład przestawia duży
+ * zegar i napis nad nim (wspólne dla sesji i powtórki). Bez wyboru — ekran
+ * jak w danych.
+ */
+export function useLearnClock(exercise: Exercise) {
+  const [picked, setPicked] = useState<LearnExample | null>(null);
+  useEffect(() => setPicked(null), [exercise]);
+  const shown: Exercise =
+    picked?.clock && exercise.visual?.kind === "clock"
+      ? {
+          ...exercise,
+          visual: { kind: "clock", ...picked.clock },
+          promptEn: picked.en.charAt(0).toUpperCase() + picked.en.slice(1),
+          promptPl: picked.pl,
+          sound: { kind: "text", value: picked.en },
+        }
+      : exercise;
+  return { shown, picked, pick: setPicked };
+}
+
 /** Treść ekranu „Poznaj" — wspólna dla ekranu na żywo i powtórki po ↩. */
-export function LearnBody({ exercise }: { exercise: Extract<Exercise, { kind: "learn" }> }) {
+export function LearnBody({
+  exercise,
+  picked = null,
+  onPick,
+}: {
+  exercise: Extract<Exercise, { kind: "learn" }>;
+  picked?: LearnExample | null;
+  onPick?: (example: LearnExample) => void;
+}) {
   return (
     <>
       {exercise.countAlong && <CountAlong numbers={exercise.countAlong} />}
@@ -326,13 +357,32 @@ export function LearnBody({ exercise }: { exercise: Extract<Exercise, { kind: "l
       {exercise.examples && exercise.examples.length > 0 && (
         <ul className="flex w-full max-w-xl flex-col gap-2 text-left">
           {exercise.examples.map((example) => (
-            <li key={example.en} className="flex items-center gap-3 rounded-2xl bg-white/5 p-3">
-              <Speaker size="sm" onPlay={() => void playText(example.en)} ariaLabel={`Posłuchaj: ${example.en}`} />
-              {example.visual && <VisualView visual={example.visual} small />}
-              <span>
-                <span className="font-reading block text-xl font-bold">{example.en}</span>
-                {example.pl && <span className="text-sm text-hero-cyan">{example.pl}</span>}
-              </span>
+            <li key={example.en}>
+              {/* Cały wiersz to przycisk: stuknięcie czyta przykład, a gdy ma
+                  godzinę — przestawia też zegar nad listą. */}
+              <button
+                type="button"
+                onClick={() => {
+                  void playText(example.en);
+                  onPick?.(example);
+                }}
+                aria-pressed={picked?.en === example.en}
+                className={`flex w-full items-center gap-3 rounded-2xl p-3 text-left transition active:translate-y-0.5 ${
+                  picked?.en === example.en ? "bg-hero-gold/20 ring-2 ring-hero-gold" : "bg-white/5 hover:bg-white/10"
+                }`}
+              >
+                <span
+                  aria-hidden
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-hero-gold/25 text-lg"
+                >
+                  {example.clock ? "🕒" : "🔊"}
+                </span>
+                {example.visual && <VisualView visual={example.visual} small />}
+                <span>
+                  <span className="font-reading block text-xl font-bold">{example.en}</span>
+                  {example.pl && <span className="text-sm text-hero-cyan">{example.pl}</span>}
+                </span>
+              </button>
             </li>
           ))}
         </ul>
@@ -343,10 +393,11 @@ export function LearnBody({ exercise }: { exercise: Extract<Exercise, { kind: "l
 
 function LearnExercise({ exercise, mode, onNext, paused }: Props<"learn">) {
   const [needsTap, clearTap] = useAutoSound(exercise);
+  const { shown, picked, pick } = useLearnClock(exercise);
   return (
     <Card className="no-select flex flex-col items-center gap-5 text-center">
-      <PromptBlock exercise={exercise} needsTap={needsTap} clearTap={clearTap} />
-      <LearnBody exercise={exercise} />
+      <PromptBlock exercise={shown} needsTap={needsTap} clearTap={clearTap} />
+      <LearnBody exercise={exercise} picked={picked} onPick={pick} />
       {mode === "parent" && exercise.parentPl && (
         <div className="w-full max-w-xl">
           <ParentTip>
