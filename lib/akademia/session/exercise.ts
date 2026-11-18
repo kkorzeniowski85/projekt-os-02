@@ -111,6 +111,8 @@ export type Exercise = Base &
          * kropkach”); po błędzie pokazuje się sama.
          */
         hint?: Visual;
+        /** "wrong" = podpowiedź tylko po błędzie (przed odpowiedzią zdradzałaby działanie). */
+        hintWhen?: "always" | "wrong";
         revealSound?: Sound;
       }
     | { kind: "order"; items: OrderItem[] }

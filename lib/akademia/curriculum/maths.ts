@@ -12,7 +12,7 @@
  * `mathsPhrases()`), więc dziecko, które jeszcze słabo czyta, może słuchać.
  */
 
-import { addSubtract30Session, calcPhrases, subtract30Session } from "./calc30";
+import { calcPhrases, subtractSession, wordsSession, type CalcRange } from "./calc";
 import { clockGuidePhrases } from "./clockGuide";
 import {
   formatNumber,
@@ -32,13 +32,18 @@ import {
   type Visual,
 } from "@/lib/akademia/session/exercise";
 
+/** Opcje budowy sesji — ustawienia urządzenia, które temat może brać pod uwagę. */
+export type MathsBuildOptions = { calcRange?: CalcRange };
+
 export type MathsTopic = {
   id: string;
   titlePl: string;
   emoji: string;
   goalPl: string;
   parentIntroPl: string;
-  build: () => Exercise[];
+  build: (options?: MathsBuildOptions) => Exercise[];
+  /** Na ekranie startu wybór zakresu liczb (20 / 30 / 50 / 100). */
+  rangePicker?: boolean;
 };
 
 const AUDIO_NUMBERS = new Set(numbersWithAudio());
@@ -1416,22 +1421,25 @@ export const MATHS_TOPICS: MathsTopic[] = [
     build: numbersTopic("n100", range(21, 99), { hear: 3, type: 5, read: 2 }),
   },
   {
+    // id zostaje „subtract-30” (klucz postępu) — zakres jest ustawieniem, nie tematem.
     id: "subtract-30",
-    titlePl: "Odejmowanie do 30",
+    titlePl: "Odejmowanie",
     emoji: "➖",
-    goalPl: "13 take away 5 — przez dziesiątkę, z podpowiedzią na kropkach.",
+    goalPl: "13 take away 5 — przez dziesiątkę, z kropkami. Zakres: do 20, 30, 50 albo 100.",
     parentIntroPl:
-      "Najczęstszy kłopot to odejmowanie przez dziesiątkę (13 − 5, 22 − 7). Każde zadanie ma przycisk „Pokaż na kropkach”, a po odpowiedzi sposób krok po kroku i sprawdzenie dodawaniem. Pytania padają po angielsku: „take away”, „minus”.",
-    build: subtract30Session,
+      "Najczęstszy kłopot to odejmowanie przez dziesiątkę (13 − 5, 22 − 7). Każde zadanie ma przycisk „Pokaż na kropkach”, a po odpowiedzi sposób krok po kroku i sprawdzenie dodawaniem. Pytania padają po angielsku: „take away”, „minus”. Zakres liczb wybierasz niżej — po poszerzeniu część zadań nadal jest z mniejszych liczb, żeby to, co już umie, nie znikło.",
+    build: (options) => subtractSession(options?.calcRange),
+    rangePicker: true,
   },
   {
     id: "add-subtract-30",
-    titlePl: "Dodawanie i odejmowanie do 30",
+    titlePl: "Dodawanie i odejmowanie słowami",
     emoji: "➕",
-    goalPl: "Subtract from, less than, the difference — działanie ukryte w słowach.",
+    goalPl: "Subtract from, less than, the difference — działanie ukryte w słowach. Zakres do wyboru.",
     parentIntroPl:
-      "Działanie pada tylko słowami: „subtract 4 from 12”, „3 less than 20”, „the difference between”, „altogether”, „how many are left” — i krótkie zadania z treścią. Najpierw rozpoznać, czy dodajemy, czy odejmujemy, potem liczyć. Też z kropkami.",
-    build: addSubtract30Session,
+      "Działanie pada tylko słowami: „subtract 4 from 12”, „3 less than 20”, „the difference between”, „altogether”, „how many are left” — i krótkie zadania z treścią. Najpierw rozpoznać, czy dodajemy, czy odejmujemy, potem liczyć. Kropki pokazują się dopiero po błędzie — wcześniej zdradzałyby działanie. Zakres liczb wybierasz niżej.",
+    build: (options) => wordsSession(options?.calcRange),
+    rangePicker: true,
   },
   {
     id: "numbers-1000",
@@ -1525,7 +1533,7 @@ export function mathsPhrases(): string[] {
   DAY_TIMES.forEach((item) => add(item.en));
   // Ściąga zegara (/matematyka/zegar): każda godzina co do minuty.
   clockGuidePhrases().forEach(add);
-  // Odejmowanie i dodawanie do 30 (calc30.ts).
+  // Odejmowanie i dodawanie w wybranym zakresie (calc.ts) — wszystkie zakresy.
   calcPhrases().forEach(add);
   ["metre, centimetre, kilometre", "gram, kilogram", "litre, millilitre", "One kilogram is one thousand grams.", "How do you say this?"].forEach(add);
   UNIT_WORDS.forEach((item) => item.options.forEach(add));

@@ -180,6 +180,15 @@ export function buildMarkdownReport(state: ProgressState, now = Date.now()): str
         .join(", ")}.`,
     );
   }
+  // Odejmowanie/dodawanie: ile odpowiedzi padło przy odsłoniętych kropkach —
+  // trafienie z kropkami to jeszcze nie liczenie w pamięci.
+  const calcAttempts = state.attempts.filter((attempt) => attempt.exercise === "calc" && attempt.correct !== null);
+  if (calcAttempts.length > 0) {
+    const hinted = calcAttempts.filter((attempt) => attempt.hinted);
+    lines.push(
+      `Odejmowanie/dodawanie: ${calcAttempts.length} odpowiedzi, z kropkami ${hinted.length} (trafnych z kropkami: ${hinted.filter((attempt) => attempt.correct).length}).`,
+    );
+  }
 
   lines.push("");
   lines.push("## Czytanie ze zrozumieniem");
@@ -234,7 +243,7 @@ function csvCell(value: string | number | null | undefined): string {
 }
 
 export function buildAttemptsCsv(state: ProgressState): string {
-  const header = ["timestamp", "data", "module", "unit", "exercise", "item", "answer", "correct", "response_ms", "mode"].join(",");
+  const header = ["timestamp", "data", "module", "unit", "exercise", "item", "answer", "correct", "response_ms", "mode", "hinted"].join(",");
   const rows = state.attempts.map((attempt) =>
     [
       attempt.ts,
@@ -247,6 +256,7 @@ export function buildAttemptsCsv(state: ProgressState): string {
       attempt.correct === null ? "" : attempt.correct ? "1" : "0",
       attempt.responseMs,
       attempt.mode,
+      attempt.hinted ? "1" : "",
     ]
       .map(csvCell)
       .join(","),

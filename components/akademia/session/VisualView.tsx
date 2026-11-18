@@ -9,7 +9,7 @@ import { useState } from "react";
 import { ClockFace } from "@/components/akademia/ClockFace";
 import { Speaker } from "@/components/akademia/ui";
 import { playText } from "@/lib/akademia/audio";
-import { pl } from "@/lib/akademia/pl";
+import { pl, plForm } from "@/lib/akademia/pl";
 import type { MarkStyle, Visual } from "@/lib/akademia/session/exercise";
 
 export function VisualView({ visual, small = false }: { visual: Visual; small?: boolean }) {
@@ -59,8 +59,14 @@ export function VisualView({ visual, small = false }: { visual: Visual; small?: 
 /**
  * Kropki w dziesiątkach, każda dziesiątka jako 5 + 5 (jak „ten frame” w
  * angielskiej klasie) — oko od razu widzi „pełna dziesiątka i jeszcze 3”.
- * Odejmowanie: ostatnie `crossed` kropek przekreślone (zabrane). Dodawanie:
- * `added` dołożonych kropek w drugim kolorze, dalej w tych samych rzędach.
+ * Odejmowanie: zabrane kropki są przekreślone — zwykle ostatnie `crossed`, a
+ * gdy zabieramy pełne dziesiątki (27 − 10), całe pierwsze rzędy: jedności
+ * zostają nietknięte, dokładnie jak mówi wyjaśnienie. Dodawanie: `added`
+ * dołożonych kropek w drugim kolorze, dalej w tych samych rzędach.
+ *
+ * Rozmiar z klas, nie z pikseli: na wąskim telefonie kropki są mniejsze (rząd
+ * mieści się w karcie), od 640 px pełne. Przy ponad 30 kropkach (zakres do 50
+ * i do 100) — mniejsze, żeby słupek dziesiątek nie zepchnął klawiatury.
  */
 export function TenFrames({
   total,
@@ -75,36 +81,37 @@ export function TenFrames({
 }) {
   const count = total + added;
   const rows = Math.ceil(count / 10);
-  const size = small ? 16 : 26;
+  const dense = count > 30;
+  const dot = small || dense ? "size-3 sm:size-4" : "size-[18px] sm:size-[26px]";
+  const fiveGap = small || dense ? "gap-1" : "gap-1 sm:gap-1.5";
+  const rowGap = small || dense ? "gap-2 px-2 py-1" : "gap-2 px-2 py-1.5 sm:gap-3 sm:px-3 sm:py-2";
+  const wholeTens = crossed > 0 && crossed % 10 === 0;
+  const left = total - crossed;
   const label =
     added > 0
-      ? `${total} kropek i ${added} dołożonych — razem ${count}`
-      : `${total} kropek, ${crossed} skreślonych — zostaje ${total - crossed}`;
+      ? `${pl(total, "kropka", "kropki", "kropek")} i ${pl(added, "dołożona", "dołożone", "dołożonych")} — razem ${count}`
+      : `${pl(total, "kropka", "kropki", "kropek")}, ${pl(crossed, "skreślona", "skreślone", "skreślonych")} — ${plForm(left, "zostaje", "zostają", "zostaje")} ${left}`;
   return (
-    <div className="flex flex-col items-center gap-2" role="img" aria-label={label}>
+    <div className={`flex flex-col items-center ${dense ? "gap-1" : "gap-2"}`} role="img" aria-label={label}>
       {Array.from({ length: rows }, (_, row) => (
-        <div key={row} className="flex gap-3 rounded-2xl bg-white/5 px-3 py-2">
+        <div key={row} className={`flex rounded-2xl bg-white/5 ${rowGap}`}>
           {[0, 5].map((half) => (
-            <div key={half} className="flex gap-1.5">
+            <div key={half} className={`flex ${fiveGap}`}>
               {Array.from({ length: 5 }, (_, i) => {
                 const n = row * 10 + half + i; // indeks kropki od 0
-                if (n >= count) return <span key={i} style={{ width: size, height: size }} />;
+                if (n >= count) return <span key={i} className={dot} />;
                 const isAdded = n >= total;
-                const isCrossed = !isAdded && n >= total - crossed;
+                const isCrossed = !isAdded && (wholeTens ? n < crossed : n >= total - crossed);
                 return (
                   <span
                     key={i}
-                    className="relative inline-block rounded-full"
-                    style={{
-                      width: size,
-                      height: size,
-                      background: isAdded ? "#ffc93c" : isCrossed ? "rgba(255,255,255,0.18)" : "#21d4fd",
-                    }}
+                    className={`relative inline-block rounded-full ${dot}`}
+                    style={{ background: isAdded ? "#ffc93c" : isCrossed ? "rgba(255,255,255,0.18)" : "#21d4fd" }}
                   >
                     {isCrossed && (
                       <svg viewBox="0 0 10 10" className="absolute inset-0" aria-hidden>
-                        <line x1="1.5" y1="1.5" x2="8.5" y2="8.5" stroke="#ff5fa2" strokeWidth="1.6" strokeLinecap="round" />
-                        <line x1="8.5" y1="1.5" x2="1.5" y2="8.5" stroke="#ff5fa2" strokeWidth="1.6" strokeLinecap="round" />
+                        <line x1="1.5" y1="1.5" x2="8.5" y2="8.5" stroke="#ff9cc6" strokeWidth="1.6" strokeLinecap="round" />
+                        <line x1="8.5" y1="1.5" x2="1.5" y2="8.5" stroke="#ff9cc6" strokeWidth="1.6" strokeLinecap="round" />
                       </svg>
                     )}
                   </span>

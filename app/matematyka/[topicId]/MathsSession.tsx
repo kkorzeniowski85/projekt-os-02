@@ -1,7 +1,9 @@
 "use client";
 
+import { CalcRangePicker } from "@/components/akademia/CalcRangePicker";
 import { SessionRunner } from "@/components/akademia/session/SessionRunner";
 import { getMathsTopic } from "@/lib/akademia/curriculum/maths";
+import { readSettings } from "@/lib/settings";
 
 /** Temat szukany po id po stronie klienta — funkcji `build` nie da się przekazać z serwera. */
 export function MathsSession({ topicId }: { topicId: string }) {
@@ -18,7 +20,10 @@ export function MathsSession({ topicId }: { topicId: string }) {
       startNotePl="Każde zdanie da się odsłuchać — czytanie po angielsku nie jest tu warunkiem."
       exitHref="/matematyka/"
       exitLabel="Inne tematy"
-      build={() => topic.build()}
+      introExtra={topic.rangePicker ? <CalcRangePicker /> : undefined}
+      // Zakres czytany przy KAŻDYM starcie (także „Jeszcze raz”) — zmiana na
+      // ekranie startu działa od razu.
+      build={() => topic.build({ calcRange: readSettings().calcRange })}
     />
   );
 }

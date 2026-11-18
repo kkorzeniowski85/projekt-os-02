@@ -31,14 +31,23 @@ export function storySpeedFactor(speed: StorySpeed): number {
   return STORY_SPEEDS.find((candidate) => candidate.id === speed)?.factor ?? 1;
 }
 
+/**
+ * Zakres liczb w odejmowaniu i dodawaniu (Akademia → Matematyka). Ustawienie
+ * urządzenia, jak tempo czytania; tematy i postęp zostają te same.
+ */
+export const CALC_RANGE_OPTIONS = [20, 30, 50, 100] as const;
+export type CalcRangeSetting = (typeof CALC_RANGE_OPTIONS)[number];
+
 export type Settings = {
+  /** Zakres liczb w tematach odejmowania i dodawania (Akademia). */
+  calcRange: CalcRangeSetting;
   /** Tempo czytania historii w Czytaniu (Akademia). */
   storySpeed: StorySpeed;
   /** Bez „Pokaż ruchem!” i „Teraz ty rządzisz” w sesjach toru 2 — decyzja rodzica. */
   noMovement: boolean;
 };
 
-const DEFAULTS: Settings = { noMovement: false, storySpeed: "normal" };
+const DEFAULTS: Settings = { noMovement: false, storySpeed: "normal", calcRange: 30 };
 
 let cached: { raw: string | null; value: Settings } | null = null;
 
@@ -62,6 +71,9 @@ export function readSettings(): Settings {
       storySpeed: STORY_SPEEDS.some((candidate) => candidate.id === parsed.storySpeed)
         ? (parsed.storySpeed as StorySpeed)
         : "normal",
+      calcRange: (CALC_RANGE_OPTIONS as readonly number[]).includes(parsed.calcRange as number)
+        ? (parsed.calcRange as CalcRangeSetting)
+        : 30,
     };
   } catch {
     // Uszkodzony zapis — domyślne.

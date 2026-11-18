@@ -40,6 +40,8 @@ export type Attempt = {
    * (7 × 8 = 48) od braku odpowiedzi — to dwie różne diagnozy.
    */
   answer?: string;
+  /** Odpowiedź przy odsłoniętej podpowiedzi („Pokaż na kropkach”) — do raportu. */
+  hinted?: boolean;
   /** null = ćwiczenie ocenia rodzic albo nikt (np. czytanie na głos solo). */
   correct: boolean | null;
   responseMs: number;

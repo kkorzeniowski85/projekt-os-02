@@ -377,10 +377,13 @@ export function LearnBody({
                 >
                   {example.clock ? "🕒" : "🔊"}
                 </span>
-                {example.visual && <VisualView visual={example.visual} small />}
-                <span>
-                  <span className="font-reading block text-xl font-bold">{example.en}</span>
-                  {example.pl && <span className="text-sm text-hero-cyan">{example.pl}</span>}
+                {example.visual && example.visual.kind !== "dots" && <VisualView visual={example.visual} small />}
+                <span className="flex min-w-0 flex-col items-start gap-2">
+                  {example.visual?.kind === "dots" && <VisualView visual={example.visual} small />}
+                  <span>
+                    <span className="font-reading block text-xl font-bold">{example.en}</span>
+                    {example.pl && <span className="text-sm text-hero-cyan">{example.pl}</span>}
+                  </span>
                 </span>
               </button>
             </li>
@@ -640,6 +643,14 @@ function TypedExercise({ exercise, mode, onAnswer, onNext, paused, firstAttempt,
   /** „Pokaż na kropkach” — odsłonięte przez dziecko albo samo po błędzie. */
   const [hintShown, setHintShown] = useState(false);
   const later = useLater();
+  // Kropki i ramka po błędzie potrafią zepchnąć klawiaturę pod ekran (telefon) —
+  // dosuwamy ją, żeby Enter był widoczny. „nearest” nie rusza strony, gdy widać.
+  const padRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (phase !== "repair" && !hintShown) return;
+    const timer = setTimeout(() => padRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }), 150);
+    return () => clearTimeout(timer);
+  }, [phase, hintShown]);
 
   const resolved = phase === "correct" || phase === "repaired";
   const wasWrong = phase === "repair" || phase === "repaired";
@@ -665,6 +676,7 @@ function TypedExercise({ exercise, mode, onAnswer, onNext, paused, firstAttempt,
         answer: value,
         correct: isRight,
         responseMs: ms,
+        ...(hintShown ? { hinted: true } : {}),
       });
       if (isRight) {
         playFeedbackTone("good");
@@ -730,7 +742,7 @@ function TypedExercise({ exercise, mode, onAnswer, onNext, paused, firstAttempt,
         </>
       )}
 
-      {exercise.hint && (phase === "answer" || phase === "repair") && (
+      {exercise.hint && (phase === "repair" || (phase === "answer" && exercise.hintWhen !== "wrong")) && (
         hintShown || phase === "repair" ? (
           <div className="animate-pop-in">
             <VisualView visual={exercise.hint} />
@@ -766,13 +778,15 @@ function TypedExercise({ exercise, mode, onAnswer, onNext, paused, firstAttempt,
       )}
 
       {(phase === "answer" || phase === "repair") && (
-        <NumberPad
-          value={value}
-          onChange={setValue}
-          onEnter={submit}
-          disabled={paused}
-          allowNegative={exercise.allowNegative}
-        />
+        <div ref={padRef} className="w-full">
+          <NumberPad
+            value={value}
+            onChange={setValue}
+            onEnter={submit}
+            disabled={paused}
+            allowNegative={exercise.allowNegative}
+          />
+        </div>
       )}
 
       {resolved && <AfterAnswer exercise={exercise} mode={mode} wrong={wasWrong} />}
