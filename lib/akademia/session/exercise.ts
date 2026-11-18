@@ -29,7 +29,12 @@ export type Visual =
   /** Tekst czytanki pod pytaniem — do zaglądania („look back in the text"). */
   | { kind: "passage"; title: string; sentences: string[] }
   /** Obrazek zaznaczony tak, jak na kartce: ptaszkiem, kółkiem, skreśleniem… */
-  | { kind: "marked"; emoji: string; mark: MarkStyle };
+  | { kind: "marked"; emoji: string; mark: MarkStyle }
+  /**
+   * Kropki w dziesiątkach (5 + 5): `crossed` ostatnich skreślonych (odejmowanie),
+   * `added` dołożonych w innym kolorze (dodawanie).
+   */
+  | { kind: "dots"; total: number; crossed?: number; added?: number };
 
 export type MarkStyle = "tick" | "circle" | "underline" | "cross" | "colour";
 
@@ -101,6 +106,11 @@ export type Exercise = Base &
         fastMs?: number;
         /** Co pokazać i odtworzyć po błędzie: „7 × 8 = 56". */
         revealText?: string;
+        /**
+         * Podpowiedź do obejrzenia przed odpowiedzią (przycisk „Pokaż na
+         * kropkach”); po błędzie pokazuje się sama.
+         */
+        hint?: Visual;
         revealSound?: Sound;
       }
     | { kind: "order"; items: OrderItem[] }

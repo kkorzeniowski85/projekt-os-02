@@ -12,6 +12,7 @@
  * `mathsPhrases()`), więc dziecko, które jeszcze słabo czyta, może słuchać.
  */
 
+import { addSubtract30Session, calcPhrases, subtract30Session } from "./calc30";
 import { clockGuidePhrases } from "./clockGuide";
 import {
   formatNumber,
@@ -1415,6 +1416,24 @@ export const MATHS_TOPICS: MathsTopic[] = [
     build: numbersTopic("n100", range(21, 99), { hear: 3, type: 5, read: 2 }),
   },
   {
+    id: "subtract-30",
+    titlePl: "Odejmowanie do 30",
+    emoji: "➖",
+    goalPl: "13 take away 5 — przez dziesiątkę, z podpowiedzią na kropkach.",
+    parentIntroPl:
+      "Najczęstszy kłopot to odejmowanie przez dziesiątkę (13 − 5, 22 − 7). Każde zadanie ma przycisk „Pokaż na kropkach”, a po odpowiedzi sposób krok po kroku i sprawdzenie dodawaniem. Pytania padają po angielsku: „take away”, „minus”.",
+    build: subtract30Session,
+  },
+  {
+    id: "add-subtract-30",
+    titlePl: "Dodawanie i odejmowanie do 30",
+    emoji: "➕",
+    goalPl: "Subtract from, less than, the difference — działanie ukryte w słowach.",
+    parentIntroPl:
+      "Działanie pada tylko słowami: „subtract 4 from 12”, „3 less than 20”, „the difference between”, „altogether”, „how many are left” — i krótkie zadania z treścią. Najpierw rozpoznać, czy dodajemy, czy odejmujemy, potem liczyć. Też z kropkami.",
+    build: addSubtract30Session,
+  },
+  {
     id: "numbers-1000",
     titlePl: "Setki i tysiąc",
     emoji: "🏛️",
@@ -1506,6 +1525,8 @@ export function mathsPhrases(): string[] {
   DAY_TIMES.forEach((item) => add(item.en));
   // Ściąga zegara (/matematyka/zegar): każda godzina co do minuty.
   clockGuidePhrases().forEach(add);
+  // Odejmowanie i dodawanie do 30 (calc30.ts).
+  calcPhrases().forEach(add);
   ["metre, centimetre, kilometre", "gram, kilogram", "litre, millilitre", "One kilogram is one thousand grams.", "How do you say this?"].forEach(add);
   UNIT_WORDS.forEach((item) => item.options.forEach(add));
   UNIT_CONVERSIONS.forEach((item) => add(item.en));

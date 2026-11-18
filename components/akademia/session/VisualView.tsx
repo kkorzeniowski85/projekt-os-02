@@ -51,7 +51,71 @@ export function VisualView({ visual, small = false }: { visual: Visual; small?: 
       return <PassagePeek title={visual.title} sentences={visual.sentences} />;
     case "marked":
       return <MarkedPicture emoji={visual.emoji} mark={visual.mark} small={small} />;
+    case "dots":
+      return <TenFrames total={visual.total} crossed={visual.crossed} added={visual.added} small={small} />;
   }
+}
+
+/**
+ * Kropki w dziesiątkach, każda dziesiątka jako 5 + 5 (jak „ten frame” w
+ * angielskiej klasie) — oko od razu widzi „pełna dziesiątka i jeszcze 3”.
+ * Odejmowanie: ostatnie `crossed` kropek przekreślone (zabrane). Dodawanie:
+ * `added` dołożonych kropek w drugim kolorze, dalej w tych samych rzędach.
+ */
+export function TenFrames({
+  total,
+  crossed = 0,
+  added = 0,
+  small = false,
+}: {
+  total: number;
+  crossed?: number;
+  added?: number;
+  small?: boolean;
+}) {
+  const count = total + added;
+  const rows = Math.ceil(count / 10);
+  const size = small ? 16 : 26;
+  const label =
+    added > 0
+      ? `${total} kropek i ${added} dołożonych — razem ${count}`
+      : `${total} kropek, ${crossed} skreślonych — zostaje ${total - crossed}`;
+  return (
+    <div className="flex flex-col items-center gap-2" role="img" aria-label={label}>
+      {Array.from({ length: rows }, (_, row) => (
+        <div key={row} className="flex gap-3 rounded-2xl bg-white/5 px-3 py-2">
+          {[0, 5].map((half) => (
+            <div key={half} className="flex gap-1.5">
+              {Array.from({ length: 5 }, (_, i) => {
+                const n = row * 10 + half + i; // indeks kropki od 0
+                if (n >= count) return <span key={i} style={{ width: size, height: size }} />;
+                const isAdded = n >= total;
+                const isCrossed = !isAdded && n >= total - crossed;
+                return (
+                  <span
+                    key={i}
+                    className="relative inline-block rounded-full"
+                    style={{
+                      width: size,
+                      height: size,
+                      background: isAdded ? "#ffc93c" : isCrossed ? "rgba(255,255,255,0.18)" : "#21d4fd",
+                    }}
+                  >
+                    {isCrossed && (
+                      <svg viewBox="0 0 10 10" className="absolute inset-0" aria-hidden>
+                        <line x1="1.5" y1="1.5" x2="8.5" y2="8.5" stroke="#ff5fa2" strokeWidth="1.6" strokeLinecap="round" />
+                        <line x1="8.5" y1="1.5" x2="1.5" y2="8.5" stroke="#ff5fa2" strokeWidth="1.6" strokeLinecap="round" />
+                      </svg>
+                    )}
+                  </span>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /**

@@ -637,6 +637,8 @@ function TypedExercise({ exercise, mode, onAnswer, onNext, paused, firstAttempt,
   const [given, setGiven] = useState(firstAttempt?.answer ?? "");
   const [fast, setFast] = useState(false);
   const [shake, setShake] = useState(false);
+  /** „Pokaż na kropkach” — odsłonięte przez dziecko albo samo po błędzie. */
+  const [hintShown, setHintShown] = useState(false);
   const later = useLater();
 
   const resolved = phase === "correct" || phase === "repaired";
@@ -726,6 +728,22 @@ function TypedExercise({ exercise, mode, onAnswer, onNext, paused, firstAttempt,
             {fast && <span className="animate-pop-in">⚡</span>}
           </div>
         </>
+      )}
+
+      {exercise.hint && (phase === "answer" || phase === "repair") && (
+        hintShown || phase === "repair" ? (
+          <div className="animate-pop-in">
+            <VisualView visual={exercise.hint} />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setHintShown(true)}
+            className="min-h-11 rounded-full bg-white/10 px-4 text-sm font-bold text-paper/80 active:translate-y-0.5"
+          >
+            💡 Pokaż na kropkach
+          </button>
+        )
       )}
 
       {phase === "repair" && (

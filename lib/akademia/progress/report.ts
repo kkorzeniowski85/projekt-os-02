@@ -167,7 +167,7 @@ export function buildMarkdownReport(state: ProgressState, now = Date.now()): str
   lines.push("## Matematyka po angielsku");
   unitLines("maths", MATHS_TOPICS.map((topic) => ({ id: topic.id, title: topic.titlePl })));
   const opsMissed = state.attempts
-    .filter((attempt) => (attempt.exercise === "operation" || attempt.exercise === "word-problem") && attempt.correct === false)
+    .filter((attempt) => (attempt.exercise === "operation" || attempt.exercise === "word-problem" || attempt.exercise === "calc") && attempt.correct === false)
     .map((attempt) => attempt.item);
   if (opsMissed.length > 0) {
     const counts = new Map<string, number>();
