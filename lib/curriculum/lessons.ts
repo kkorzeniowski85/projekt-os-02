@@ -714,12 +714,12 @@ export const LESSONS: Record<string, Lesson> = {
     heroId: "buzz",
     chant: "y — y — yes!",
     parentIntro:
-      "Uwaga, pułapka. Polskie Y to samogłoska (jak w \"syn\"), a angielskie y na początku słowa to SPÓŁGŁOSKA — dokładnie polskie J, jak w \"jajko\": yes czytamy \"jes\", yellow \"jeloł\". Dodatkowo na końcu słów (happy, baby, toy) y NIE daje tego dźwięku — dlatego w ćwiczeniu słuchania takie słowa są oznaczone jako \"bez tego dźwięku\".",
+      "Uwaga, pułapka. Polskie Y to samogłoska (jak w \"syn\"), a angielskie y na początku słowa to SPÓŁGŁOSKA — dokładnie polskie J, jak w \"jajko\": yes czytamy \"jes\", yellow \"jeloł\". Dodatkowo na końcu słów (happy, baby) y NIE daje tego dźwięku — tam brzmi jak „i” — dlatego w ćwiczeniu słuchania takie słowa są oznaczone jako \"bez tego dźwięku\". Druga pułapka w drugą stronę: angielskie j (jam = \"dżem\") to NIE polskie J. Słów typu toy, boy celowo tu nie ma: ich końcówka ślizga się w stronę „i” i dla polskiego ucha brzmi jak J.",
     listen: [
       { word: "yes", hasTarget: true, pl: "tak", emoji: "✅" },
       { word: "happy", hasTarget: false, pl: "wesoły", emoji: "😀" },
       { word: "yellow", hasTarget: true, pl: "żółty", emoji: "💛" },
-      { word: "toy", hasTarget: false, pl: "zabawka", emoji: "🧸" },
+      { word: "jam", hasTarget: false, pl: "dżem", emoji: "🍓" },
       { word: "you", hasTarget: true, pl: "ty", emoji: "👉" },
       { word: "baby", hasTarget: false, pl: "niemowlę", emoji: "👶" },
       { word: "year", hasTarget: true, pl: "rok", emoji: "📅" },
@@ -744,16 +744,16 @@ export const LESSONS: Record<string, Lesson> = {
     heroId: "buzz",
     chant: "w — w — wow!",
     parentIntro:
-      "Największa pułapka z całego zestawu. Polska litera W to dźwięk /v/ — czyli dokładnie to, co po angielsku zapisujemy literą V. Angielskie w to zupełnie inny dźwięk: usta w dzióbek, jak polskie Ł w \"łódka\" (water = \"łoter\", nie \"vater\"). Ćwiczcie parami: wet — vet, west — vest.",
+      "Największa pułapka z całego zestawu. Polska litera W to dźwięk /v/ — czyli dokładnie to, co po angielsku zapisujemy literą V. Angielskie w to zupełnie inny dźwięk: usta w dzióbek, jak polskie Ł w \"łódka\" (water = \"łoter\", nie \"vater\"). Ćwiczcie parami: wet — vet, west — vest. W słuchaniu celowo NIE MA słów typu cow, snow, yellow: ich końcówka (ow) to samogłoska ślizgająca się w stronę „u”, którą polskie ucho słyszy jako Ł — czyli właśnie jak angielskie w. Dziecko, które tam słyszy w, słyszy dobrze; ow to osobny dźwięk, przyjdzie później (blow the snow, brown cow).",
     listen: [
       { word: "web", hasTarget: true, pl: "pajęczyna", emoji: "🕸️" },
       { word: "two", hasTarget: false, pl: "dwa", emoji: "✌️" },
       { word: "winter", hasTarget: true, pl: "zima", emoji: "⛄" },
-      { word: "snow", hasTarget: false, pl: "śnieg", emoji: "❄️" },
+      { word: "vet", hasTarget: false, pl: "weterynarz", emoji: "🐶" },
       { word: "water", hasTarget: true, pl: "woda", emoji: "💧" },
-      { word: "yellow", hasTarget: false, pl: "żółty", emoji: "💛" },
+      { word: "write", hasTarget: false, pl: "pisać", emoji: "✍️" },
       { word: "week", hasTarget: true, pl: "tydzień", emoji: "📅" },
-      { word: "cow", hasTarget: false, pl: "krowa", emoji: "🐄" },
+      { word: "van", hasTarget: false, pl: "furgonetka", emoji: "🚐" },
     ],
     blend: [
       { word: "web", graphemes: ["w", "e", "b"], targetIndex: 0, pl: "pajęczyna", emoji: "🕸️" },

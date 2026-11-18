@@ -100,8 +100,10 @@ for (const [id, lesson] of Object.entries(LESSONS)) {
     "r:car", "r:star", "r:dinner", // brytyjskie (nierotyczne) — końcowe "r" nie brzmi
     "y:happy", "y:baby", // "y" na końcu to samogłoska, nie /j/
     "y:toy", // "oy" to jeden dźwięk
-    "w:two", // nieme "w"
-    "w:snow", "w:yellow", "w:cow", // "ow" to jeden dźwięk, nie /w/
+    "w:two", "w:write", // nieme "w"
+    // „ow” (cow, snow, yellow) NIE jest wyjątkiem: końcówka dwugłoski to ślizg,
+    // który polskie ucho słyszy jako Ł = angielskie w — w słuchaniu dawała
+    // fałszywe „NIE” (zgłoszenie rodzica 2026-11-18). Takich słów tu nie używamy.
     "z:nose", // dźwięk /z/ zapisany literą "s"
     "x:socks", // dźwięk /ks/ zapisany jako "cks"
     "b:thumb", // nieme "b"
