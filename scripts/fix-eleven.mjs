@@ -46,19 +46,37 @@ const PHRASE_STYLES = [
   { model_id: "eleven_multilingual_v2", voice_settings: { stability: 0.5, similarity_boost: 0.75, speed: 0.8 } },
 ];
 
-const spoken = (text) => text.replace(/,\s+/g, ', <break time="0.3s" /> ');
-
-// --- ocena ----------------------------------------------------------------------------
-
 const ONES = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
 const TENS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
-const numberWords = (n) => (n < 20 ? ONES[n] : n < 100 ? `${TENS[Math.floor(n / 10)]}${n % 10 ? ` ${ONES[n % 10]}` : ""}` : String(n));
+/** Brytyjski zapis słowny (z „and”): 105 → „one hundred and five”. */
+function numberWords(n) {
+  if (n < 20) return ONES[n];
+  if (n < 100) return `${TENS[Math.floor(n / 10)]}${n % 10 ? `-${ONES[n % 10]}` : ""}`;
+  if (n < 1000) return `${ONES[Math.floor(n / 100)]} hundred${n % 100 ? ` and ${numberWords(n % 100)}` : ""}`;
+  if (n < 1_000_000) {
+    const rest = n % 1000;
+    return `${numberWords(Math.floor(n / 1000))} thousand${rest === 0 ? "" : rest < 100 ? ` and ${numberWords(rest)}` : `, ${numberWords(rest)}`}`;
+  }
+  return String(n);
+}
+
+/** Tekst do lektora: liczby słownie (Akademia), pauza po przecinku. */
+const spoken = (text) =>
+  text
+    .replace(/£(\d+)/g, (_, n) => `${numberWords(Number(n))} pound${Number(n) === 1 ? "" : "s"}`)
+    .replace(/(\d+)p\b/g, (_, n) => `${numberWords(Number(n))} p`)
+    .replace(/\b\d{1,6}\b/g, (n) => numberWords(Number(n)))
+    .replace(/,\s+/g, ', <break time="0.3s" /> ');
+
+// --- ocena ----------------------------------------------------------------------------
 const SAME = new Map([["okay", "ok"], ["mom", "mum"], ["color", "colour"], ["gray", "grey"], ["naan", "nan"], ["blue", "blew"], ["banned", "band"]]);
 function words(text) {
   return (text || "")
     .toLowerCase()
+    .replace(/(\d),(\d{3})\b/g, "$1$2")
     .replace(/£(\d+)/g, (_, n) => `${numberWords(Number(n))} pound${Number(n) === 1 ? "" : "s"}`)
-    .replace(/\b(\d{1,2})\b/g, (_, n) => numberWords(Number(n)))
+    .replace(/\b(\d{1,6})\b/g, (_, n) => numberWords(Number(n)))
+    .replace(/-/g, " ")
     .replace(/[’‘`]/g, "'")
     .replace(/[-–—]/g, " ")
     .replace(/[^a-z' ]/g, " ")
@@ -76,14 +94,17 @@ function editDistance(a, b) {
   return d[a.length][b.length];
 }
 /** Ocena jednego nagrania: ok, wer, minProb i liczba „punktów” do porównań (więcej = lepiej). */
-function judge(text, result) {
+function judge(text, result, url = "") {
   const ref = words(text);
   const hyp = words(result?.text);
   const wer = ref.join("") === hyp.join("") ? 0 : editDistance(ref, hyp) / Math.max(1, ref.length);
   const probs = (result?.words ?? []).map((w) => w[3]);
   const minProb = probs.length ? Math.min(...probs) : 0;
   const single = ref.length === 1;
-  const ok = (single ? wer === 0 : wer <= 0.15) && minProb >= 0.5;
+  // Liczby i tabliczka: Whisper woli cyfry i słownym liczbom daje niską pewność,
+  // choć słyszy dobrze — tu liczy się tylko zgodność tekstu.
+  const numeric = /\/(numbers|facts)\//.test(url);
+  const ok = (single ? wer === 0 : wer <= 0.15) && (numeric || minProb >= 0.5);
   return { ok, wer: +wer.toFixed(2), minProb: +minProb.toFixed(2), heard: result?.text ?? "", score: (wer === 0 ? 2 : wer <= 0.15 ? 1 : 0) + minProb };
 }
 
@@ -112,11 +133,12 @@ const fileOf = (url) => path.join(PUBLIC, ...url.split("/").filter(Boolean));
 
 const args = process.argv.slice(2);
 const mode = args[0];
-const list = JSON.parse(readFileSync(args[1], "utf8")).filter((item) => /^\/audio\/(alice|george)\//.test(item.url));
+const list = JSON.parse(readFileSync(args[1], "utf8")).filter((item) => /^\/audio\/(akademia\/)?(alice|george)\//.test(item.url));
+const voiceOf = (url) => url.match(/\/(alice|george)\//)[1];
 
 if (mode === "--check") {
   const results = transcribe(list.map((item) => fileOf(item.url)));
-  const out = list.map((item, i) => ({ ...item, ...judge(item.text, results[i]) }));
+  const out = list.map((item, i) => ({ ...item, ...judge(item.text, results[i], item.url) }));
   writeFileSync(args[2], JSON.stringify(out, null, 1));
   const bad = out.filter((item) => !item.ok);
   console.log(`sprawdzone: ${out.length}, do poprawy: ${bad.length}`);
@@ -134,7 +156,7 @@ const work = path.join(tmpdir(), `liga-fix-${Date.now()}`);
 mkdirSync(work, { recursive: true });
 
 // Stan wyjściowy: ocena obecnych plików.
-let current = transcribe(list.map((item) => fileOf(item.url))).map((r, i) => ({ ...list[i], ...judge(list[i].text, r) }));
+let current = transcribe(list.map((item) => fileOf(item.url))).map((r, i) => ({ ...list[i], ...judge(list[i].text, r, list[i].url) }));
 let spent = 0;
 const report = [];
 
@@ -144,8 +166,8 @@ for (let round = 0; round < MAX_TRIES; round++) {
   console.log(`runda ${round + 1}: ${todo.length} nagrań`);
   const candidates = [];
   for (const item of todo) {
-    const voice = item.url.split("/")[2];
-    const isWord = item.url.includes("/words/");
+    const voice = voiceOf(item.url);
+    const isWord = /\/(words|numbers)\//.test(item.url);
     const styles = isWord ? WORD_STYLES : PHRASE_STYLES;
     const style = styles[Math.min(tries[item.url] ?? 0, styles.length - 1)];
     const body = { text: isWord ? item.text.charAt(0).toUpperCase() + item.text.slice(1) + "." : spoken(item.text), ...style };
@@ -171,7 +193,7 @@ for (let round = 0; round < MAX_TRIES; round++) {
   if (candidates.length === 0) break;
   const results = transcribe(candidates.map((c) => c.file));
   candidates.forEach((candidate, i) => {
-    const verdict = judge(candidate.item.text, results[i]);
+    const verdict = judge(candidate.item.text, results[i], candidate.item.url);
     const before = current.find((item) => item.url === candidate.item.url);
     if (verdict.score > before.score + 0.02) {
       copyFileSync(candidate.file, fileOf(candidate.item.url));

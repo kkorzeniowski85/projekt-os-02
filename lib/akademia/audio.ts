@@ -360,6 +360,28 @@ function speak(text: string, rate: number, wait: boolean): Promise<boolean> {
 /** Numer bieżącej sekwencji — ręczne odtworzenie albo stopAudio ją przerywa. */
 let sequenceToken = 0;
 
+/**
+ * Nagrania lektorów ElevenLabs (od 2026-11-22, scripts/akademia/generate-eleven.mjs):
+ * public/audio/akademia/<głos>/numbers|facts|phrases — te same nazwy co dawne.
+ * Każdy plik ma zwykle jeden głos (liczby i tabliczka — Alice, polecenia —
+ * George, historia — jeden głos na całą); gdy są oba, gramy na zmianę. Bez
+ * nagrania lektora — dawne nagranie.
+ */
+const VOICES = ["alice", "george"] as const;
+let alternate = 0;
+
+async function voicedPath(path: string): Promise<string> {
+  if (!path.startsWith(`${CLIP_BASE}/`)) return path;
+  const rest = path.slice(CLIP_BASE.length);
+  const candidates = VOICES.map((voice) => `${CLIP_BASE}/${voice}${rest}`);
+  const states = await Promise.all(candidates.map((candidate) => clipState(candidate)));
+  const available = candidates.filter((_, index) => states[index] === "yes");
+  if (available.length === 0) return path;
+  if (available.length === 1) return available[0];
+  alternate += 1;
+  return available[alternate % available.length];
+}
+
 async function playClipOrSpeak(
   path: string,
   fallbackText: string,
@@ -370,12 +392,16 @@ async function playClipOrSpeak(
   // po tym, jak ktoś je przerwał (także gdy sprawdzanie pliku jeszcze trwało).
   const generation = sequenceToken;
   const stale = () => generation !== sequenceToken;
-  const state = await clipState(path);
+  const resolved = await voicedPath(path);
+  if (stale()) return { source: "clip" };
+  const state = await clipState(resolved);
   if (stale()) return { source: "clip" };
   // „Nie wiadomo" (brak sieci): i tak próbujemy — plik może być w pamięci
   // service workera. Nieudane odtworzenie kończy się syntezą niżej.
   if (state !== "no") {
-    const status = await playUrl(path, options.wait);
+    let status = await playUrl(resolved, options.wait);
+    // Nagranie lektora nie zagrało — próbujemy dawnego, zanim odezwie się synteza.
+    if (status === "failed" && resolved !== path && !stale()) status = await playUrl(path, options.wait);
     if (status === "ok" || status === "interrupted") return { source: "clip" };
     // Zablokowane = potrzebny gest; synteza też byłaby zablokowana.
     if (status === "blocked") return { source: "unavailable" };
