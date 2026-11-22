@@ -49,6 +49,14 @@ const MODEL = "eleven_multilingual_v2";
 const FORMAT = "mp3_44100_64";
 const PARALLEL = 3;
 
+/**
+ * ElevenLabs często przelatuje przez przecinek („Look, like this” brzmiało
+ * jak „look like this”). Znacznik pauzy 0,3 s po każdym przecinku — wybór
+ * rodzica z porównania 2026-11-22 (lepszy niż wielokropek czy myślnik).
+ * Przecinek w liczbie („1,000”) nie ma spacji, więc go nie dotyczy.
+ */
+const spoken = (text) => text.replace(/,\s+/g, ', <break time="0.3s" /> ');
+
 const root = fileURLToPath(new URL("../", import.meta.url));
 const audioDir = path.join(root, "public", "audio");
 
@@ -143,7 +151,7 @@ async function synthesize(job) {
         method: "POST",
         headers: { "xi-api-key": key, "Content-Type": "application/json", Accept: "audio/mpeg" },
         body: JSON.stringify({
-          text: job.text,
+          text: spoken(job.text),
           model_id: MODEL,
           voice_settings: { stability: 0.6, similarity_boost: 0.8, speed: SPEED },
         }),
