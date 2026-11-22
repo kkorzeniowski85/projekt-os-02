@@ -180,14 +180,18 @@ export function buildMarkdownReport(state: ProgressState, now = Date.now()): str
         .join(", ")}.`,
     );
   }
-  // Odejmowanie/dodawanie: ile odpowiedzi padło przy odsłoniętych kropkach —
-  // trafienie z kropkami to jeszcze nie liczenie w pamięci.
+  // Odejmowanie/dodawanie. Do 2026-11-22 kropki dało się odsłonić PRZED
+  // odpowiedzią (pole hinted) — trafienie z kropkami to jeszcze nie liczenie w
+  // pamięci, więc stare takie odpowiedzi liczymy osobno. Teraz kropki są dopiero
+  // po błędzie i każda pierwsza odpowiedź jest „z pamięci”.
   const calcAttempts = state.attempts.filter((attempt) => attempt.exercise === "calc" && attempt.correct !== null);
   if (calcAttempts.length > 0) {
     const hinted = calcAttempts.filter((attempt) => attempt.hinted);
-    lines.push(
-      `Odejmowanie/dodawanie: ${calcAttempts.length} odpowiedzi, z kropkami ${hinted.length} (trafnych z kropkami: ${hinted.filter((attempt) => attempt.correct).length}).`,
-    );
+    const hintedPart =
+      hinted.length > 0
+        ? `, w tym ${hinted.length} z kropkami odsłoniętymi przed odpowiedzią (trafnych: ${hinted.filter((attempt) => attempt.correct).length}; tak było do 2026-11-22)`
+        : "";
+    lines.push(`Odejmowanie/dodawanie: ${calcAttempts.length} odpowiedzi${hintedPart}.`);
   }
 
   lines.push("");

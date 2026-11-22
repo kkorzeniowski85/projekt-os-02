@@ -107,12 +107,10 @@ export type Exercise = Base &
         /** Co pokazać i odtworzyć po błędzie: „7 × 8 = 56". */
         revealText?: string;
         /**
-         * Podpowiedź do obejrzenia przed odpowiedzią (przycisk „Pokaż na
-         * kropkach”); po błędzie pokazuje się sama.
+         * Podpowiedź obrazkowa (kropki): przycisk „Pokaż na kropkach” pojawia
+         * się dopiero po błędnej odpowiedzi i dziecko rozwija ją samo.
          */
         hint?: Visual;
-        /** "wrong" = podpowiedź tylko po błędzie (przed odpowiedzią zdradzałaby działanie). */
-        hintWhen?: "always" | "wrong";
         revealSound?: Sound;
       }
     | { kind: "order"; items: OrderItem[] }

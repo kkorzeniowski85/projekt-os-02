@@ -639,7 +639,12 @@ function TypedExercise({ exercise, mode, onAnswer, onNext, paused, firstAttempt,
   const [given, setGiven] = useState(firstAttempt?.answer ?? "");
   const [fast, setFast] = useState(false);
   const [shake, setShake] = useState(false);
-  /** „Pokaż na kropkach” — odsłonięte przez dziecko albo samo po błędzie. */
+  /**
+   * „Pokaż na kropkach” — przycisk pojawia się dopiero PO błędnej odpowiedzi i
+   * kropki rozwija dziecko samo (prośba rodzica 2026-11-22). Wcześniej przycisk
+   * był też przed odpowiedzią, a po błędzie kropki pokazywały się same —
+   * dziecko liczyło kropki, zamiast najpierw spróbować w pamięci.
+   */
   const [hintShown, setHintShown] = useState(false);
   const later = useLater();
   // Kropki i ramka po błędzie potrafią zepchnąć klawiaturę pod ekran (telefon) —
@@ -675,7 +680,6 @@ function TypedExercise({ exercise, mode, onAnswer, onNext, paused, firstAttempt,
         answer: value,
         correct: isRight,
         responseMs: ms,
-        ...(hintShown ? { hinted: true } : {}),
       });
       if (isRight) {
         playFeedbackTone("good");
@@ -741,8 +745,8 @@ function TypedExercise({ exercise, mode, onAnswer, onNext, paused, firstAttempt,
         </>
       )}
 
-      {exercise.hint && (phase === "repair" || (phase === "answer" && exercise.hintWhen !== "wrong")) && (
-        hintShown || phase === "repair" ? (
+      {exercise.hint && phase === "repair" && (
+        hintShown ? (
           <div className="animate-pop-in">
             <VisualView visual={exercise.hint} />
           </div>
@@ -777,7 +781,7 @@ function TypedExercise({ exercise, mode, onAnswer, onNext, paused, firstAttempt,
       )}
 
       {(phase === "answer" || phase === "repair") && (
-        <div ref={padRef} className="w-full">
+        <div ref={padRef} className="flex w-full justify-center">
           <NumberPad
             value={value}
             onChange={setValue}

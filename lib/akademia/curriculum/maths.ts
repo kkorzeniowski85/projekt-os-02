@@ -1427,7 +1427,7 @@ export const MATHS_TOPICS: MathsTopic[] = [
     emoji: "➖",
     goalPl: "13 take away 5 — przez dziesiątkę, z kropkami. Zakres: do 20, 30, 50 albo 100.",
     parentIntroPl:
-      "Najczęstszy kłopot to odejmowanie przez dziesiątkę (13 − 5, 22 − 7). Każde zadanie ma przycisk „Pokaż na kropkach”, a po odpowiedzi sposób krok po kroku i sprawdzenie dodawaniem. Pytania padają po angielsku: „take away”, „minus”. Zakres liczb wybierasz niżej — po poszerzeniu część zadań nadal jest z mniejszych liczb, żeby to, co już umie, nie znikło.",
+      "Najczęstszy kłopot to odejmowanie przez dziesiątkę (13 − 5, 22 − 7). Po błędnej odpowiedzi pojawia się przycisk „Pokaż na kropkach”, a po każdej odpowiedzi sposób krok po kroku i sprawdzenie dodawaniem. Pytania padają po angielsku: „take away”, „minus”. Zakres liczb wybierasz niżej — po poszerzeniu część zadań nadal jest z mniejszych liczb, żeby to, co już umie, nie znikło.",
     build: (options) => subtractSession(options?.calcRange),
     rangePicker: true,
   },

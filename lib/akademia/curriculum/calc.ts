@@ -13,8 +13,8 @@
  *    zadania z treścią — rozumienie angielskiego zdania, nie znaku.
  * Po każdym zadaniu: sposób krok po kroku i sprawdzenie działaniem odwrotnym
  * (Year 3: „use inverse operations to check answers”). Kropki w dziesiątkach:
- * w temacie 1 na życzenie („Pokaż na kropkach”), w temacie 2 dopiero po
- * błędzie — przed odpowiedzią zdradzałyby, czy dodać, czy odjąć.
+ * w obu tematach dopiero po błędnej odpowiedzi, jako przycisk do rozwinięcia
+ * („Pokaż na kropkach”) — najpierw próba w pamięci (prośba rodzica 2026-11-22).
  *
  * ZAKRES: liczby dzielą się na pasy 1–20, 21–30, 31–50, 51–100. Sesja w
  * zakresie R bierze ok. 60% zadań z najwyższego pasa (nowe liczby), resztę z
@@ -328,8 +328,6 @@ function exerciseOf(item: CalcItem, index: number, showSum: boolean): Exercise {
     visual: showSum ? { kind: "big", text: `${item.a} ${sign} ${item.b} =` } : undefined,
     answer: r,
     hint: dots(item),
-    // Temat 2: kropki przed odpowiedzią zdradzałyby, czy dodać, czy odjąć.
-    hintWhen: showSum ? "always" : "wrong",
     revealText: `${item.a} ${sign} ${item.b} = ${r}`,
     revealSound: say(answerSentence(item)),
     explainPl: item.keyPl ? `${item.keyPl}. Działanie: ${item.a} ${sign} ${item.b}. ${strategy}` : strategy,
@@ -374,7 +372,7 @@ function learnSubtract(range: CalcRange): Exercise {
     promptEn: "13 take away 5 is 8.",
     sound: say("13 take away 5 is 8."),
     bodyPl:
-      "Najtrudniejsze jest przejście przez dziesiątkę (13 − 5). Sposób: najpierw odejmij do dziesiątki, potem resztę. Wynik sprawdzisz dodawaniem. Po angielsku odejmowanie to „take away” albo „minus”. Gdy trudno — stuknij „Pokaż na kropkach”.",
+      "Najtrudniejsze jest przejście przez dziesiątkę (13 − 5). Sposób: najpierw odejmij do dziesiątki, potem resztę. Wynik sprawdzisz dodawaniem. Po angielsku odejmowanie to „take away” albo „minus”. Gdy się pomylisz, możesz stuknąć „Pokaż na kropkach”.",
     examples: [
       { en: "13 take away 3 is 10.", pl: "krok 1: do dziesiątki (5 = 3 + 2)", visual: { kind: "dots", total: 13, crossed: 3 } },
       { en: "10 take away 2 is 8.", pl: "krok 2: reszta" },
