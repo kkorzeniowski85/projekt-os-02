@@ -19,6 +19,7 @@
  */
 
 import { audioSlug } from "./curriculum/vocab";
+import { scheduleHeroAnthem } from "./victoryMusic";
 import { getRecordingUrl } from "./recordings";
 import { readSettings, subscribeSettings } from "./settings";
 import { VOICES, type Voice } from "./voices";
@@ -956,11 +957,18 @@ export function stopVictoryFanfare(): void {
  *
  * Rodzic może podłożyć własną muzykę: plik public/audio/celebration.mp3
  * (albo .webm/.m4a/.wav) wygrywa z syntezą.
+ *
+ * Trzy gwiazdki mają osobną, większą muzykę (prośba rodzica 2026-11-22):
+ * nagranie public/audio/victory/three-stars.mp3 (scripts/generate-music.mjs),
+ * a gdy go nie ma — hymn z lib/victoryMusic.ts. Jedna i dwie gwiazdki grają
+ * dawną fanfarę, żeby trzy naprawdę się wyróżniały.
  */
-export async function playVictoryFanfare(): Promise<void> {
+export async function playVictoryFanfare(stars = 2): Promise<void> {
   stopVictoryFanfare();
 
-  const clip = await findClip(`${CLIP_BASE}/celebration`);
+  const clip =
+    (await findClip(`${CLIP_BASE}/celebration`)) ??
+    (stars >= 3 ? await findClip(`${CLIP_BASE}/victory/three-stars`) : null);
   if (clip) {
     const status = await playUrl(clip);
     if (status === "ok") {
@@ -983,6 +991,11 @@ export async function playVictoryFanfare(): Promise<void> {
     } catch {
       return;
     }
+  }
+
+  if (stars >= 3) {
+    stopVictory = scheduleHeroAnthem(context, context.destination);
+    return;
   }
 
   // Filtr dolnoprzepustowy zamienia ostrą piłę w miękki, "dęty" ton.

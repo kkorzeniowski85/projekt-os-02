@@ -166,6 +166,107 @@ html {
   animation: shake 350ms ease-in-out;
 }
 
+/* --- Rozmowa i Dyktando (2026-11-22): ruch tylko tam, gdzie coś znaczy ---
+   bohater „mówi” (kiwa się, fale dźwięku), gdy gra pytanie — sygnał „słuchaj”;
+   „Twoja kolej” pulsuje, gdy pytanie się skończyło — sygnał „teraz mów”;
+   karta pytania wjeżdża z boku (z prawej — następne, z lewej — poprzednie);
+   gwiazdka leci do kropek postępu po odpowiedzi. */
+@keyframes talk-bob {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-4px) scale(1.05);
+  }
+}
+
+@keyframes wave-bar {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(32px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-32px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes star-fly {
+  0% {
+    transform: translateY(34px) scale(0.4) rotate(-30deg);
+    opacity: 0;
+  }
+  35% {
+    transform: translateY(6px) scale(1.7) rotate(12deg);
+    opacity: 1;
+  }
+  75% {
+    transform: translateY(0) scale(1.1) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-4px) scale(0.9);
+    opacity: 0;
+  }
+}
+
+@keyframes nudge {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.07);
+  }
+}
+
+.animate-talk {
+  animation: talk-bob 520ms ease-in-out infinite;
+}
+
+.wave-bar {
+  transform-origin: center bottom;
+  animation: wave-bar 700ms ease-in-out infinite;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 260ms ease-out both;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 260ms ease-out both;
+}
+
+.animate-star-fly {
+  animation: star-fly 1100ms ease-out both;
+}
+
+.animate-nudge {
+  animation: nudge 1500ms ease-in-out infinite;
+}
+
 /* Promienie za bohaterem na ekranie zwycięstwa. */
 .animate-spin-slow {
   animation: spin-slow 16s linear infinite;
@@ -188,7 +289,18 @@ html {
   .animate-cheer,
   .animate-pulse-ring,
   .animate-shake,
-  .animate-spin-slow {
+  .animate-spin-slow,
+  .animate-talk,
+  .wave-bar,
+  .animate-slide-in-right,
+  .animate-slide-in-left,
+  .animate-nudge {
     animation: none;
+  }
+
+  /* Gwiazdka tylko leci — bez ruchu jej nie pokazujemy. */
+  .animate-star-fly {
+    animation: none;
+    opacity: 0;
   }
 }

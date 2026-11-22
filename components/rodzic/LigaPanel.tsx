@@ -23,7 +23,9 @@ import {
   phraseClipBase,
   phraseClipPath,
   playClipFile,
+  playVictoryFanfare,
   primeSpeech,
+  stopVictoryFanfare,
   wordClipBase,
   wordClipPath,
   type VoiceStatus,
@@ -510,6 +512,37 @@ export function LigaPanel() {
           na ekranie głównym, w książeczkach i w Czytaniu. Ustawienie tylko na tym urządzeniu.
         </p>
         <VoiceSpeedControl />
+      </Card>
+
+      <Card>
+        <h2 className="mb-1 text-lg font-bold">Muzyka zwycięstwa</h2>
+        <p className="mb-3 text-sm text-paper/70">
+          Gra na koniec sesji, po gwiazdkach. Trzy gwiazdki (co najmniej 9 na 10 dobrze) mają własny,
+          większy hymn bohatera; jedna i dwie — krótszą fanfarę. Tu można ich posłuchać.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void playVictoryFanfare(3)}
+            className="min-h-11 rounded-full bg-hero-gold px-5 text-sm font-bold text-night"
+          >
+            ▶ Trzy gwiazdki ⭐⭐⭐
+          </button>
+          <button
+            type="button"
+            onClick={() => void playVictoryFanfare(2)}
+            className="min-h-11 rounded-full bg-white/10 px-5 text-sm font-bold"
+          >
+            ▶ Jedna–dwie gwiazdki
+          </button>
+          <button
+            type="button"
+            onClick={() => stopVictoryFanfare()}
+            className="min-h-11 rounded-full bg-white/10 px-5 text-sm font-bold"
+          >
+            ■ Stop
+          </button>
+        </div>
       </Card>
 
       <Card>

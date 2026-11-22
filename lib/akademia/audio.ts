@@ -20,6 +20,7 @@ import { numberToWords } from "./curriculum/numbers";
 import { audioSlug } from "./curriculum/slug";
 import type { Sound } from "./session/exercise";
 import { readSettings, subscribeSettings } from "../settings";
+import { scheduleHeroAnthem } from "../victoryMusic";
 
 export type PlaybackSource = "clip" | "tts" | "unavailable";
 export type PlaybackResult = { source: PlaybackSource };
@@ -219,7 +220,7 @@ export function resumePlayback(): void {
  * odtworzenie). Czekanie jest potrzebne sekwencjom: liczeniu skokami i
  * czytaniu tekstu zdanie po zdaniu.
  */
-async function playUrl(url: string, wait: boolean): Promise<PlayStatus> {
+async function playUrl(url: string, wait: boolean, followVoice = true): Promise<PlayStatus> {
   const token = ++playToken;
   settlePending?.();
   const audio = getSharedAudio();
@@ -229,7 +230,8 @@ async function playUrl(url: string, wait: boolean): Promise<PlayStatus> {
   audio.muted = false;
   audio.src = url;
   // Zmiana src przywraca domyślne tempo, więc ustawiamy je po niej.
-  applyRate(audio, speed());
+  // Muzyka (followVoice = false) gra zawsze w swoim tempie — suwak dotyczy głosu.
+  applyRate(audio, followVoice ? speed() : 1);
 
   const finished = wait
     ? new Promise<void>((resolve) => {
@@ -643,6 +645,8 @@ export function playStarDing(index: number): void {
 }
 
 let stopVictory: (() => void) | null = null;
+/** Muzyka na trzy gwiazdki — wspólna z Ligą (poza katalogiem nagrań Akademii). */
+const THREE_STARS_CLIP = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/audio/victory/three-stars.mp3`;
 
 export function stopVictoryFanfare(): void {
   stopVictory?.();
@@ -654,9 +658,25 @@ export function stopVictoryFanfare(): void {
  * fraz z istniejącej muzyki filmowej. Krótsza niż w Lidze: w Akademii sesje są
  * krótsze i częstsze (codzienny trening tabliczki), a dziesięć sekund muzyki
  * po pięciominutowym treningu szybko by zmęczyło.
+ *
+ * Wyjątek — trzy gwiazdki (prośba rodzica 2026-11-22): ta sama duża muzyka co
+ * w Lidze: nagranie public/audio/victory/three-stars.mp3, a bez niego hymn z
+ * lib/victoryMusic.ts. Stuknięcie „dalej” ucisza ją jak zawsze.
  */
-export async function playVictoryFanfare(): Promise<void> {
+export async function playVictoryFanfare(stars = 2): Promise<void> {
   stopVictoryFanfare();
+  if (stars >= 3 && (await clipExists(THREE_STARS_CLIP))) {
+    const status = await playUrl(THREE_STARS_CLIP, false, false);
+    if (status === "ok") {
+      stopVictory = () => {
+        const audio = getSharedAudio();
+        audio.pause();
+        audio.currentTime = 0;
+      };
+      return;
+    }
+    if (status === "interrupted") return;
+  }
   const context = getToneContext();
   if (!context) return;
   if (context.state === "suspended") {
@@ -665,6 +685,10 @@ export async function playVictoryFanfare(): Promise<void> {
     } catch {
       return;
     }
+  }
+  if (stars >= 3) {
+    stopVictory = scheduleHeroAnthem(context, context.destination);
+    return;
   }
   const master = context.createGain();
   master.gain.value = 1;

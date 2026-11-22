@@ -23,7 +23,7 @@ export default function TalkPage() {
   const [chosen, setChosen] = useState<Chosen | null>(null);
 
   if (!ready) return <p className="text-paper/60">Wczytywanie…</p>;
-  if (chosen) return <TalkRunner title={chosen.title} entries={chosen.entries} />;
+  if (chosen) return <TalkRunner title={chosen.title} entries={chosen.entries} onExit={() => setChosen(null)} />;
 
   const doneToday = spokenToday(state) >= 3;
 

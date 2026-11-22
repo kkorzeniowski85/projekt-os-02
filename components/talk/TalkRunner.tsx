@@ -13,9 +13,15 @@
  *  3. gotowa odpowiedź drugiego lektora i „Mów ze mną” (echo).
  * Odpowiedź z podpowiedzią liczy się jako „z pomocą”; takie pytanie wraca raz
  * na końcu rozmowy („Jeszcze raz”) i po czasie w kolejnych dniach (FSRS).
+ *
+ * „Poprzednie pytanie” cofa o jedno pytanie i KASUJE jego ocenę (jeszcze
+ * niezapisaną) — przydaje się, gdy ktoś stuknął za szybko albo dziecko chce
+ * powiedzieć jeszcze raz. Liczy się dopiero nowa ocena.
+ *
+ * Ruch (app/globals.css): bohater „mówi”, gdy gra pytanie; po pytaniu pulsuje
+ * „Twoja kolej”; karta wjeżdża z boku; po odpowiedzi leci gwiazdka.
  */
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Celebration } from "@/components/Celebration";
 import { HeroAvatar } from "@/components/HeroAvatar";
@@ -32,10 +38,17 @@ import type { Voice } from "@/lib/voices";
 
 type Step = { entry: TalkEntry; again: boolean };
 type Stage = "start" | "running" | "done";
+/** Ślad odpowiedzi — żeby „Poprzednie pytanie” mogło ją cofnąć. */
+type Answered = { hints: number; counted: boolean; addedAgain: boolean };
 
 const MAX_HINT = 3;
 
-export function TalkRunner({ entries, title, backHref = "/rozmowa" }: { entries: TalkEntry[]; title: string; backHref?: string }) {
+/**
+ * `onExit` — powrót do listy rozmów. To NIE jest link: lista i rozmowa są tą
+ * samą stroną (/rozmowa), więc link „do /rozmowa” nic by nie zrobił
+ * (błąd z 2026-11-22: „Inne rozmowy”, „Wróć” i „Przerwij” nie działały).
+ */
+export function TalkRunner({ entries, title, onExit }: { entries: TalkEntry[]; title: string; onExit: () => void }) {
   const { role } = useDeviceRole();
   const { state, commitSession } = useProgress();
   // Obsada liczona raz — zmiana postępu w trakcie (zapis) nie zmienia bohatera.
@@ -48,6 +61,11 @@ export function TalkRunner({ entries, title, backHref = "/rozmowa" }: { entries:
   const startedRef = useRef(0);
   const savedRef = useRef(false);
   const [result, setResult] = useState({ own: 0, helped: 0 });
+  const historyRef = useRef<Answered[]>([]);
+  // Skąd wjeżdża karta: następne pytanie z prawej, poprzednie z lewej.
+  const [direction, setDirection] = useState<"next" | "back">("next");
+  // Gwiazdka (sam) albo kciuk (z pomocą) po odpowiedzi; `id` uruchamia animację od nowa.
+  const [burst, setBurst] = useState<{ id: number; own: boolean } | null>(null);
 
   useBusy(stage === "running");
 
@@ -91,25 +109,49 @@ export function TalkRunner({ entries, title, backHref = "/rozmowa" }: { entries:
     if (!step.again) setResult((r) => (hints === 0 ? { ...r, own: r.own + 1 } : { ...r, helped: r.helped + 1 }));
     let next = steps;
     // Z pomocą → jeszcze raz na końcu rozmowy (tylko raz).
-    if (hints > 0 && !step.again) {
+    const addedAgain = hints > 0 && !step.again;
+    if (addedAgain) {
       next = [...steps, { entry: step.entry, again: true }];
       setSteps(next);
     }
+    historyRef.current.push({ hints, counted: !step.again, addedAgain });
+    setBurst((previous) => ({ id: (previous?.id ?? 0) + 1, own: hints === 0 }));
     if (index + 1 >= next.length) {
       stopAudio();
       save();
       setStage("done");
     } else {
+      setDirection("next");
       setIndex(index + 1);
     }
+  }
+
+  /** Cofnięcie o jedno pytanie: jego ocena znika, dziecko odpowiada jeszcze raz. */
+  function back() {
+    if (index === 0) return;
+    stopAudio();
+    const last = historyRef.current.pop();
+    attemptsRef.current.pop();
+    if (last?.counted) {
+      setResult((r) => (last.hints === 0 ? { ...r, own: r.own - 1 } : { ...r, helped: r.helped - 1 }));
+    }
+    // Dopisana runda „Jeszcze raz” tego pytania jest zawsze ostatnia (cofamy po kolei).
+    if (last?.addedAgain) setSteps((list) => list.slice(0, -1));
+    setBurst(null);
+    setDirection("back");
+    setIndex(index - 1);
   }
 
   if (stage === "start") {
     return (
       <div className="flex flex-col items-center gap-5 text-center">
-        <Link href={backHref} className="flex min-h-11 items-center self-start rounded-full bg-white/10 px-5 text-sm">
+        <button
+          type="button"
+          onClick={onExit}
+          className="flex min-h-11 items-center self-start rounded-full bg-white/10 px-5 text-sm"
+        >
           ← Wróć
-        </Link>
+        </button>
         <HeroAvatar hero={cast.hero} size={role === "phone" ? 120 : 160} />
         <p className="text-lg font-bold text-hero-cyan">{cast.hero.codename}</p>
         <h1 className="text-3xl font-black">
@@ -154,7 +196,7 @@ export function TalkRunner({ entries, title, backHref = "/rozmowa" }: { entries:
           <p className="text-sm text-paper/60">Pytania z pomocą wrócą w kolejnych dniach.</p>
         </Card>
         <div className="flex w-full max-w-md flex-col gap-3 sm:flex-row">
-          <BigButton href="/rozmowa" full>
+          <BigButton onClick={onExit} full>
             Inne rozmowy
           </BigButton>
           <BigButton href="/" tone="quiet" full>
@@ -169,17 +211,29 @@ export function TalkRunner({ entries, title, backHref = "/rozmowa" }: { entries:
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
-        <Link
-          href={backHref}
+        <button
+          type="button"
           onClick={() => {
             stopAudio();
             save();
+            onExit();
           }}
           className="flex min-h-11 items-center rounded-full bg-white/10 px-5 text-sm"
         >
           ← Przerwij
-        </Link>
-        <StepDots total={steps.length} current={index} />
+        </button>
+        <div className="relative flex items-center gap-2">
+          {burst && (
+            <span
+              key={burst.id}
+              className="animate-star-fly pointer-events-none absolute -top-1 right-full mr-1 text-3xl"
+              aria-hidden
+            >
+              {burst.own ? "⭐" : "👍"}
+            </span>
+          )}
+          <StepDots total={steps.length} current={index} />
+        </div>
       </div>
       <QuestionCard
         key={`${index}-${step.entry.key}`}
@@ -189,9 +243,26 @@ export function TalkRunner({ entries, title, backHref = "/rozmowa" }: { entries:
         answerer={cast.answerer}
         heroName={cast.hero.codename}
         hero={<HeroAvatar hero={cast.hero} size={role === "phone" ? 64 : 80} />}
+        enter={direction}
         onAnswered={answered}
+        onBack={index > 0 ? back : undefined}
       />
     </div>
+  );
+}
+
+/** Fale dźwięku przy dymku — widać, że bohater właśnie mówi. */
+function SoundWaves() {
+  return (
+    <span className="ml-2 inline-flex h-4 items-end gap-0.5 align-middle" aria-hidden>
+      {[0, 1, 2, 3].map((bar) => (
+        <span
+          key={bar}
+          className="wave-bar h-full w-1 rounded-full bg-hero-gold"
+          style={{ animationDelay: `${bar * 120}ms` }}
+        />
+      ))}
+    </span>
   );
 }
 
@@ -202,7 +273,9 @@ function QuestionCard({
   answerer,
   hero,
   heroName,
+  enter,
   onAnswered,
+  onBack,
 }: {
   step: Step;
   mode: SessionMode;
@@ -210,23 +283,40 @@ function QuestionCard({
   answerer: Voice;
   hero: React.ReactNode;
   heroName: string;
+  /** Z której strony wjeżdża karta. */
+  enter: "next" | "back";
   onAnswered: (hints: number, ms: number) => void;
+  /** Powrót do poprzedniego pytania (brak przy pierwszym). */
+  onBack?: () => void;
 }) {
   const { question } = step.entry;
   const [hint, setHint] = useState(0);
   const startRef = useRef(Date.now());
   const [echoKey, setEchoKey] = useState(0);
+  // Bohater „mówi”, dopóki gra pytanie; potem „Twoja kolej”.
+  const [speaking, setSpeaking] = useState(false);
+  const [heard, setHeard] = useState(false);
+  const askRunRef = useRef(0);
 
   const ask = useCallback(
-    (slow = false) => void playPhrase(question.q, { voice: asker, slow }),
+    async (slow = false) => {
+      const run = ++askRunRef.current;
+      setSpeaking(true);
+      await playPhrase(question.q, { voice: asker, slow, wait: true });
+      // Nowsze odtworzenie (albo wyjście z ekranu) — ten stan już nieaktualny.
+      if (run !== askRunRef.current) return;
+      setSpeaking(false);
+      setHeard(true);
+    },
     [question.q, asker],
   );
 
   // Pytanie gra samo po wejściu na ekran.
   useEffect(() => {
-    const timer = setTimeout(() => ask(), 350);
+    const timer = setTimeout(() => void ask(), 350);
     return () => {
       clearTimeout(timer);
+      askRunRef.current += 1;
       stopAudio();
     };
   }, [ask]);
@@ -234,7 +324,7 @@ function QuestionCard({
   function nextHint() {
     const level = Math.min(MAX_HINT, hint + 1);
     setHint(level);
-    if (level === 1) ask(true);
+    if (level === 1) void ask(true);
     if (level === 3) setEchoKey((key) => key + 1);
   }
 
@@ -246,19 +336,27 @@ function QuestionCard({
   const blanks = useMemo(() => question.frame?.split("___") ?? null, [question.frame]);
 
   return (
-    <Card className="no-select flex flex-col items-center gap-4 text-center">
+    <Card
+      className={`no-select flex flex-col items-center gap-4 text-center ${
+        enter === "back" ? "animate-slide-in-left" : "animate-slide-in-right"
+      }`}
+    >
       {step.again && (
         <p className="rounded-full bg-hero-gold/20 px-4 py-1 text-sm font-bold text-hero-gold">🔁 Jeszcze raz</p>
       )}
       <div className="flex w-full max-w-2xl items-center gap-3 text-left">
-        {hero}
+        <div className={`shrink-0 ${speaking ? "animate-talk" : ""}`}>{hero}</div>
         <button
           type="button"
-          onClick={() => ask()}
-          className="flex-1 rounded-2xl bg-white/10 px-4 py-3 text-left transition active:translate-y-0.5"
+          onClick={() => void ask()}
+          className={`flex-1 rounded-2xl px-4 py-3 text-left transition active:translate-y-0.5 ${
+            speaking ? "bg-hero-gold/15 ring-2 ring-hero-gold/60" : "bg-white/10"
+          }`}
           aria-label={`${heroName} pyta: ${question.q} — stuknij, żeby posłuchać`}
         >
-          <span className="block text-xs font-bold tracking-wide text-paper/60 uppercase">{heroName} pyta 🔊</span>
+          <span className="block text-xs font-bold tracking-wide text-paper/60 uppercase">
+            {heroName} pyta 🔊{speaking && <SoundWaves />}
+          </span>
           <span className="font-reading block text-2xl leading-snug sm:text-3xl">{question.q}</span>
           {hint >= 1 && <span className="block text-base text-hero-cyan">{question.qPl}</span>}
         </button>
@@ -270,10 +368,22 @@ function QuestionCard({
         </div>
       )}
 
+      {/* Sygnał zmiany ról: pytanie padło — teraz mówi dziecko. Znika, gdy gra gotowa odpowiedź. */}
+      <p
+        className={`rounded-full px-5 py-2 text-lg font-black transition-opacity duration-300 ${
+          heard && !speaking && hint < MAX_HINT
+            ? "animate-nudge bg-hero-lime/20 text-hero-lime opacity-100"
+            : "opacity-0"
+        }`}
+        aria-hidden={!(heard && !speaking && hint < MAX_HINT)}
+      >
+        🗣️ Twoja kolej — powiedz na głos!
+      </p>
+
       <div className="flex flex-wrap justify-center gap-2">
         <button
           type="button"
-          onClick={() => ask()}
+          onClick={() => void ask()}
           className="min-h-11 rounded-full bg-white/10 px-4 text-sm font-bold"
         >
           🔊 Jeszcze raz
@@ -281,7 +391,7 @@ function QuestionCard({
         {hint >= 1 && (
           <button
             type="button"
-            onClick={() => ask(true)}
+            onClick={() => void ask(true)}
             className="min-h-11 rounded-full bg-white/10 px-4 text-sm font-bold"
           >
             🐢 Wolniej
@@ -348,6 +458,15 @@ function QuestionCard({
           ? "Aplikacja nie słucha dziecka — oceniasz Ty. Najpierw daj chwilę na odpowiedź."
           : "Powiedz odpowiedź na głos, potem stuknij."}
       </p>
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex min-h-11 items-center self-start rounded-full bg-white/10 px-5 text-sm font-bold"
+        >
+          ↩ Poprzednie pytanie
+        </button>
+      )}
     </Card>
   );
 }

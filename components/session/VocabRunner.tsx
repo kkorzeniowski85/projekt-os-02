@@ -1420,7 +1420,7 @@ function RewardScreen({
       timers.push(setTimeout(() => playStarDing(i), STAR_START + i * STAR_STEP));
     }
     timers.push(
-      setTimeout(() => void playVictoryFanfare(), STAR_START + stars * STAR_STEP + 150),
+      setTimeout(() => void playVictoryFanfare(stars), STAR_START + stars * STAR_STEP + 150),
     );
     return () => {
       timers.forEach(clearTimeout);

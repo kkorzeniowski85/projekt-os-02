@@ -1086,7 +1086,7 @@ function RewardScreen({
       timers.push(setTimeout(() => playStarDing(i), STAR_START + i * STAR_STEP));
     }
     timers.push(
-      setTimeout(() => void playVictoryFanfare(), STAR_START + stars * STAR_STEP + 150),
+      setTimeout(() => void playVictoryFanfare(stars), STAR_START + stars * STAR_STEP + 150),
     );
     // Wyjście z ekranu nagrody ucisza muzykę — hymn nie ma grać nad kolejną
     // sesją ani nad ekranem głównym.

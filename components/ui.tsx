@@ -185,7 +185,7 @@ export function StepDots({ total, current }: { total: number; current: number })
         <span
           key={index}
           className={`h-2.5 w-2.5 rounded-full ${
-            index < current ? "bg-hero-lime" : index === current ? "bg-hero-gold" : "bg-white/20"
+            index < current ? "bg-hero-lime" : index === current ? "animate-pop-in bg-hero-gold" : "bg-white/20"
           }`}
         />
       ))}

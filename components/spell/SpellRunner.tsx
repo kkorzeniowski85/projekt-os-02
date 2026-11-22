@@ -27,7 +27,8 @@ type Step = { word: SpellWord; again: boolean };
 const ROWS = ["qwertyuiop", "asdfghjkl", "zxcvbnm"];
 const MAX_LETTERS = 12;
 
-export function SpellRunner({ words }: { words: SpellWord[] }) {
+/** `onAgain` — nowe dyktando na tej samej stronie (strona losuje słowa od nowa). */
+export function SpellRunner({ words, onAgain }: { words: SpellWord[]; onAgain: () => void }) {
   const { role } = useDeviceRole();
   const { commitSession } = useProgress();
   const [stage, setStage] = useState<"start" | "running" | "done">("start");
@@ -130,7 +131,7 @@ export function SpellRunner({ words }: { words: SpellWord[] }) {
           <p className="text-sm text-paper/60">Słowa z pomocą wrócą w kolejnych dniach.</p>
         </Card>
         <div className="flex w-full max-w-md flex-col gap-3 sm:flex-row">
-          <BigButton href="/dyktando" onClick={() => window.location.reload()} full>
+          <BigButton onClick={onAgain} full>
             Jeszcze raz
           </BigButton>
           <BigButton href="/" tone="quiet" full>
@@ -284,10 +285,21 @@ function WordCardScreen({
               : phase === "almost"
                 ? "border-hero-gold bg-hero-gold/10"
                 : "border-white/20 bg-black/20"
-        }`}
+        } ${phase === "almost" || phase === "wrong" ? "animate-shake" : phase === "right" ? "animate-pop-in" : ""}`}
         aria-live="polite"
       >
-        {done ? target : typed || <span className="opacity-30">…</span>}
+        {done ? (
+          target
+        ) : typed ? (
+          // Każda nowa litera „wskakuje” — widać, że stuknięcie zadziałało.
+          typed.split("").map((letter, i) => (
+            <span key={i} className="animate-pop-in inline-block">
+              {letter}
+            </span>
+          ))
+        ) : (
+          <span className="opacity-30">…</span>
+        )}
       </div>
 
       {phase === "almost" && <p className="text-lg font-bold text-hero-gold">Prawie! Sprawdź literki i popraw.</p>}
@@ -302,8 +314,13 @@ function WordCardScreen({
       )}
       {done && (
         <div className="flex flex-wrap justify-center gap-2" aria-label="Dźwięki słowa">
+          {/* Dźwięki pojawiają się po kolei, jak przy Fred Talk (c-a-t). */}
           {step.word.graphemes.map((grapheme, i) => (
-            <span key={i} className="font-reading rounded-xl bg-white/15 px-3 py-2 text-2xl font-black">
+            <span
+              key={i}
+              className="font-reading animate-pop-in rounded-xl bg-white/15 px-3 py-2 text-2xl font-black"
+              style={{ animationDelay: `${500 + i * 260}ms` }}
+            >
               {grapheme}
             </span>
           ))}
