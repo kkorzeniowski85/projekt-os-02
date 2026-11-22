@@ -22,7 +22,7 @@ import { BookPrint } from "@/components/books/BookPrint";
 import { BigButton, Card, ParentTip, PhraseSpeaker, StepDots } from "@/components/ui";
 import { playPhoneme, playPhrase, playWord, unlockAudio } from "@/lib/audio";
 import { bookItem } from "@/lib/books/progress";
-import { type Book } from "@/lib/curriculum/books";
+import { bookVoice, type Book } from "@/lib/curriculum/books";
 import { SOUNDS } from "@/lib/curriculum/sounds";
 import { useProgress, type PendingAttempt } from "@/lib/progress/store";
 import { type SessionMode } from "@/lib/progress/types";
@@ -80,6 +80,8 @@ export function BookReader({ book }: { book: Book }) {
   useBusy(stage === "reading");
 
   const red = useMemo(() => new Set(book.redWords.map((word) => word.toLowerCase())), [book]);
+  // Cała książeczka jednym głosem lektora, kolejna drugim (lib/voices.ts).
+  const voice = bookVoice(book);
   const phone = role === "phone";
 
   function start(chosen: SessionMode) {
@@ -186,7 +188,7 @@ export function BookReader({ book }: { book: Book }) {
               <button
                 key={word}
                 type="button"
-                onClick={() => void playWord(word)}
+                onClick={() => void playWord(word, { voice })}
                 className="font-reading flex min-h-12 items-center rounded-xl bg-hero-lime px-4 text-2xl font-bold text-night shadow-[0_4px_0_#4fae42] transition active:translate-y-1 active:shadow-none"
               >
                 {word}
@@ -201,7 +203,7 @@ export function BookReader({ book }: { book: Book }) {
               <button
                 key={word}
                 type="button"
-                onClick={() => void playWord(word)}
+                onClick={() => void playWord(word, { voice })}
                 className="font-reading flex min-h-12 items-center rounded-xl bg-hero-pink px-4 text-2xl font-bold text-night shadow-[0_4px_0_#c93c76] transition active:translate-y-1 active:shadow-none"
               >
                 {word}
@@ -250,7 +252,7 @@ export function BookReader({ book }: { book: Book }) {
               tone="quiet"
               onClick={() => {
                 setRevealed(true);
-                void playPhrase(current.en);
+                void playPhrase(current.en, { voice });
               }}
             >
               Przeczytałem — sprawdź nagraniem 🔊

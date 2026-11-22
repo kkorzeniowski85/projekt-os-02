@@ -16,10 +16,33 @@
 
 import type { Phrase } from "./vocab";
 import { phraseScene, type ScenkaKwestia } from "./vocabParent";
+import { otherVoice, type Voice } from "../voices";
 
 /** Kwestia dziecka — po tym rozróżnia się, kto mówi, w całym module. */
 export function isChildLine(line: ScenkaKwestia): boolean {
   return line.kto === "Ty";
+}
+
+/**
+ * Głos lektora dla roli (lib/voices.ts): role kobiece — Alice, męskie —
+ * George. „Rodzic” dostaje Alice, żeby dziecko (chłopiec) w rozmowie z
+ * rodzicem miało głos George'a.
+ */
+const MALE_ROLES = new Set(["kolega", "tata", "sprzedawca", "pan z psem"]);
+
+export function roleVoice(kto: string): Voice {
+  return MALE_ROLES.has(kto) ? "george" : "alice";
+}
+
+/**
+ * Głos kwestii w scenie. Pozostałe role — według roli; kwestia dziecka —
+ * przeciwny głos niż pierwsza inna rola, żeby było słychać, kto mówi (z
+ * kolegą albo tatą zwrot dziecka czyta Alice, z nauczycielką — George).
+ */
+export function sceneLineVoice(lines: readonly ScenkaKwestia[], line: ScenkaKwestia): Voice {
+  if (!isChildLine(line)) return roleVoice(line.kto);
+  const partner = lines.find((candidate) => !isChildLine(candidate));
+  return partner ? otherVoice(roleVoice(partner.kto)) : "george";
 }
 
 /**

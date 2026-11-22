@@ -10,6 +10,7 @@
     "audio": "tsx scripts/generate-audio.mjs",
     "audio:phonemes": "tsx scripts/extract-phonemes.mjs",
     "audio:akademia": "tsx scripts/akademia/generate-audio.mjs",
+    "audio:eleven": "tsx scripts/generate-eleven.mjs",
     "audit": "tsx scripts/audit-lessons.mjs",
     "audit:akademia": "tsx scripts/akademia/audit-content.mjs"
   },

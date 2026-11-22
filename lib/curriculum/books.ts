@@ -22,8 +22,11 @@
  * pusta ramka — dziecko rysuje, co przeczytało. To nie jest prowizorka:
  * rysunek po przeczytaniu strony pokazuje, czy tekst został zrozumiany.
  *
- * Bez importów — generator nagrań i audyt czytają ten plik z Node.
+ * Bez importów (poza samymi typami) — generator nagrań i audyt czytają ten
+ * plik z Node.
  */
+
+import type { Voice } from "../voices";
 
 export type BookPage = {
   en: string;
@@ -1569,6 +1572,14 @@ export const BOOKS: Book[] = [
     ],
   },
 ];
+
+/**
+ * Głos lektora książeczki (lib/voices.ts): cała książeczka jednym głosem —
+ * zmiana w środku czytanki rozpraszałaby — a kolejne na zmianę.
+ */
+export function bookVoice(book: Book): Voice {
+  return BOOKS.indexOf(book) % 2 === 1 ? "george" : "alice";
+}
 
 export function getBook(id: string): Book | undefined {
   return BOOKS.find((book) => book.id === id);

@@ -21,6 +21,7 @@
 import { audioSlug } from "./curriculum/vocab";
 import { getRecordingUrl } from "./recordings";
 import { readSettings, subscribeSettings } from "./settings";
+import { VOICES, type Voice } from "./voices";
 
 export type PlaybackSource =
   | "recording"
@@ -109,6 +110,35 @@ export function wordClipPath(word: string): string {
 
 export function phonemeClipPath(soundId: string): string {
   return `${phonemeClipBase(soundId)}.mp3`;
+}
+
+// --- Dwa głosy lektorów (lib/voices.ts) ----------------------------------------
+
+type VoicedKind = "words" | "phrases";
+
+/** Nagranie lektora: public/audio/<głos>/words|phrases/<slug>.mp3. */
+export function voiceClipPath(voice: Voice, kind: VoicedKind, text: string): string {
+  return `${CLIP_BASE}/${voice}/${kind}/${audioSlug(text)}.mp3`;
+}
+
+/** Który głos zagra następnym razem, gdy są oba — przełącza się co odtworzenie. */
+let alternate = 0;
+
+/**
+ * Wybór nagrania lektora: głos wskazany (rola w scence, głos książeczki),
+ * jeśli jest; inaczej z dwóch dostępnych na zmianę; z jednego — ten jeden.
+ * Null = żadnego głosu jeszcze nie ma (gra dawne nagranie).
+ */
+async function pickVoicedClip(kind: VoicedKind, text: string, prefer?: Voice): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  const states = await Promise.all(VOICES.map((voice) => clipState(voiceClipPath(voice, kind, text))));
+  const available = VOICES.filter((_, index) => states[index] === "yes");
+  if (available.length === 0) return null;
+  if (prefer && available.includes(prefer)) return voiceClipPath(prefer, kind, text);
+  if (available.length === 1) return voiceClipPath(available[0], kind, text);
+  const voice = VOICES[alternate % VOICES.length];
+  alternate += 1;
+  return voiceClipPath(voice, kind, text);
 }
 
 /** "unknown" = nie wiadomo (brak sieci, limit czasu, błąd serwera). */
@@ -436,6 +466,16 @@ async function playFromBase(
   const { path } = await lookupClip(base);
   if (stale()) return "interrupted";
   if (!path) return "missing";
+  return playResolved(path, retry, wait, followVoice);
+}
+
+/** Gra znaleziony plik, pamiętając pliki, które niedawno nie zagrały. */
+async function playResolved(
+  path: string,
+  retry: boolean,
+  wait: boolean,
+  followVoice: boolean,
+): Promise<PlayStatus> {
   // Niedawno nie zagrał (łącze wisi) — od razu plan awaryjny, bez czekania
   // na limit przy każdym stuknięciu.
   if (!retry && (unplayable.get(path) ?? 0) > Date.now()) return "failed";
@@ -443,6 +483,27 @@ async function playFromBase(
   if (status === "failed") unplayable.set(path, Date.now() + UNKNOWN_TTL_MS);
   else if (status === "ok") unplayable.delete(path);
   return status;
+}
+
+/**
+ * Słowo albo zdanie: najpierw nagranie lektora (lib/voices.ts), a gdy go nie
+ * ma albo nie zagra — dawne nagranie spod `fallbackBase`.
+ */
+async function playVoiced(
+  kind: VoicedKind,
+  text: string,
+  fallbackBase: string,
+  stale: () => boolean,
+  wait: boolean,
+  prefer?: Voice,
+): Promise<PlayStatus | "missing"> {
+  const path = await pickVoicedClip(kind, text, prefer);
+  if (stale()) return "interrupted";
+  if (path) {
+    const status = await playResolved(path, false, wait, true);
+    if (status !== "failed" || stale()) return status;
+  }
+  return playFromBase(fallbackBase, stale, false, wait);
 }
 
 /** Nagranie rodzica, jeśli istnieje dla tego grafemu. */
@@ -589,9 +650,14 @@ function speak(text: string, rate = 0.8, wait = false): Promise<boolean> {
  * Przerwanie (nowsze stuknięcie, kolejne słowo) kończy wywołanie bez planu
  * awaryjnego — synteza jest tylko na prawdziwy brak albo błąd nagrania.
  */
-export async function playWord(word: string): Promise<PlaybackResult> {
+export type PlayWordOptions = {
+  /** Głos lektora, jeśli ma być konkretny (np. głos książeczki). */
+  voice?: Voice;
+};
+
+export async function playWord(word: string, options: PlayWordOptions = {}): Promise<PlaybackResult> {
   const stale = beginRequest();
-  const status = await playFromBase(wordClipBase(word), stale);
+  const status = await playVoiced("words", word, wordClipBase(word), stale, false, options.voice);
   if (status === "ok") return { source: "clip", approximate: false };
   if (status === "interrupted") return INTERRUPTED;
   // Zablokowane = potrzebny gest użytkownika. Nie próbujemy syntezą —
@@ -618,18 +684,21 @@ export type PlayPhraseOptions = {
    * stuknięcie głośnika nie potrzebuje wiedzieć, kiedy zdanie się skończyło.
    */
   wait?: boolean;
+  /** Głos lektora: rola w scence, głos książeczki. Bez niego — na zmianę. */
+  voice?: Voice;
 };
 
 export function playPhrase(text: string, options: PlayPhraseOptions = {}): Promise<PlaybackResult> {
-  return playPhraseWith(text, options.wait ?? false, beginRequest());
+  return playPhraseWith(text, options.wait ?? false, beginRequest(), options.voice);
 }
 
 async function playPhraseWith(
   text: string,
   wait: boolean,
   stale: () => boolean,
+  voice?: Voice,
 ): Promise<PlaybackResult> {
-  const status = await playFromBase(phraseClipBase(text), stale, false, wait);
+  const status = await playVoiced("phrases", text, phraseClipBase(text), stale, wait, voice);
   if (status === "ok") {
     return { source: "clip", approximate: false, durationMs: wait ? lastClipDurationMs : undefined };
   }
@@ -649,6 +718,8 @@ export type PhraseStep = {
   text: string;
   /** Wołane tuż przed odtworzeniem kroku — ekran podświetla nim bieżącą kwestię. */
   onStart?: () => void;
+  /** Głos roli (lib/curriculum/scenes.ts → sceneLineVoice). */
+  voice?: Voice;
 };
 
 /**
@@ -678,7 +749,7 @@ export async function playPhraseSequence(steps: PhraseStep[], gapMs = 350): Prom
   for (const step of steps) {
     if (token !== sequenceToken) return false;
     step.onStart?.();
-    await playPhraseWith(step.text, true, beginStep());
+    await playPhraseWith(step.text, true, beginStep(), step.voice);
     if (token !== sequenceToken) return false;
     await new Promise((resolve) => setTimeout(resolve, gapMs));
   }

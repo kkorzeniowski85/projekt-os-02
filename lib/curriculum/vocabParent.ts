@@ -1690,6 +1690,16 @@ export function wordExample(word: string): ZdaniePrzyklad | null {
   return PRZYKLADY_SLOW[word] ?? null;
 }
 
+/** Wszystkie zdania przykładowe słów (kolejność stała) — dla generatora nagrań. */
+export function allWordExamples(): ZdaniePrzyklad[] {
+  return Object.values(PRZYKLADY_SLOW);
+}
+
+/** Wszystkie scenki — dla generatora nagrań (głos według roli). */
+export function allScenes(): ScenkaKwestia[][] {
+  return Object.values(SCENKI);
+}
+
 /** Scenka do odegrania dla zwrotu (pusta tablica = brak scenki). */
 export function phraseScene(phrase: string): ScenkaKwestia[] {
   return SCENKI[phrase] ?? [];

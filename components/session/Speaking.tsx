@@ -25,7 +25,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { HeroAvatar } from "@/components/HeroAvatar";
 import { BigButton, Card } from "@/components/ui";
 import { audioGeneration, playPhrase, playPhraseSequence, stopAudio } from "@/lib/audio";
-import { heroSceneLine, isChildLine, roleEmoji } from "@/lib/curriculum/scenes";
+import { heroSceneLine, isChildLine, roleEmoji, sceneLineVoice } from "@/lib/curriculum/scenes";
 import type { Phrase } from "@/lib/curriculum/vocab";
 import type { ScenkaKwestia } from "@/lib/curriculum/vocabParent";
 import type { Hero } from "@/lib/heroes";
@@ -248,7 +248,11 @@ export function SceneScreen({
   const playAll = useCallback(() => {
     playRef.current += 1;
     void playPhraseSequence(
-      linesRef.current.map((line, index) => ({ text: line.en, onStart: () => setCurrent(index) })),
+      linesRef.current.map((line, index) => ({
+        text: line.en,
+        voice: sceneLineVoice(linesRef.current, line),
+        onStart: () => setCurrent(index),
+      })),
       350,
     ).then((finished) => {
       if (finished) {
@@ -301,7 +305,11 @@ export function SceneScreen({
     void playPhraseSequence(
       kwestie
         .slice(cursor, end)
-        .map((line, offset) => ({ text: line.en, onStart: () => setCurrent(cursor + offset) })),
+        .map((line, offset) => ({
+          text: line.en,
+          voice: sceneLineVoice(kwestie, line),
+          onStart: () => setCurrent(cursor + offset),
+        })),
       350,
     ).then((finished) => {
       if (cancelled) return;
@@ -318,7 +326,7 @@ export function SceneScreen({
   const playLine = (index: number) => {
     const play = ++playRef.current;
     setCurrent(index);
-    void playPhrase(lines[index].en, { wait: true }).then(() => {
+    void playPhrase(lines[index].en, { wait: true, voice: sceneLineVoice(lines, lines[index]) }).then(() => {
       if (play === playRef.current) setCurrent(null);
     });
   };
@@ -466,7 +474,7 @@ export function SceneScreen({
                 type="button"
                 onClick={() => {
                   setHintEn(true);
-                  void playPhrase(pendingLine.en);
+                  void playPhrase(pendingLine.en, { voice: sceneLineVoice(lines, pendingLine) });
                 }}
                 className="flex min-h-14 items-center gap-3 rounded-blob bg-hero-gold px-6 py-3 text-xl font-bold text-night shadow-[0_6px_0_#c99a1f] transition active:translate-y-1 active:shadow-none"
               >
