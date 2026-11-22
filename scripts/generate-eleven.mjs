@@ -19,10 +19,12 @@
  *   npm run audio:eleven -- --sample            # mała próbka do odsłuchu
  *   npm run audio:eleven -- --only words        # words | phrases | scenes | examples | books
  *   npm run audio:eleven -- --max-chars 20000   # zatrzymaj się po tylu znakach
+ *   npm run audio:eleven -- --list lista.json      # lista nagrań do sprawdzenia
+ *   npm run audio:eleven -- --redo zle.json        # usuń wskazane, by nagrać je od nowa
  * Gotowe pliki są pomijane (bez ponownego zużycia znaków).
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -110,6 +112,44 @@ if (sample) {
 }
 
 const target = (job) => path.join(audioDir, job.voice, job.kind, `${audioSlug(job.text)}.mp3`);
+
+/**
+ * --list plik.json: zapisuje listę nagrań (głos, rodzaj, tekst, adres) i
+ * kończy — do sprawdzenia nagrań w przeglądarce (długość mowy, cisze).
+ */
+const listArg = args.indexOf("--list");
+if (listArg >= 0) {
+  const list = [...jobs.values()].map((job) => ({
+    ...job,
+    url: `/audio/${job.voice}/${job.kind}/${audioSlug(job.text)}.mp3`,
+    exists: existsSync(target(job)),
+  }));
+  writeFileSync(args[listArg + 1], JSON.stringify(list));
+  console.log(`lista: ${list.length} nagrań → ${args[listArg + 1]}`);
+  process.exit(0);
+}
+
+/**
+ * --redo plik.json: usuwa wskazane nagrania (lista adresów /audio/...), żeby
+ * zwykłe uruchomienie nagrało je od nowa — po sprawdzeniu, które brzmią źle.
+ */
+const redoArg = args.indexOf("--redo");
+if (redoArg >= 0) {
+  const urls = JSON.parse(readFileSync(args[redoArg + 1], "utf8"));
+  let removed = 0;
+  for (const url of urls) {
+    const file = path.join(root, "public", ...url.split("/").filter(Boolean));
+    if (url.startsWith("/audio/alice/") || url.startsWith("/audio/george/")) {
+      if (existsSync(file)) {
+        unlinkSync(file);
+        removed += 1;
+      }
+    }
+  }
+  console.log(`usunięte do ponownego nagrania: ${removed}`);
+  process.exit(0);
+}
+
 const todo = [...jobs.values()].filter((job) => !existsSync(target(job)));
 
 // --- Podsumowanie ------------------------------------------------------------------
