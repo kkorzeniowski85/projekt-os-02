@@ -90,7 +90,7 @@ for it in items:
     g, u = ref[it["text"]]
     tg, tu = tokens(g), tokens(u)
     row = {"id": it["id"], "text": it["text"], "gb": " ".join(tg), "us": " ".join(tu)}
-    if tg == tu:
+    if tg == tu and len(tg) < 8:
         row["neutral"] = True
         out.append(row)
         continue
@@ -108,6 +108,10 @@ for it in items:
     # Konkretny znacznik: „r” po samogłosce (brytyjski go nie wymawia).
     row["rGB"] = tg.count("ɹ")
     row["rHeard"] = heard.count("ɹ") + heard.count("ɚ") + heard.count("ɝ")
+    # Do porównań zdań z dawnym nagraniem: wyraźne „r” (bez ɚ) i amerykańskie miękkie „t”.
+    row["rStrong"] = sum(heard.count(p) for p in ("ɹ", "ɝ", "ɑːɹ", "ɔːɹ"))
+    row["flap"] = heard.count("ɾ")
+    row["n"] = len(tg)
     out.append(row)
 
 json.dump(out, open(sys.argv[2], "w", encoding="utf-8"), ensure_ascii=False, indent=0)

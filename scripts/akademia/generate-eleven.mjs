@@ -83,7 +83,16 @@ add("czytanie", "george", "phrases", audioSlug("False"), "False", true);
 });
 
 const target = (job) => path.join(base, job.voice, job.dir, `${job.name}.mp3`);
-const all = [...jobs.values()];
+// Wykluczone (scripts/eleven-pominiete.json: Whisper albo test akcentu) i zdania
+// przeniesione przy poprawce akcentu na drugi głos — nie nagrywamy ich ponownie.
+const skipFile = path.join(root, "scripts", "eleven-pominiete.json");
+const skipped = new Set(existsSync(skipFile) ? JSON.parse(readFileSync(skipFile, "utf8")).pliki : []);
+const other = (voice) => (voice === "alice" ? "george" : "alice");
+const all = [...jobs.values()].filter(
+  (job) =>
+    !skipped.has(`/audio/akademia/${job.voice}/${job.dir}/${job.name}.mp3`) &&
+    !existsSync(path.join(base, other(job.voice), job.dir, `${job.name}.mp3`)),
+);
 const todo = all.filter((job) => !existsSync(target(job)));
 const byGroup = {};
 for (const job of all) {
