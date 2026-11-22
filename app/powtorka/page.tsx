@@ -35,7 +35,7 @@ export default function ReviewPage() {
             <span aria-hidden>🔁</span> Powtórka
           </h1>
           <Link href="/" className="flex min-h-11 items-center rounded-full bg-white/10 px-5 text-sm">
-            ← Liga
+            ← Baza
           </Link>
         </header>
         <Card>

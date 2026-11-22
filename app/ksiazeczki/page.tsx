@@ -91,7 +91,7 @@ export default function BooksPage() {
           href="/"
           className="flex min-h-11 shrink-0 items-center rounded-full bg-white/10 px-5 text-sm"
         >
-          ← Liga
+          ← Baza
         </Link>
       </header>
 

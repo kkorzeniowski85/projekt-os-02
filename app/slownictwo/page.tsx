@@ -15,7 +15,6 @@ import { TOPICS, topicSize } from "@/lib/curriculum/vocab";
 import { recommendNextTopic } from "@/lib/progress/rules";
 import { useProgress } from "@/lib/progress/store";
 import type { TopicStatus } from "@/lib/progress/types";
-import { useDeviceRole } from "@/lib/useDeviceRole";
 
 const STATUS_STYLE: Record<TopicStatus, string> = {
   mastered: "bg-hero-lime text-night",
@@ -32,7 +31,6 @@ const STATUS_LABEL: Record<TopicStatus, string> = {
 };
 
 export default function VocabHomePage() {
-  const { role } = useDeviceRole();
   const { state, ready } = useProgress();
 
   const recommendation = recommendNextTopic(state);
@@ -61,7 +59,8 @@ export default function VocabHomePage() {
 
       <Card className="border-hero-gold/40 bg-hero-gold/10">
         <p className="text-sm font-bold tracking-wide text-hero-gold uppercase">
-          {role === "phone" ? "Szybka misja" : "Misja na dziś"}
+          {/* Nie „Misja na dziś” — tak nazywa się plan dnia na ekranie głównym. */}
+          Polecany temat
         </p>
         <p className="mt-1 mb-4 text-2xl font-black">{recommendation.labelPl}</p>
         <BigButton href={`/slownictwo/${recommendation.topicId}`} full>

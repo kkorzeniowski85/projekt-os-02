@@ -48,7 +48,7 @@ export function ScenkiList({ topic }: { topic: Topic }) {
         <button
           type="button"
           onClick={() => setOpen(null)}
-          className="self-start text-sm text-paper/60 underline"
+          className="flex min-h-11 items-center self-start rounded-full bg-white/10 px-5 text-sm"
         >
           ← Wróć do scenek
         </button>

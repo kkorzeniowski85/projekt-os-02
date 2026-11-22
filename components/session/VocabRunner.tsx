@@ -702,7 +702,7 @@ function IntroScreen({
 
   return (
     <div className={`flex flex-col items-center text-center ${phone ? "gap-4" : "gap-6"}`}>
-      <Link href="/slownictwo" className="self-start text-sm text-paper/60 underline">
+      <Link href="/slownictwo" className="flex min-h-11 items-center self-start rounded-full bg-white/10 px-5 text-sm">
         ← Wróć
       </Link>
 

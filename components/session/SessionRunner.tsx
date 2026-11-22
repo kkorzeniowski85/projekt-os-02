@@ -525,7 +525,7 @@ function IntroScreen({
 
   return (
     <div className={`flex flex-col items-center text-center ${phone ? "gap-4" : "gap-6"}`}>
-      <Link href={powrot} className="self-start text-sm text-paper/60 underline">
+      <Link href={powrot} className="flex min-h-11 items-center self-start rounded-full bg-white/10 px-5 text-sm">
         ← Wróć
       </Link>
 
@@ -822,7 +822,11 @@ function BlendScreen({
         <SplitHint grapheme={card.graphemes[splitIndex(card.graphemes)]} word={card.word} mode={mode} />
       ) : (
         <p className="text-xs text-paper/50">
-          Żółty kawałek to „special friends” — dwie litery, jeden dźwięk.
+          {/* „Special friends” to nazwa RWI dla dwuznaków — przy pojedynczej
+              literze (lekcje m, a, s…) ta podpowiedź wprowadzała w błąd. */}
+          {(card.graphemes[card.targetIndex] ?? "").length >= 2
+            ? "Żółty kawałek to „special friends” — dwie litery, jeden dźwięk."
+            : "Żółty kawałek to dzisiejszy dźwięk."}
         </p>
       )}
       {tapProblem === "blocked" && (

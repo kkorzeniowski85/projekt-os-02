@@ -155,7 +155,7 @@ export function BookReader({ book }: { book: Book }) {
   if (stage === "cover") {
     screen = (
       <div className={`flex flex-col items-center text-center ${phone ? "gap-4" : "gap-6"}`}>
-        <Link href="/ksiazeczki" className="self-start text-sm text-paper/60 underline">
+        <Link href="/ksiazeczki" className="flex min-h-11 items-center self-start rounded-full bg-white/10 px-5 text-sm">
           ← Książeczki
         </Link>
         <div className="text-8xl" aria-hidden>
