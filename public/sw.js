@@ -64,6 +64,8 @@ const APP_SHELL = [
   `${BASE}/rodzic/`,
   `${BASE}/dzwieki/`,
   `${BASE}/ksiazeczki/`,
+  `${BASE}/rozmowa/`,
+  `${BASE}/dyktando/`,
   `${BASE}/slownictwo/`,
   `${BASE}/rymowanki/`,
   `${BASE}/tabliczka/`,

@@ -145,7 +145,8 @@ export function applySessionResult(
     // Powtórka to składanka z wielu tematów — nie ma własnego stanu tematu
     // (nie może „opanować się” ani trafić do listy tematów). Zostaje w
     // historii sesji i w dzienniku prób, z których liczy się sama powtórka.
-    if (session.soundId === "review") {
+    // Rozmowa z bohaterem tak samo: pytania mają plan w dzienniku prób.
+    if (session.soundId === "review" || session.soundId === "rozmowa" || session.soundId === "dyktando") {
       return { ...state, updatedTs: session.endedTs, sessions: [...state.sessions, session] };
     }
     const previous = state.topics[session.soundId] ?? emptyTopicState(session.soundId);
@@ -432,7 +433,7 @@ export function speakingStats(state: ProgressState, now = Date.now()): SpeakingS
   const share = (from: number, to: number) => {
     const rated = state.attempts.filter(
       (attempt: Attempt) =>
-        attempt.exercise === "say" &&
+        (attempt.exercise === "say" || attempt.exercise === "talk") &&
         attempt.mode === "parent" &&
         attempt.correct !== null &&
         attempt.ts >= from &&

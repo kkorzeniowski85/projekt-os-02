@@ -29,6 +29,7 @@ import { heroSceneLine, isChildLine, roleEmoji, sceneLineVoice } from "@/lib/cur
 import type { Phrase } from "@/lib/curriculum/vocab";
 import type { ScenkaKwestia } from "@/lib/curriculum/vocabParent";
 import type { Hero } from "@/lib/heroes";
+import type { Voice } from "@/lib/voices";
 
 export type SpeakingLevel = 0 | 1 | 2;
 
@@ -69,6 +70,7 @@ export function Echo({
   showText = true,
   onReveal,
   onDone,
+  voice,
 }: {
   text: string;
   size?: "lg" | "sm";
@@ -76,6 +78,8 @@ export function Echo({
   showText?: boolean;
   onReveal?: () => void;
   onDone?: (ok: boolean) => void;
+  /** Konkretny lektor (np. „odpowiada drugi głos” w Rozmowie); bez niego — na zmianę. */
+  voice?: Voice;
 }) {
   const [phase, setPhase] = useState<EchoPhase>("idle");
   const [dots, setDots] = useState(3);
@@ -98,7 +102,7 @@ export function Echo({
     const run = ++runRef.current;
     revealRef.current?.();
     go("play");
-    const first = await playPhrase(text, { wait: true });
+    const first = await playPhrase(text, { wait: true, voice });
     if (run !== runRef.current) return;
     if (first.source === "interrupted" || first.source === "unavailable") {
       go("idle");
@@ -122,11 +126,11 @@ export function Echo({
     }
     setDots(0);
     go("replay");
-    await playPhrase(text, { wait: true });
+    await playPhrase(text, { wait: true, voice });
     if (run !== runRef.current) return;
     go("idle");
     doneRef.current?.(true);
-  }, [text, go]);
+  }, [text, go, voice]);
 
   useEffect(() => {
     if (auto > 0) void run();

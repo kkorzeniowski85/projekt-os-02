@@ -57,6 +57,7 @@ import {
 } from "@/lib/progress/types";
 import { useSettings, writeSettings } from "@/lib/settings";
 import { VoiceSpeedControl } from "@/components/VoiceSpeedControl";
+import { ReviewPlanCard, SlippingCard, WeekReportCard } from "./WeekReviewCards";
 import { plural, soundsWord } from "./plural";
 
 const STATUS_LABEL: Record<SoundState["status"], string> = {
@@ -179,6 +180,8 @@ function shareLabel({ own, total }: { own: number; total: number }): string {
 function sessionLabel(state: ProgressState, session: SessionRecord): string {
   if (trackOf(session) === "vocab") {
     if (session.soundId === "review") return "🔁 Powtórka";
+    if (session.soundId === "rozmowa") return "🗣️ Rozmowa";
+    if (session.soundId === "dyktando") return "✍️ Dyktando";
     return getTopic(session.soundId)?.titlePl ?? session.soundId;
   }
   const bookId = bookOfSession(state, session);
@@ -302,6 +305,7 @@ export function LigaPanel() {
 
   return (
     <div className="flex flex-col gap-6">
+      <WeekReportCard />
       <Card>
         <h2 className="mb-3 text-lg font-bold">Co dalej</h2>
         <div className="grid gap-5 sm:grid-cols-2">
@@ -493,6 +497,9 @@ export function LigaPanel() {
           </ParentTip>
         </div>
       </Card>
+
+      <SlippingCard />
+      <ReviewPlanCard />
 
       <Card>
         <h2 className="mb-1 text-lg font-bold">Tempo głosu</h2>

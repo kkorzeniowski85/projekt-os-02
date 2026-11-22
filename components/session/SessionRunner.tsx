@@ -16,6 +16,7 @@ import { Celebration } from "@/components/Celebration";
 import { InterruptDialog } from "@/components/session/InterruptDialog";
 import { splitIndex, WordTiles } from "@/components/session/WordTiles";
 import { HeroAvatar } from "@/components/HeroAvatar";
+import { bonusOrder, spreadSame } from "@/lib/session/spread";
 import { BigButton, Card, ParentTip, PhonemeSpeaker, PhraseSpeaker, StepDots, WordSpeaker } from "@/components/ui";
 import {
   chantAvailable,
@@ -45,6 +46,24 @@ import { useProgress, type PendingAttempt, type SessionOutcome } from "@/lib/pro
 import type { DeviceRole, SessionMode } from "@/lib/progress/types";
 import { useBusy } from "@/lib/sessionBusy";
 import { useDeviceRole } from "@/lib/useDeviceRole";
+
+/** Słowo ekranu — do pilnowania, żeby to samo słowo nie stało dwa razy z rzędu. */
+function screenWord(screen: Screen): string | null {
+  switch (screen.kind) {
+    case "listen":
+      return screen.item.word.toLowerCase();
+    case "blend":
+      return screen.card.word.toLowerCase();
+    case "meaning":
+      return screen.item.word.toLowerCase();
+    case "redword":
+      return screen.answer.toLowerCase();
+    case "choice":
+      return screen.round.answer.toLowerCase();
+    default:
+      return null;
+  }
+}
 
 type Screen =
   | { kind: "listen"; item: ListenItem }
@@ -166,14 +185,18 @@ function buildScreens(lesson: Lesson, role: DeviceRole): Screen[] {
 
   const meaning = buildMeaning(lesson, short ? 2 : 3);
 
-  return [
-    ...listen.map<Screen>((item) => ({ kind: "listen", item })),
-    ...blend.map<Screen>((card) => ({ kind: "blend", card })),
-    ...meaning,
-    ...redwords,
-    ...choice.map<Screen>((round) => ({ kind: "choice", round })),
-    ...sentences,
-  ];
+  return spreadSame(
+    [
+      ...listen.map<Screen>((item) => ({ kind: "listen", item })),
+      ...blend.map<Screen>((card) => ({ kind: "blend", card })),
+      ...meaning,
+      ...redwords,
+      ...choice.map<Screen>((round) => ({ kind: "choice", round })),
+      ...sentences,
+    ],
+    screenWord,
+    (screen) => screen.kind,
+  );
 }
 
 export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson }) {
@@ -292,13 +315,15 @@ export function SessionRunner({ sound, lesson }: { sound: Sound; lesson: Lesson 
         .slice(0, 3)
         .map(([i]) => screens[i])
         .filter(Boolean);
-      if (nieudane.length > 0) {
+      // Pomylone na koniec, ale nie tuż po swoim oryginale (ostatni ekran).
+      const doBonusu = bonusOrder(nieudane, screens[screens.length - 1], screenWord);
+      if (doBonusu.length > 0) {
         // Wynik zapadł przy pierwszym podejściu, więc zapisujemy go TERAZ:
         // wyjście w trakcie bonusu (albo zamknięcie aplikacji) nie może
         // zgubić ukończonej sesji.
         outcomeRef.current = zapisz();
         bonusStartRef.current = screens.length;
-        setScreens((previous) => [...previous, ...nieudane]);
+        setScreens((previous) => [...previous, ...doBonusu]);
         return; // frontier zostaje — sesja biegnie dalej po dodanych ekranach
       }
     }

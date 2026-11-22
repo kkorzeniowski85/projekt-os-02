@@ -268,7 +268,7 @@ function getSharedAudio(): HTMLAudioElement {
     sharedAudio = new Audio();
     // Suwak tempa działa od razu także na to, co właśnie gra.
     subscribeSettings(() => {
-      if (sharedAudio && clipFollowsVoice) applyRate(sharedAudio, voiceRate());
+      if (sharedAudio && clipFollowsVoice) applyRate(sharedAudio, voiceRate() * clipFactor);
     });
   }
   return sharedAudio;
@@ -286,6 +286,8 @@ function voiceRate(): number {
 
 /** Czy bieżące nagranie na wspólnym elemencie podlega suwakowi tempa. */
 let clipFollowsVoice = false;
+/** Dodatkowy mnożnik tempa bieżącego nagrania (np. „wolniej” w podpowiedzi Rozmowy). */
+let clipFactor = 1;
 
 function applyRate(audio: HTMLAudioElement, rate: number): void {
   audio.defaultPlaybackRate = rate;
@@ -330,6 +332,7 @@ async function playUrl(
   startLimitMs = 0,
   wait = false,
   followVoice = false,
+  factor = 1,
 ): Promise<PlayStatus> {
   const token = ++playToken;
   settlePending?.();
@@ -341,7 +344,8 @@ async function playUrl(
   audio.src = url;
   // Zmiana src przywraca domyślne tempo, więc ustawiamy je po niej.
   clipFollowsVoice = followVoice;
-  const rate = followVoice ? voiceRate() : 1;
+  clipFactor = followVoice ? factor : 1;
+  const rate = followVoice ? voiceRate() * clipFactor : 1;
   applyRate(audio, rate);
 
   const finished = wait
@@ -462,11 +466,12 @@ async function playFromBase(
   retry = false,
   wait = false,
   followVoice = true,
+  factor = 1,
 ): Promise<PlayStatus | "missing"> {
   const { path } = await lookupClip(base);
   if (stale()) return "interrupted";
   if (!path) return "missing";
-  return playResolved(path, retry, wait, followVoice);
+  return playResolved(path, retry, wait, followVoice, factor);
 }
 
 /** Gra znaleziony plik, pamiętając pliki, które niedawno nie zagrały. */
@@ -475,11 +480,12 @@ async function playResolved(
   retry: boolean,
   wait: boolean,
   followVoice: boolean,
+  factor = 1,
 ): Promise<PlayStatus> {
   // Niedawno nie zagrał (łącze wisi) — od razu plan awaryjny, bez czekania
   // na limit przy każdym stuknięciu.
   if (!retry && (unplayable.get(path) ?? 0) > Date.now()) return "failed";
-  const status = await playUrl(path, PLAY_START_LIMIT_MS, wait, followVoice);
+  const status = await playUrl(path, PLAY_START_LIMIT_MS, wait, followVoice, factor);
   if (status === "failed") unplayable.set(path, Date.now() + UNKNOWN_TTL_MS);
   else if (status === "ok") unplayable.delete(path);
   return status;
@@ -496,14 +502,15 @@ async function playVoiced(
   stale: () => boolean,
   wait: boolean,
   prefer?: Voice,
+  factor = 1,
 ): Promise<PlayStatus | "missing"> {
   const path = await pickVoicedClip(kind, text, prefer);
   if (stale()) return "interrupted";
   if (path) {
-    const status = await playResolved(path, false, wait, true);
+    const status = await playResolved(path, false, wait, true, factor);
     if (status !== "failed" || stale()) return status;
   }
-  return playFromBase(fallbackBase, stale, false, wait);
+  return playFromBase(fallbackBase, stale, false, wait, true, factor);
 }
 
 /** Nagranie rodzica, jeśli istnieje dla tego grafemu. */
@@ -686,10 +693,14 @@ export type PlayPhraseOptions = {
   wait?: boolean;
   /** Głos lektora: rola w scence, głos książeczki. Bez niego — na zmianę. */
   voice?: Voice;
+  /** Wolniej niż tempo z suwaka (×0,8) — podpowiedź „posłuchaj jeszcze raz, wolniej”. */
+  slow?: boolean;
 };
 
+const SLOW_FACTOR = 0.8;
+
 export function playPhrase(text: string, options: PlayPhraseOptions = {}): Promise<PlaybackResult> {
-  return playPhraseWith(text, options.wait ?? false, beginRequest(), options.voice);
+  return playPhraseWith(text, options.wait ?? false, beginRequest(), options.voice, options.slow ? SLOW_FACTOR : 1);
 }
 
 async function playPhraseWith(
@@ -697,8 +708,9 @@ async function playPhraseWith(
   wait: boolean,
   stale: () => boolean,
   voice?: Voice,
+  factor = 1,
 ): Promise<PlaybackResult> {
-  const status = await playVoiced("phrases", text, phraseClipBase(text), stale, wait, voice);
+  const status = await playVoiced("phrases", text, phraseClipBase(text), stale, wait, voice, factor);
   if (status === "ok") {
     return { source: "clip", approximate: false, durationMs: wait ? lastClipDurationMs : undefined };
   }
@@ -707,7 +719,7 @@ async function playPhraseWith(
   if (stale()) return INTERRUPTED;
   // Wolniej niż pojedyncze słowo: całe zdanie w obcym języku dziecko musi
   // zdążyć rozłożyć na kawałki.
-  return (await speak(text, 0.75, wait))
+  return (await speak(text, 0.75 * factor, wait))
     ? { source: "tts", approximate: false }
     : { source: "unavailable", approximate: false, reason: "missing" };
 }

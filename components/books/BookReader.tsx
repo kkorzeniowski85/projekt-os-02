@@ -18,6 +18,7 @@
 import { VoiceSpeedControl } from "@/components/VoiceSpeedControl";
 import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { BookListen } from "@/components/books/BookListen";
 import { BookPrint } from "@/components/books/BookPrint";
 import { BigButton, Card, ParentTip, PhraseSpeaker, StepDots } from "@/components/ui";
 import { playPhoneme, playPhrase, playWord, unlockAudio } from "@/lib/audio";
@@ -296,6 +297,8 @@ export function BookReader({ book }: { book: Book }) {
             Sam: {alone} z {book.pages.length} stron
           </p>
         )}
+
+        <BookListen book={book} />
 
         <Card className="w-full max-w-2xl text-left">
           <h2 className="mb-1 text-lg font-bold">Porozmawiajcie</h2>

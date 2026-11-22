@@ -9,7 +9,9 @@
  *  - słowa, zwroty lekcji, zdania z ćwiczeń — oba głosy;
  *  - zdania przykładowe słów — jeden głos, na zmianę według kolejności;
  *  - kwestie scenek — głos roli (sceneLineVoice);
- *  - książeczki (strony i pytania) — głos książeczki (bookVoice).
+ *  - książeczki (strony i pytania) — głos książeczki (bookVoice);
+ *  - Rozmowa z bohaterem (lib/curriculum/talk.ts) — pytania, odpowiedzi i
+ *    opcje podpowiedzi obydwoma głosami (pyta jeden, odpowiada drugi).
  *
  * Klucz: plik %USERPROFILE%\.elevenlabs\api-key.txt (poza repozytorium i
  * poza dyskiem Google). Skrypt go nie wypisuje.
@@ -17,7 +19,7 @@
  * Uruchomienie:
  *   npm run audio:eleven -- --dry               # tylko policz znaki, bez API
  *   npm run audio:eleven -- --sample            # mała próbka do odsłuchu
- *   npm run audio:eleven -- --only words        # words | phrases | scenes | examples | books
+ *   npm run audio:eleven -- --only words        # words | phrases | scenes | examples | books | talk
  *   npm run audio:eleven -- --max-chars 20000   # zatrzymaj się po tylu znakach
  *   npm run audio:eleven -- --list lista.json      # lista nagrań do sprawdzenia
  *   npm run audio:eleven -- --redo zle.json        # usuń wskazane, by nagrać je od nowa
@@ -35,6 +37,7 @@ import { sceneLineVoice } from "../lib/curriculum/scenes.ts";
 import { sentenceTexts } from "../lib/curriculum/sentences.ts";
 import { BOOKS, bookVoice, bookWords } from "../lib/curriculum/books.ts";
 import { ELEVEN_VOICE_IDS, VOICES, voiceByIndex } from "../lib/voices.ts";
+import { talkTexts } from "../lib/curriculum/talk.ts";
 
 const args = process.argv.slice(2);
 const dry = args.includes("--dry");
@@ -102,6 +105,14 @@ if (sample) {
   if (!only || only === "examples") {
     allWordExamples().forEach((example, index) => add("examples", "phrases", voiceByIndex(index), example.en));
   }
+  if (!only || only === "talk") {
+    const { phrases: talkPhrases, options } = talkTexts();
+    for (const text of talkPhrases) for (const voice of VOICES) add("talk", "phrases", voice, text);
+    for (const text of options) {
+      const kind = /\s/.test(text.trim()) ? "phrases" : "words";
+      for (const voice of VOICES) add("talk", kind, voice, text);
+    }
+  }
   if (!only || only === "books") {
     for (const book of BOOKS) {
       for (const text of [...book.pages.map((page) => page.en), ...book.questions.map((q) => q.en)]) {
@@ -112,6 +123,13 @@ if (sample) {
 }
 
 const target = (job) => path.join(audioDir, job.voice, job.kind, `${audioSlug(job.text)}.mp3`);
+
+/** Nagrania wykluczone po nieudanych próbach (scripts/eleven-pominiete.json) — aplikacja gra wtedy drugi głos. */
+const skipFile = path.join(root, "scripts", "eleven-pominiete.json");
+const skipped = new Set(existsSync(skipFile) ? JSON.parse(readFileSync(skipFile, "utf8")).pliki : []);
+for (const [k, job] of jobs) {
+  if (skipped.has(`/audio/${job.voice}/${job.kind}/${audioSlug(job.text)}.mp3`)) jobs.delete(k);
+}
 
 /**
  * --list plik.json: zapisuje listę nagrań (głos, rodzaj, tekst, adres) i

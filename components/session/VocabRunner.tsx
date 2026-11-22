@@ -43,6 +43,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Celebration } from "@/components/Celebration";
 import { HeroAvatar } from "@/components/HeroAvatar";
+import { bonusOrder, spreadSame } from "@/lib/session/spread";
 import { InterruptDialog } from "@/components/session/InterruptDialog";
 import { Echo, SceneScreen, type SpeakingLevel } from "@/components/session/Speaking";
 import {
@@ -86,6 +87,26 @@ import type { DeviceRole, SessionMode, TopicStatus } from "@/lib/progress/types"
 import { readSettings } from "@/lib/settings";
 import { useBusy } from "@/lib/sessionBusy";
 import { useDeviceRole } from "@/lib/useDeviceRole";
+
+/** Słowo/zwrot ekranu — to samo nie stoi dwa razy z rzędu (lib/session/spread.ts). */
+function screenItem(screen: Screen): string | null {
+  switch (screen.kind) {
+    case "meet":
+    case "vocab":
+      return screen.word.en.toLowerCase();
+    case "phrase":
+    case "say":
+    case "scene":
+      return screen.phrase.en.toLowerCase();
+    case "command":
+    case "order":
+      return screen.command.en.toLowerCase();
+    case "collocation":
+      return screen.collocation.en.toLowerCase();
+    default:
+      return null;
+  }
+}
 
 type Screen =
   | { kind: "warmup" }
@@ -178,7 +199,7 @@ function buildScreens(
   // pomyliło — bez poznawania, scenek, ruchu i mówienia. Każda pozycja raz,
   // dystraktory z całej puli (temat-składanka nie ma własnej).
   if (review) {
-    return shuffled<Screen>([
+    return spreadSame(shuffled<Screen>([
       ...topic.words.map<Screen>((word) => ({
         kind: "vocab",
         word,
@@ -199,7 +220,7 @@ function buildScreens(
         collocation,
         options: shuffled([collocation.answer, ...collocation.distractors]),
       })),
-    ]);
+    ]), screenItem);
   }
 
   const words = shuffled(topic.words);
@@ -293,7 +314,7 @@ function buildScreens(
   const doPowiedzenia = shuffled(topic.phrases).slice(0, ile(2, 1));
   screens.push(...doPowiedzenia.map<Screen>((phrase) => ({ kind: "say", phrase })));
 
-  return screens;
+  return spreadSame(screens, screenItem, (screen) => screen.kind);
 }
 
 export function VocabRunner({ topic, review = false }: { topic: Topic; review?: boolean }) {
@@ -434,13 +455,15 @@ export function VocabRunner({ topic, review = false }: { topic: Topic; review?: 
         .slice(0, 3)
         .map(([i]) => screens[i])
         .filter(Boolean);
-      if (nieudane.length > 0) {
+      // Pomylone na koniec, ale nie tuż po swoim oryginale (ostatni ekran).
+      const doBonusu = bonusOrder(nieudane, screens[screens.length - 1], screenItem);
+      if (doBonusu.length > 0) {
         // Wynik zapadł przy pierwszym podejściu, więc zapisujemy go TERAZ:
         // wyjście w trakcie bonusu (albo zamknięcie aplikacji) nie może
         // zgubić ukończonej sesji.
         outcomeRef.current = zapisz();
         bonusStartRef.current = screens.length;
-        setScreens((previous) => [...previous, ...nieudane]);
+        setScreens((previous) => [...previous, ...doBonusu]);
         return; // frontier zostaje — sesja biegnie dalej po dodanych ekranach
       }
     }

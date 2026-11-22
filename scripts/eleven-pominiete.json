@@ -1,0 +1,14 @@
+{
+  "_opis": "Nagrania lektorów, których NIE nagrywamy (po 3 próbach wciąż źle wg Whispera, 2026-11-22). Aplikacja gra wtedy drugi głos. Usuń wpis, żeby generator spróbował znowu.",
+  "pliki": [
+    "/audio/alice/words/bat.mp3",
+    "/audio/alice/words/hose.mp3",
+    "/audio/george/words/limps.mp3",
+    "/audio/alice/words/thud.mp3",
+    "/audio/alice/words/thumb.mp3",
+    "/audio/alice/words/tummy.mp3",
+    "/audio/george/words/tarts.mp3",
+    "/audio/george/words/pot.mp3",
+    "/audio/george/words/floats.mp3"
+  ]
+}

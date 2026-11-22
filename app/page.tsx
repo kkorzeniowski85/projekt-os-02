@@ -41,12 +41,15 @@ import { bookReads } from "@/lib/books/progress";
 import { BOOKS } from "@/lib/curriculum/books";
 import { RHYMES } from "@/lib/curriculum/rhymes";
 import { SOUNDS } from "@/lib/curriculum/sounds";
+import { TALK_ENTRIES } from "@/lib/curriculum/talk";
+import { spellPoolSize } from "@/lib/progress/spell";
 import { TOPICS } from "@/lib/curriculum/vocab";
 import { combinedMission, type MissionStepView } from "@/lib/dailyMission";
 import { HEROES } from "@/lib/heroes";
 import { reviewCount } from "@/lib/progress/review";
 import { useProgress } from "@/lib/progress/store";
 import { useDeviceRole } from "@/lib/useDeviceRole";
+import { DAY_LETTERS, WEEK_GOAL_DAYS, weekDays } from "@/lib/week";
 
 function masteredIn(state: AkademiaState, module: ModuleId, ids: string[]): number {
   return ids.filter((id) => state.units[unitKeyOf(module, id)]?.status === "mastered").length;
@@ -96,6 +99,14 @@ export default function HomePage() {
   const masteredTopics = Object.values(state.topics).filter(
     (topic) => topic.status === "mastered",
   ).length;
+  // Dyktando: słowa napisane samodzielnie / słowa z lekcji ćwiczonych dźwięków.
+  const spelledOwn = new Set(
+    state.attempts.filter((attempt) => attempt.exercise === "spell" && attempt.correct === true).map((attempt) => attempt.item),
+  ).size;
+  const spellTotal = spellPoolSize(state);
+  const talkOwn = new Set(
+    state.attempts.filter((attempt) => attempt.exercise === "talk" && attempt.correct === true).map((attempt) => attempt.item),
+  ).size;
   const booksRead = new Set(
     bookReads(state)
       .filter((read) => read.finished)
@@ -134,12 +145,28 @@ export default function HomePage() {
       progress: booksRead / BOOKS.length,
     },
     {
+      href: "/dyktando",
+      icon: "✍️",
+      title: "Dyktando",
+      detail: of(spelledOwn, spellTotal, "słów", ligaReady),
+      accent: "lime",
+      progress: spellTotal > 0 ? spelledOwn / spellTotal : 0,
+    },
+    {
       href: "/slownictwo",
       icon: "🗣️",
       title: "Słowa i zwroty",
       detail: of(masteredTopics, TOPICS.length, "tematów", ligaReady),
       accent: "cyan",
       progress: masteredTopics / TOPICS.length,
+    },
+    {
+      href: "/rozmowa",
+      icon: "🦸",
+      title: "Rozmowa",
+      detail: of(talkOwn, TALK_ENTRIES.length, "pytań sam", ligaReady),
+      accent: "gold",
+      progress: talkOwn / TALK_ENTRIES.length,
     },
     {
       href: "/rymowanki",
@@ -184,6 +211,10 @@ export default function HomePage() {
       progress: tasksDone / CLASSROOM_UNITS.length,
     },
   ];
+
+  const week = weekDays(state, akademia);
+  const weekDone = week.filter(Boolean).length;
+  const todayIndex = (new Date().getDay() + 6) % 7;
 
   const unlockedHeroes = HEROES.filter((hero) => state.unlockedHeroes.includes(hero.id)).length;
 
@@ -269,6 +300,28 @@ export default function HomePage() {
                 ⭐ Dla chętnych — nieobowiązkowe
               </p>
               <MissionLink step={mission.bonus} bonus />
+            </div>
+          )}
+          {/* Dni nauki w tym tygodniu — bez serii: opuszczony dzień niczego nie kasuje. */}
+          {ready && (
+            <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-white/10 pt-3">
+              <span className="text-xs font-bold tracking-wide text-paper/60 uppercase">Ten tydzień</span>
+              <span className="flex gap-1.5">
+                {week.map((done, index) => (
+                  <span
+                    key={index}
+                    className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+                      done ? "bg-hero-lime text-night" : "bg-white/10 text-paper/45"
+                    } ${index === todayIndex ? "ring-2 ring-hero-gold" : ""}`}
+                    aria-label={`${DAY_LETTERS[index]}: ${done ? "była nauka" : "bez nauki"}`}
+                  >
+                    {DAY_LETTERS[index]}
+                  </span>
+                ))}
+              </span>
+              <span className="text-sm font-bold text-paper/80">
+                {weekDone >= WEEK_GOAL_DAYS ? `${weekDone} dni — cel tygodnia zdobyty! 🏆` : `${weekDone} z ${WEEK_GOAL_DAYS} dni`}
+              </span>
             </div>
           )}
           {ready && mission.done && (
@@ -442,7 +495,8 @@ function TileGroup({
           <p className="text-sm text-paper/60">{subtitle}</p>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {/* 6 kafelków: 3 w rzędzie (2 równe rzędy); 4 kafelki: 4 w rzędzie. */}
+      <div className={`grid grid-cols-2 gap-3 ${tiles.length % 3 === 0 ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
         {tiles.map((tile) => (
           <MenuTile key={tile.href} tile={tile} />
         ))}

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 🔁 Powtórka — słowa i zwroty, które dziecko ostatnio myliło, po przerwie
+ * 🔁 Powtórka — poznane słowa i zwroty wracają po czasie, według planu FSRS
  * (reguła: lib/progress/review.ts). Temat-składankę liczymy RAZ, po wczytaniu
  * danych: sesja zapisuje próby, a zmiana listy w trakcie gry podmieniłaby
  * dziecku ekrany pod palcem.
@@ -39,9 +39,9 @@ export default function ReviewPage() {
           </Link>
         </header>
         <Card>
-          <p className="text-lg">Nic do powtórki — świetnie! 🎉</p>
+          <p className="text-lg">Na dziś nic do powtórki — świetnie! 🎉</p>
           <p className="mt-2 text-sm text-paper/60">
-            Gdy coś się pomyli w słówkach, wróci tutaj po przerwie, żeby zostało w głowie na dłużej.
+            Poznane słowa i zwroty wracają tutaj po czasie, kiedy przyjdzie ich pora — żeby zostały w głowie na dłużej.
           </p>
         </Card>
       </div>

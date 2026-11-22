@@ -44,7 +44,14 @@ export type ExerciseKind =
   /** Tor 1: przeczytane słowo → wybór znaczenia (obrazek + polski). */
   | "meaning"
   /** Strona książeczki (lib/books/progress.ts): ocena rodzica, sam = null. */
-  | "book";
+  | "book"
+  /**
+   * Rozmowa z bohaterem (lib/curriculum/talk.ts): odpowiedź na pytanie
+   * lektora. item = id pytania; true = bez podpowiedzi, false = z pomocą.
+   */
+  | "talk"
+  /** Dyktando: usłyszane słowo wpisane literami. true = samo, false = z podpowiedzią albo źle. */
+  | "spell";
 
 /** Tryb pracy: dziecko samo vs. wspólnie z rodzicem. */
 export type SessionMode = "solo" | "parent";
@@ -135,7 +142,16 @@ export type ProgressState = {
   sessions: SessionRecord[];
   attempts: Attempt[];
   unlockedHeroes: string[];
+  /**
+   * Decyzje rodzica o pozycjach, które „ciągle uciekają” (lib/progress/review.ts):
+   * klucz pozycji → „retry” (nowa szansa: historia liczy się od `ts`) albo
+   * „stop” (bez powtórek). Pole dołożone 2026-11-22; scalane po kluczu —
+   * wygrywa późniejsza decyzja.
+   */
+  itemDecisions?: Record<string, ItemDecision>;
 };
+
+export type ItemDecision = { action: "retry" | "stop"; ts: number };
 
 export const PROGRESS_SCHEMA_VERSION = 1;
 
@@ -228,5 +244,33 @@ export function normalizeProgress(state: ProgressState): ProgressState {
       typeof state.childNameTs === "number" ? timestampOr0(state.childNameTs) : named ? 1 : 0,
     resetTs: timestampOr0(state.resetTs),
     restoreTs: timestampOr0(state.restoreTs),
+    itemDecisions: cleanDecisions(state.itemDecisions),
   };
+}
+
+function cleanDecisions(value: unknown): Record<string, ItemDecision> {
+  if (!value || typeof value !== "object") return {};
+  const out: Record<string, ItemDecision> = {};
+  for (const [key, decision] of Object.entries(value as Record<string, unknown>)) {
+    const d = decision as Partial<ItemDecision> | null;
+    if (d && (d.action === "retry" || d.action === "stop") && timestampOr0(d.ts) > 0) {
+      out[key] = { action: d.action, ts: d.ts as number };
+    }
+  }
+  return out;
+}
+
+/** Scalanie decyzji: po kluczu wygrywa późniejsza (przy remisie „stop” — deterministycznie). */
+export function mergeDecisions(
+  a: Record<string, ItemDecision> | undefined,
+  b: Record<string, ItemDecision> | undefined,
+): Record<string, ItemDecision> {
+  const out: Record<string, ItemDecision> = { ...(a ?? {}) };
+  for (const [key, decision] of Object.entries(b ?? {})) {
+    const mine = out[key];
+    if (!mine || decision.ts > mine.ts || (decision.ts === mine.ts && decision.action === "stop")) {
+      out[key] = decision;
+    }
+  }
+  return out;
 }

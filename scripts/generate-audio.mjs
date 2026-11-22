@@ -164,7 +164,9 @@ for (const phrase of phrases) {
  * zwykla konkatenacje ramek.
  *
  * Dwa przypadki specjalne, wprost z uwag rodzica:
- *  - "E-I-E-I-O" czytane jako wyraz brzmialo jak literowanie robota - teraz
+ *  - "E-I-E-I-O" czytane jako wyraz brzmialo jak literowanie robota, a potem
+ *    jako piec osobnych liter rwalo sie przerwami - teraz jeden plynny segment
+ *    „ee-eye-ee-eye-oh” (2026-11-22); ponizej stary opis drabinki:
  *    to piec OSOBNYCH liter na opadajaco-wznoszacej drabince wysokosci,
  *    jak w piosence;
  *  - odglosy zwierzat ("Baa", frazy z "moo") byly wypowiadane jak zwykle
@@ -191,14 +193,14 @@ function rhymeSegments(rhyme) {
     // frazy po przecinkach — huśtawka wysokosci dziala miedzy frazami
     const frazy = line.en.split(/(?<=,)\s+/);
     for (const czesc of frazy) {
-      // E-I-E-I-O: drabinka pojedynczych liter, jak w piosence
+      // E-I-E-I-O: JEDNYM ciągiem, płynnie, jak w piosence (rodzic 2026-11-22:
+      // myślnik ma znaczyć płynne przejście). Wcześniej pięć osobnych nagrań
+      // „E! I! E! I! O!” sklejało się z przerwami do 0,56 s; jeden segment
+      // zapisany fonetycznie ma przerwy najwyżej 0,1 s.
       if (/E-I-E-I-O/.test(czesc)) {
         const [przed, po] = czesc.split(/E-I-E-I-O[!.]?/);
         if (przed) zwykla(przed);
-        const drabinka = ["+30%", "+20%", "+30%", "+20%", "+4%"];
-        ["E!", "I!", "E!", "I!", "O!"].forEach((litera, i) =>
-          fraza(litera, { rate: "-10%", pitch: drabinka[i] }),
-        );
+        fraza("ee-eye-ee-eye-oh!", { rate: "-10%", pitch: "+20%" });
         if (po) zwykla(po);
         continue;
       }
@@ -226,6 +228,9 @@ for (const rhyme of RHYMES) {
   const buffer = await withRetry(`rymowanka "${rhyme.titleEn}"`, async () => {
     const czesci = [];
     for (const segment of rhymeSegments(rhyme)) {
+      // Odstęp między kawałkami: usługa odpowiada 429, gdy dostaje kilkanaście
+      // połączeń w kilka sekund (2026-11-22).
+      await new Promise((resolve) => setTimeout(resolve, 1200));
       const audio = await synthesize(segment.text, segment.opts.rate, segment.opts.pitch);
       if (!audio || audio.length === 0) throw new Error(`pusty segment: ${segment.text}`);
       czesci.push(audio);

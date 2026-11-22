@@ -38,7 +38,16 @@ const LEGACY_STORY_SPEEDS: Record<string, VoiceSpeed> = { normal: 1, slower: 0.8
 export const CALC_RANGE_OPTIONS = [20, 30, 50, 100] as const;
 export type CalcRangeSetting = (typeof CALC_RANGE_OPTIONS)[number];
 
+/**
+ * Plan Powtórki (lib/progress/review.ts): „fsrs” — wszystko, co dziecko już
+ * poznało, wraca według FSRS (od 2026-11-22); „simple” — dawna reguła: tylko
+ * to, co ostatnio pomylone. Przełącznik, żeby rodzic mógł wrócić sam.
+ */
+export type ReviewPlan = "fsrs" | "simple";
+
 export type Settings = {
+  /** Plan powtórek — patrz ReviewPlan. */
+  reviewPlan: ReviewPlan;
   /** Zakres liczb w tematach odejmowania i dodawania (Akademia). */
   calcRange: CalcRangeSetting;
   /** Tempo głosu lektora w całej aplikacji — patrz VOICE_SPEEDS. */
@@ -47,7 +56,7 @@ export type Settings = {
   noMovement: boolean;
 };
 
-const DEFAULTS: Settings = { noMovement: false, voiceSpeed: 1, calcRange: 30 };
+const DEFAULTS: Settings = { noMovement: false, voiceSpeed: 1, calcRange: 30, reviewPlan: "fsrs" };
 
 let cached: { raw: string | null; value: Settings } | null = null;
 
@@ -68,6 +77,7 @@ export function readSettings(): Settings {
     value = {
       ...DEFAULTS,
       noMovement: parsed.noMovement === true,
+      reviewPlan: parsed.reviewPlan === "simple" ? "simple" : "fsrs",
       voiceSpeed: (VOICE_SPEEDS as readonly number[]).includes(parsed.voiceSpeed as number)
         ? (parsed.voiceSpeed as VoiceSpeed)
         : (LEGACY_STORY_SPEEDS[parsed.storySpeed ?? ""] ?? 1),

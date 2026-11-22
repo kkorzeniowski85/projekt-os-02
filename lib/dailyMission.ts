@@ -21,6 +21,7 @@
  * moduł wybiera z nich kroki. Bez dat i odliczania — to ekran dziecka.
  */
 
+import { isTalkSession, spokenToday } from "@/lib/progress/talk";
 import { dailyMission as akademiaMission, type MissionStep as AkademiaStep } from "@/lib/akademia/mission";
 import type { ProgressState as AkademiaState } from "@/lib/akademia/progress/types";
 import { bookOfSession, suggestedBook } from "@/lib/books/progress";
@@ -46,7 +47,7 @@ export type MissionStepView = {
 };
 
 export type Mission = {
-  /** Kroki obowiązkowe (1: Dźwięki, 2: Tabliczka). */
+  /** Kroki obowiązkowe (1: Dźwięki, 2: mówienie, 3: Tabliczka). */
   steps: MissionStepView[];
   /** Krok dla chętnych (druga sesja dźwięków) albo null. */
   bonus: MissionStepView | null;
@@ -89,8 +90,9 @@ function countedToday(state: LigaState, now: number): SessionRecord[] {
  * książeczkami. Książeczka to „więcej czytania” (bonus), nie lekcja dnia.
  */
 function stepSessionOf(state: LigaState, now: number): SessionRecord | undefined {
+  // Rozmowa to osobny krok misji (mówienie), nie lekcja dźwięków.
   const lessons = countedToday(state, now).filter(
-    (session) => bookOfSession(state, session) === null,
+    (session) => bookOfSession(state, session) === null && !isTalkSession(session) && session.soundId !== "dyktando",
   );
   return lessons[lessons.length - 1];
 }
@@ -259,6 +261,22 @@ function readingBonus(state: LigaState, step: MissionStepView, now: number): Mis
   };
 }
 
+/**
+ * Mówienie — w KAŻDEJ misji dnia (prośba rodzica 2026-11-22). Zaliczają je
+ * trzy odpowiedzi mówione dzisiaj: Rozmowa z bohaterem albo kwestie dziecka
+ * w scenkach („Twoja kolej”).
+ */
+function speakingStep(state: LigaState, now: number): MissionStepView {
+  const done = spokenToday(state, now) >= 3;
+  return {
+    emoji: "🙋",
+    title: "Rozmowa z bohaterem",
+    subtitle: done ? "Mówienie · po angielsku" : "Mówienie · odpowiadasz na głos",
+    href: "/rozmowa",
+    done,
+  };
+}
+
 function fromAkademia(step: AkademiaStep): MissionStepView {
   return {
     emoji: step.emoji,
@@ -276,7 +294,7 @@ export function combinedMission(liga: LigaState, akademia: AkademiaState, now = 
   const tables = akademiaSteps.find((step) => step.module === "tables");
 
   const sounds = soundsStep(liga, now);
-  const steps = [sounds];
+  const steps = [sounds, speakingStep(liga, now)];
   if (tables) steps.push(fromAkademia(tables));
   return {
     steps,

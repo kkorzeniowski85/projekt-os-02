@@ -24,6 +24,7 @@ import { applySessionResult, RULES } from "./rules";
 import {
   cutoffTs,
   emptyProgress,
+  mergeDecisions,
   normalizeProgress,
   PROGRESS_SCHEMA_VERSION,
   type Attempt,
@@ -80,6 +81,7 @@ export function mergeProgress(a: ProgressState, b: ProgressState): ProgressState
     restoreTs,
     attempts,
     unlockedHeroes: [...new Set([...merged.unlockedHeroes, ...extraHeroes])],
+    itemDecisions: mergeDecisions(a.itemDecisions, b.itemDecisions),
   };
 }
 

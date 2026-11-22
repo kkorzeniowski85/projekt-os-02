@@ -84,6 +84,8 @@ type ProgressContextValue = {
    */
   previewImport: (incoming: ProgressState) => ImportPreview;
   setChildName: (name: string) => void;
+  /** Decyzja rodzica o pozycji, która ciągle ucieka (lib/progress/review.ts). */
+  setItemDecision: (key: string, action: "retry" | "stop" | null) => void;
   resetAll: () => void;
   /**
    * Ręczne kopnięcie synchronizacji. Potrzebne po WŁĄCZENIU jej w panelu:
@@ -446,6 +448,18 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     [update],
   );
 
+  const setItemDecision = useCallback(
+    (key: string, action: "retry" | "stop" | null) =>
+      update((previous) => {
+        const decisions = { ...(previous.itemDecisions ?? {}) };
+        const ts = Math.max(Date.now(), (decisions[key]?.ts ?? 0) + 1);
+        // „Przywróć” po „Odpuść” to też nowa szansa — historia od teraz.
+        decisions[key] = { action: action ?? "retry", ts };
+        return { ...previous, itemDecisions: decisions, updatedTs: Math.max(previous.updatedTs, ts) };
+      }),
+    [update],
+  );
+
   // Reset zostawia znacznik zamiast samego pustego stanu: skrzynka i inne
   // urządzenia wciąż mają stare sesje, a scalanie odrzuca je dopiero wtedy,
   // gdy wie, od kiedy liczy się nowy postęp. Imię i jego znacznik zostają.
@@ -475,10 +489,11 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       importProgress,
       previewImport,
       setChildName,
+      setItemDecision,
       resetAll,
       requestSync: runSync,
     }),
-    [ready, state, commitSession, importProgress, previewImport, setChildName, resetAll, runSync],
+    [ready, state, commitSession, importProgress, previewImport, setChildName, setItemDecision, resetAll, runSync],
   );
 
   return <ProgressContext.Provider value={value}>{children}</ProgressContext.Provider>;
