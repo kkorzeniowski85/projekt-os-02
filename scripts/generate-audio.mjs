@@ -25,7 +25,9 @@
  */
 
 import { MsEdgeTTS, OUTPUT_FORMAT } from "msedge-tts";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { lessonGraphemes, lessonWords } from "../lib/curriculum/lessons.ts";
@@ -58,6 +60,8 @@ mkdirSync(wordsDir, { recursive: true });
 mkdirSync(phonemesDir, { recursive: true });
 mkdirSync(phrasesDir, { recursive: true });
 mkdirSync(rhymesDir, { recursive: true });
+const segmentCacheDir = path.join(tmpdir(), "liga-rhyme-segments");
+mkdirSync(segmentCacheDir, { recursive: true });
 
 /**
  * Nowe połączenie na każdy plik. Usługa zamyka websocket po syntezie, a
@@ -228,11 +232,18 @@ for (const rhyme of RHYMES) {
   const buffer = await withRetry(`rymowanka "${rhyme.titleEn}"`, async () => {
     const czesci = [];
     for (const segment of rhymeSegments(rhyme)) {
-      // Odstęp między kawałkami: usługa odpowiada 429, gdy dostaje kilkanaście
-      // połączeń w kilka sekund (2026-11-22).
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      // Gotowe kawałki zostają w pamięci podręcznej: usługa odpowiada 429, gdy
+      // dostaje kilkanaście połączeń z rzędu (2026-11-22), więc kolejne
+      // uruchomienie dociąga tylko brakujące, zamiast zaczynać od zera.
+      const cacheFile = path.join(segmentCacheDir, `${createHash("sha1").update(JSON.stringify(segment)).digest("hex")}.mp3`);
+      if (existsSync(cacheFile)) {
+        czesci.push(readFileSync(cacheFile));
+        continue;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 3500));
       const audio = await synthesize(segment.text, segment.opts.rate, segment.opts.pitch);
       if (!audio || audio.length === 0) throw new Error(`pusty segment: ${segment.text}`);
+      writeFileSync(cacheFile, audio);
       czesci.push(audio);
     }
     return Buffer.concat(czesci);
