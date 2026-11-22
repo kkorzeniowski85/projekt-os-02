@@ -16,6 +16,7 @@
  * nie przypomina o przeprowadzce. Plan z datami jest w panelu rodzica.
  */
 
+import { VoiceSpeedControl } from "@/components/VoiceSpeedControl";
 import Link from "next/link";
 import { FactGrid } from "@/components/akademia/FactGrid";
 import { HeroAvatar } from "@/components/HeroAvatar";
@@ -304,6 +305,10 @@ export default function HomePage() {
             })}
           </div>
         </section>
+
+        <div className="flex justify-center">
+          <VoiceSpeedControl compact />
+        </div>
       </div>
 
       {role === "desktop" && (

@@ -19,6 +19,7 @@
 import { numberToWords } from "./curriculum/numbers";
 import { audioSlug } from "./curriculum/slug";
 import type { Sound } from "./session/exercise";
+import { readSettings, subscribeSettings } from "../settings";
 
 export type PlaybackSource = "clip" | "tts" | "unavailable";
 export type PlaybackResult = { source: PlaybackSource };
@@ -111,7 +112,13 @@ export async function clipExists(path: string): Promise<boolean> {
 let sharedAudio: HTMLAudioElement | null = null;
 
 function getSharedAudio(): HTMLAudioElement {
-  if (!sharedAudio) sharedAudio = new Audio();
+  if (!sharedAudio) {
+    sharedAudio = new Audio();
+    // Suwak tempa działa od razu także na to, co właśnie gra.
+    subscribeSettings(() => {
+      if (sharedAudio) applyRate(sharedAudio, speed());
+    });
+  }
   return sharedAudio;
 }
 
@@ -171,20 +178,19 @@ function pauseAwareTimeout(fn: () => void, ms: number): () => void {
   return () => clearTimeout(timer);
 }
 
-/** Mnożnik tempa nagrań i syntezy (1 = tak jak nagrano). Ustawia go ekran historii. */
-let speedFactor = 1;
-
 /**
- * Tempo odtwarzania — działa od razu na to, co gra, i na kolejne nagrania.
- * Ekran, który je zmienia, przywraca 1 przy wyjściu (inne ćwiczenia grają
- * tak jak nagrano).
+ * Tempo lektora z ustawień (lib/settings.ts → voiceSpeed) — wspólne z
+ * Dźwiękami, dla wszystkich nagrań i syntezy Akademii (wszystko tu to mowa;
+ * dźwięki nagród idą osobno, przez Web Audio).
  */
-export function setPlaybackSpeed(next: number): void {
-  speedFactor = next;
-  if (sharedAudio) {
-    sharedAudio.defaultPlaybackRate = next;
-    sharedAudio.playbackRate = next;
-  }
+function speed(): number {
+  return readSettings().voiceSpeed;
+}
+
+function applyRate(audio: HTMLAudioElement, rate: number): void {
+  audio.defaultPlaybackRate = rate;
+  audio.playbackRate = rate;
+  audio.preservesPitch = true;
 }
 
 /** Wstrzymuje nagranie w miejscu; wznowienie: resumePlayback. */
@@ -223,8 +229,7 @@ async function playUrl(url: string, wait: boolean): Promise<PlayStatus> {
   audio.muted = false;
   audio.src = url;
   // Zmiana src przywraca domyślne tempo, więc ustawiamy je po niej.
-  audio.defaultPlaybackRate = speedFactor;
-  audio.playbackRate = speedFactor;
+  applyRate(audio, speed());
 
   const finished = wait
     ? new Promise<void>((resolve) => {
@@ -243,7 +248,7 @@ async function playUrl(url: string, wait: boolean): Promise<PlayStatus> {
           if (token !== playToken) done();
         };
         // Polisa na przeglądarki, które gubią zdarzenie „ended" (nie liczy pauzy).
-        const stopSafety = pauseAwareTimeout(done, 20000);
+        const stopSafety = pauseAwareTimeout(done, 20000 / Math.min(speed(), 1));
         audio.addEventListener("ended", done);
         audio.addEventListener("error", done);
         audio.addEventListener("pause", onPause);
@@ -337,7 +342,7 @@ function speak(text: string, rate: number, wait: boolean): Promise<boolean> {
     return Promise.resolve(true);
   }
   return new Promise((resolve) => {
-    const stopSafety = pauseAwareTimeout(() => resolve(true), 15000);
+    const stopSafety = pauseAwareTimeout(() => resolve(true), 15000 / Math.min(speed(), 1));
     utterance.onend = () => {
       stopSafety();
       resolve(true);
@@ -376,7 +381,7 @@ async function playClipOrSpeak(
     if (status === "blocked") return { source: "unavailable" };
   }
   if (stale()) return { source: "clip" };
-  return (await speak(fallbackText, options.rate * speedFactor, options.wait))
+  return (await speak(fallbackText, options.rate * speed(), options.wait))
     ? { source: "tts" }
     : { source: "unavailable" };
 }
@@ -485,7 +490,7 @@ export async function playSequence(steps: SequenceStep[], gapMs = 220): Promise<
       await playClipOrSpeak(textClipPath(step.value), step.value, { wait: true, rate: 0.8 });
     }
     if (token !== sequenceToken) return false;
-    await new Promise((resolve) => setTimeout(resolve, gapMs / speedFactor));
+    await new Promise((resolve) => setTimeout(resolve, gapMs / speed()));
   }
   return token === sequenceToken;
 }

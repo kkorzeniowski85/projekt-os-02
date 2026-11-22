@@ -14,26 +14,26 @@ const KEY = "phonics.settings.v1";
 const CHANGE_EVENT = "phonics-settings-change";
 
 /**
- * Tempo czytania historii (Akademia → Czytanie). „Normalnie” to tempo nagrań,
- * jakie było od początku; dwa pozostałe są od niego WOLNIEJSZE (prośba
- * rodzica 2026-09-30) — dziecko uczące się języka częściej potrzebuje zwolnić
- * niż przyspieszyć.
+ * Tempo głosu w całej aplikacji (Dźwięki i Akademia): słowa, zdania, scenki,
+ * książeczki, rymowanki, historie, liczby — wszystko, co mówi lektor. Nie
+ * dotyczy głosek (czysty dźwięk litery, także nagrany przez rodzica) ani
+ * dźwięków nagród. 1 = tak, jak nagrano; mniej = wolniej, więcej = szybciej
+ * (prośba rodzica 2026-11-22, przy przejściu na żywsze nagrania ElevenLabs).
+ * Zastąpiło trzy tempa historii z Czytania (2026-09-30) — dawne „Wolniej” i
+ * „Najwolniej” przechodzą na 0,85 i 0,7.
  */
-export type StorySpeed = "normal" | "slower" | "slowest";
+export const VOICE_SPEEDS = [0.7, 0.85, 1, 1.15, 1.3] as const;
+export type VoiceSpeed = (typeof VOICE_SPEEDS)[number];
 
-export const STORY_SPEEDS: { id: StorySpeed; factor: number; label: string }[] = [
-  { id: "normal", factor: 1, label: "Normalnie" },
-  { id: "slower", factor: 0.85, label: "Wolniej" },
-  { id: "slowest", factor: 0.7, label: "Najwolniej" },
-];
-
-export function storySpeedFactor(speed: StorySpeed): number {
-  return STORY_SPEEDS.find((candidate) => candidate.id === speed)?.factor ?? 1;
+export function voiceSpeedLabel(speed: number): string {
+  return `${String(speed).replace(".", ",")}×`;
 }
+
+const LEGACY_STORY_SPEEDS: Record<string, VoiceSpeed> = { normal: 1, slower: 0.85, slowest: 0.7 };
 
 /**
  * Zakres liczb w odejmowaniu i dodawaniu (Akademia → Matematyka). Ustawienie
- * urządzenia, jak tempo czytania; tematy i postęp zostają te same.
+ * urządzenia, jak tempo głosu; tematy i postęp zostają te same.
  */
 export const CALC_RANGE_OPTIONS = [20, 30, 50, 100] as const;
 export type CalcRangeSetting = (typeof CALC_RANGE_OPTIONS)[number];
@@ -41,13 +41,13 @@ export type CalcRangeSetting = (typeof CALC_RANGE_OPTIONS)[number];
 export type Settings = {
   /** Zakres liczb w tematach odejmowania i dodawania (Akademia). */
   calcRange: CalcRangeSetting;
-  /** Tempo czytania historii w Czytaniu (Akademia). */
-  storySpeed: StorySpeed;
+  /** Tempo głosu lektora w całej aplikacji — patrz VOICE_SPEEDS. */
+  voiceSpeed: VoiceSpeed;
   /** Bez „Pokaż ruchem!” i „Teraz ty rządzisz” w sesjach toru 2 — decyzja rodzica. */
   noMovement: boolean;
 };
 
-const DEFAULTS: Settings = { noMovement: false, storySpeed: "normal", calcRange: 30 };
+const DEFAULTS: Settings = { noMovement: false, voiceSpeed: 1, calcRange: 30 };
 
 let cached: { raw: string | null; value: Settings } | null = null;
 
@@ -64,13 +64,13 @@ export function readSettings(): Settings {
   if (cached && cached.raw === raw) return cached.value;
   let value = DEFAULTS;
   try {
-    const parsed = raw ? (JSON.parse(raw) as Partial<Settings>) : {};
+    const parsed = raw ? (JSON.parse(raw) as Partial<Settings> & { storySpeed?: string }) : {};
     value = {
       ...DEFAULTS,
       noMovement: parsed.noMovement === true,
-      storySpeed: STORY_SPEEDS.some((candidate) => candidate.id === parsed.storySpeed)
-        ? (parsed.storySpeed as StorySpeed)
-        : "normal",
+      voiceSpeed: (VOICE_SPEEDS as readonly number[]).includes(parsed.voiceSpeed as number)
+        ? (parsed.voiceSpeed as VoiceSpeed)
+        : (LEGACY_STORY_SPEEDS[parsed.storySpeed ?? ""] ?? 1),
       calcRange: (CALC_RANGE_OPTIONS as readonly number[]).includes(parsed.calcRange as number)
         ? (parsed.calcRange as CalcRangeSetting)
         : 30,
@@ -83,6 +83,7 @@ export function readSettings(): Settings {
 }
 
 export function writeSettings(patch: Partial<Settings>): void {
+  // Pełny, poprawny zapis — dawne pole storySpeed znika przy pierwszej zmianie.
   const next = { ...readSettings(), ...patch };
   try {
     window.localStorage.setItem(KEY, JSON.stringify(next));
@@ -92,7 +93,8 @@ export function writeSettings(patch: Partial<Settings>): void {
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
 
-function subscribe(onChange: () => void): () => void {
+/** Powiadamia o każdej zmianie ustawień (także z innej karty). Zwraca wypisanie. */
+export function subscribeSettings(onChange: () => void): () => void {
   const onStorage = (event: StorageEvent) => {
     if (event.key === null || event.key === KEY) onChange();
   };
@@ -106,5 +108,5 @@ function subscribe(onChange: () => void): () => void {
 
 /** Hook: bieżące ustawienia, odświeżane po zapisie (także z innej karty). */
 export function useSettings(): Settings {
-  return useSyncExternalStore(subscribe, readSettings, () => DEFAULTS);
+  return useSyncExternalStore(subscribeSettings, readSettings, () => DEFAULTS);
 }

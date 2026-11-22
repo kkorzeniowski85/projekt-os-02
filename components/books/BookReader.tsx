@@ -15,6 +15,7 @@
  * zapisuje (jak przerwana sesja), żeby historia mówiła prawdę.
  */
 
+import { VoiceSpeedControl } from "@/components/VoiceSpeedControl";
 import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { BookPrint } from "@/components/books/BookPrint";
@@ -324,6 +325,11 @@ export function BookReader({ book }: { book: Book }) {
   return (
     <>
       <div className="print:hidden">{screen}</div>
+      {stage === "reading" && (
+        <div className="mt-6 flex justify-center print:hidden">
+          <VoiceSpeedControl compact />
+        </div>
+      )}
       <BookPrint book={book} />
     </>
   );

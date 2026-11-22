@@ -20,6 +20,7 @@
 
 import { audioSlug } from "./curriculum/vocab";
 import { getRecordingUrl } from "./recordings";
+import { readSettings, subscribeSettings } from "./settings";
 
 export type PlaybackSource =
   | "recording"
@@ -233,8 +234,35 @@ export async function findClip(base: string): Promise<string | null> {
 let sharedAudio: HTMLAudioElement | null = null;
 
 function getSharedAudio(): HTMLAudioElement {
-  if (!sharedAudio) sharedAudio = new Audio();
+  if (!sharedAudio) {
+    sharedAudio = new Audio();
+    // Suwak tempa działa od razu także na to, co właśnie gra.
+    subscribeSettings(() => {
+      if (sharedAudio && clipFollowsVoice) applyRate(sharedAudio, voiceRate());
+    });
+  }
   return sharedAudio;
+}
+
+/**
+ * Tempo głosu lektora z ustawień (lib/settings.ts → voiceSpeed). Dotyczy
+ * słów, zdań, scenek, książeczek i rymowanek; głoski (także nagrane przez
+ * rodzica) i fanfara grają zawsze tak, jak nagrano — rozciągnięta głoska
+ * przestaje brzmieć jak ta głoska.
+ */
+function voiceRate(): number {
+  return readSettings().voiceSpeed;
+}
+
+/** Czy bieżące nagranie na wspólnym elemencie podlega suwakowi tempa. */
+let clipFollowsVoice = false;
+
+function applyRate(audio: HTMLAudioElement, rate: number): void {
+  audio.defaultPlaybackRate = rate;
+  audio.playbackRate = rate;
+  // Wolniej/szybciej bez zmiany wysokości głosu (domyślne w przeglądarkach,
+  // ale starsze Safari bywa inaczej ustawione).
+  audio.preservesPitch = true;
 }
 
 type PlayStatus = "ok" | "blocked" | "failed" | "interrupted";
@@ -267,7 +295,12 @@ const PLAY_START_LIMIT_MS = 4000;
  * odtworzenie) — potrzebne sekwencji kwestii scenki i przyciskowi „Mów ze
  * mną", który po nagraniu robi pauzę na powtórzenie.
  */
-async function playUrl(url: string, startLimitMs = 0, wait = false): Promise<PlayStatus> {
+async function playUrl(
+  url: string,
+  startLimitMs = 0,
+  wait = false,
+  followVoice = false,
+): Promise<PlayStatus> {
   const token = ++playToken;
   settlePending?.();
   const audio = getSharedAudio();
@@ -276,6 +309,10 @@ async function playUrl(url: string, startLimitMs = 0, wait = false): Promise<Pla
   audio.pause();
   audio.muted = false;
   audio.src = url;
+  // Zmiana src przywraca domyślne tempo, więc ustawiamy je po niej.
+  clipFollowsVoice = followVoice;
+  const rate = followVoice ? voiceRate() : 1;
+  applyRate(audio, rate);
 
   const finished = wait
     ? new Promise<void>((resolve) => {
@@ -298,7 +335,7 @@ async function playUrl(url: string, startLimitMs = 0, wait = false): Promise<Pla
           if (token !== playToken) done();
         };
         // Polisa na przeglądarki, które gubią zdarzenie „ended".
-        const safety = setTimeout(done, 20000);
+        const safety = setTimeout(done, 20000 / Math.min(rate, 1));
         audio.addEventListener("ended", done);
         audio.addEventListener("error", done);
         audio.addEventListener("pause", onPause);
@@ -372,10 +409,10 @@ const INTERRUPTED: PlaybackResult = { source: "interrupted", approximate: false 
 /** Przeglądarka zablokowała dźwięk — potrzebne stuknięcie, nagranie jest. */
 const BLOCKED: PlaybackResult = { source: "unavailable", approximate: false, reason: "blocked" };
 
-async function playClip(path: string, stale: () => boolean): Promise<PlayStatus> {
+async function playClip(path: string, stale: () => boolean, followVoice: boolean): Promise<PlayStatus> {
   if (!(await clipExists(path))) return "failed";
   if (stale()) return "interrupted";
-  return playUrl(path);
+  return playUrl(path, 0, false, followVoice);
 }
 
 /** Pliki, które niedawno nie zagrały — do kiedy ich nie próbujemy. */
@@ -394,6 +431,7 @@ async function playFromBase(
   stale: () => boolean,
   retry = false,
   wait = false,
+  followVoice = true,
 ): Promise<PlayStatus | "missing"> {
   const { path } = await lookupClip(base);
   if (stale()) return "interrupted";
@@ -401,7 +439,7 @@ async function playFromBase(
   // Niedawno nie zagrał (łącze wisi) — od razu plan awaryjny, bez czekania
   // na limit przy każdym stuknięciu.
   if (!retry && (unplayable.get(path) ?? 0) > Date.now()) return "failed";
-  const status = await playUrl(path, PLAY_START_LIMIT_MS, wait);
+  const status = await playUrl(path, PLAY_START_LIMIT_MS, wait, followVoice);
   if (status === "failed") unplayable.set(path, Date.now() + UNKNOWN_TTL_MS);
   else if (status === "ok") unplayable.delete(path);
   return status;
@@ -525,7 +563,8 @@ function speak(text: string, rate = 0.8, wait = false): Promise<boolean> {
   const voice = pickVoice();
   if (voice) utterance.voice = voice;
   utterance.lang = voice?.lang ?? "en-GB";
-  utterance.rate = rate; // wolniej niż domyślnie — dziecko dopiero łapie dźwięki
+  // Wolniej niż domyślnie — dziecko dopiero łapie dźwięki; do tego suwak tempa.
+  utterance.rate = rate * voiceRate();
   if (!wait) {
     window.speechSynthesis.speak(utterance);
     return Promise.resolve(true);
@@ -678,7 +717,7 @@ export async function playPhoneme(
   // Przerwana głoska nie przechodzi do namiastki — gra już coś nowszego.
   if (own === "interrupted" || stale()) return INTERRUPTED;
   if (own === "blocked") return BLOCKED;
-  const status = await playFromBase(phonemeClipBase(soundId), stale);
+  const status = await playFromBase(phonemeClipBase(soundId), stale, false, false, false);
   if (status === "ok") return { source: "clip", approximate: false };
   if (status === "interrupted") return INTERRUPTED;
   if (status === "blocked") return BLOCKED;
@@ -711,7 +750,7 @@ export async function playPhonemeStrict(graphemeId: string): Promise<PlaybackRes
   if (own === "blocked") return BLOCKED;
   // Tu nie ma zapasu, a interfejs przy kłopocie z łączem każe stuknąć jeszcze
   // raz — więc każde stuknięcie naprawdę próbuje, zamiast pamiętać porażkę.
-  const status = await playFromBase(phonemeClipBase(graphemeId), stale, true);
+  const status = await playFromBase(phonemeClipBase(graphemeId), stale, true, false, false);
   if (status === "ok") return { source: "clip", approximate: false };
   if (status === "interrupted" || stale()) return INTERRUPTED;
   if (status === "blocked") return BLOCKED;
@@ -1012,7 +1051,7 @@ export function playFeedbackTone(kind: "good" | "try-again"): void {
  * dokładnie ten plik, który usłyszy dziecko, albo nie usłyszeć nic.
  */
 export async function playClipFile(path: string): Promise<boolean> {
-  return (await playClip(path, beginRequest())) === "ok";
+  return (await playClip(path, beginRequest(), !path.includes("/phonemes/"))) === "ok";
 }
 
 /** Tyle nazw naraz — ponad tysiąc równoległych zapytań zatkałoby słabe łącze. */
@@ -1071,7 +1110,7 @@ export function rhymeClipPath(id: string): string {
 
 /** Odtwarza rymowankę z nagrania. Zwraca false, gdy pliku brak. */
 export async function playRhyme(id: string): Promise<boolean> {
-  return (await playClip(rhymeClipPath(id), beginRequest())) === "ok";
+  return (await playClip(rhymeClipPath(id), beginRequest(), true)) === "ok";
 }
 
 // --- Chant z bitem -----------------------------------------------------------

@@ -28,10 +28,9 @@ import {
   playSound,
   playText,
   resumePlayback,
-  setPlaybackSpeed,
   stopAudio,
 } from "@/lib/akademia/audio";
-import { STORY_SPEEDS, storySpeedFactor, useSettings, writeSettings } from "@/lib/settings";
+import { VoiceSpeedControl } from "@/components/VoiceSpeedControl";
 import type { PendingAttempt } from "@/lib/akademia/progress/store";
 import type { SessionMode } from "@/lib/akademia/progress/types";
 import {
@@ -1087,14 +1086,8 @@ function PassageExercise({ exercise, onNext, paused }: Props<"passage">) {
   // ją wstrzymać, zatrzymać (i zacząć od początku) oraz wybrać tempo. Prośba
   // rodzica 2026-09-30 — dotąd czytała się od razu po wejściu.
   const [playState, setPlayState] = useState<"idle" | "playing" | "paused">("idle");
-  const { storySpeed } = useSettings();
-
-  // Tempo dotyczy tylko tego ekranu: przy wyjściu wraca 1, żeby liczby i
-  // tabliczka grały tak jak nagrano.
-  useEffect(() => {
-    setPlaybackSpeed(storySpeedFactor(storySpeed));
-    return () => setPlaybackSpeed(1);
-  }, [storySpeed]);
+  // Tempo: wspólny suwak głosu (lib/settings.ts → voiceSpeed) — od 2026-11-22
+  // dla całej aplikacji, nie tylko dla historii.
 
   const start = () => {
     playRef.current += 1;
@@ -1197,22 +1190,7 @@ function PassageExercise({ exercise, onNext, paused }: Props<"passage">) {
         </button>
       </div>
 
-      <div role="group" aria-label="Tempo czytania" className="flex flex-wrap items-center justify-center gap-2">
-        <span className="text-sm text-paper/60">Tempo:</span>
-        {STORY_SPEEDS.map((speed) => (
-          <button
-            key={speed.id}
-            type="button"
-            onClick={() => writeSettings({ storySpeed: speed.id })}
-            aria-pressed={storySpeed === speed.id}
-            className={`min-h-11 rounded-full px-4 text-sm font-bold transition ${
-              storySpeed === speed.id ? "bg-hero-cyan text-night" : "bg-white/10 text-paper"
-            }`}
-          >
-            {speed.label}
-          </button>
-        ))}
-      </div>
+      <VoiceSpeedControl compact />
 
       <div className="flex w-full max-w-2xl flex-col gap-2 text-left">
         {exercise.sentences.map((sentence, index) => (

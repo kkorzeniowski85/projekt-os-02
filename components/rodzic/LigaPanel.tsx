@@ -56,6 +56,7 @@ import {
   type SoundState,
 } from "@/lib/progress/types";
 import { useSettings, writeSettings } from "@/lib/settings";
+import { VoiceSpeedControl } from "@/components/VoiceSpeedControl";
 import { plural, soundsWord } from "./plural";
 
 const STATUS_LABEL: Record<SoundState["status"], string> = {
@@ -491,6 +492,17 @@ export function LigaPanel() {
             </ul>
           </ParentTip>
         </div>
+      </Card>
+
+      <Card>
+        <h2 className="mb-1 text-lg font-bold">Tempo głosu</h2>
+        <p className="mb-3 text-sm text-paper/70">
+          Jedno tempo dla całej aplikacji (Dźwięki i Akademia): słowa, zdania, scenki, książeczki,
+          rymowanki, historie i liczby. 1× = tak, jak nagrano; 🐢 wolniej, 🐇 szybciej. Głoski grają
+          zawsze tak, jak są nagrane — rozciągnięta głoska brzmiałaby fałszywie. Ten sam suwak jest
+          na ekranie głównym, w książeczkach i w Czytaniu. Ustawienie tylko na tym urządzeniu.
+        </p>
+        <VoiceSpeedControl />
       </Card>
 
       <Card>
