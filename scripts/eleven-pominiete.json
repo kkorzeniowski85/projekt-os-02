@@ -1,5 +1,5 @@
 {
-  "_opis": "Nagrania lektorów, których NIE nagrywamy (po 3 próbach wciąż źle wg Whispera, 2026-11-22). Aplikacja gra wtedy drugi głos. Usuń wpis, żeby generator spróbował znowu.",
+  "_opis": "Nagrania lektorów, których NIE nagrywamy: po 3 próbach wciąż źle wg Whispera albo amerykański akcent wg testu głosek (scripts/akcent/, 2026-11-22). Aplikacja gra wtedy drugi głos, a bez obu — dawne brytyjskie nagranie. Usuń wpis, żeby generator spróbował znowu.",
   "pliki": [
     "/audio/alice/words/bat.mp3",
     "/audio/alice/words/hose.mp3",
@@ -9,6 +9,12 @@
     "/audio/alice/words/tummy.mp3",
     "/audio/george/words/tarts.mp3",
     "/audio/george/words/pot.mp3",
-    "/audio/george/words/floats.mp3"
+    "/audio/george/words/floats.mp3",
+    "/audio/george/words/zebra.mp3",
+    "/audio/alice/words/zebra.mp3",
+    "/audio/george/words/water.mp3",
+    "/audio/george/words/letter.mp3",
+    "/audio/george/words/eating.mp3",
+    "/audio/george/words/plant.mp3"
   ]
 }

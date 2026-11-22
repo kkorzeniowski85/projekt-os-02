@@ -35,10 +35,12 @@ const MAX_TRIES = 3;
 const VOICE_IDS = { alice: "Xb7hH8MSUJpSbSDYk0k2", george: "JBFqnCBsd6RMkjVDRZzb" };
 const FORMAT = "mp3_44100_64";
 
+// Kolejność wybrana uchem przez rodzica (2026-11-22, „zebra”): D — z angielskim
+// kontekstem, potem E — model tylko angielski; trzecia próba: D stabilniej.
 const WORD_STYLES = [
   { model_id: "eleven_multilingual_v2", voice_settings: { stability: 0.75, similarity_boost: 0.8, speed: 0.8 }, previous_text: "Listen and repeat each English word after me.", next_text: "Well done. Now the next word." },
-  { model_id: "eleven_multilingual_v2", voice_settings: { stability: 0.9, similarity_boost: 0.8, speed: 0.8 }, previous_text: "Listen and repeat each English word after me.", next_text: "Well done. Now the next word." },
   { model_id: "eleven_flash_v2", voice_settings: { stability: 0.75, similarity_boost: 0.8, speed: 0.8 } },
+  { model_id: "eleven_multilingual_v2", voice_settings: { stability: 0.9, similarity_boost: 0.8, speed: 0.8 }, previous_text: "Listen and repeat each English word after me.", next_text: "Well done. Now the next word." },
 ];
 const PHRASE_STYLES = [
   { model_id: "eleven_multilingual_v2", voice_settings: { stability: 0.75, similarity_boost: 0.8, speed: 0.8 } },
@@ -145,8 +147,18 @@ if (mode === "--check") {
   process.exit(0);
 }
 
-if (mode !== "--fix") {
-  console.log("Użycie: --check lista.json wynik.json  albo  --fix lista.json");
+/**
+ * --redo-all lista.json kampania: nagraj WSZYSTKIE pozycje nowym sposobem
+ * (pierwszy styl z listy) i weź nowe nagranie, o ile nie jest wyraźnie gorsze
+ * od obecnego wg Whispera; inaczej kolejny styl. Próby liczone osobno dla
+ * kampanii (klucz „kampania:adres”), żeby wcześniejsze poprawki nie blokowały.
+ */
+const redoAll = mode === "--redo-all";
+const campaign = redoAll ? (args[2] ?? "redo") : null;
+const triesKey = (url) => (campaign ? `${campaign}:${url}` : url);
+
+if (mode !== "--fix" && !redoAll) {
+  console.log("Użycie: --check lista.json wynik.json  albo  --fix lista.json  albo  --redo-all lista.json kampania");
   process.exit(1);
 }
 
@@ -161,7 +173,7 @@ let spent = 0;
 const report = [];
 
 for (let round = 0; round < MAX_TRIES; round++) {
-  const todo = current.filter((item) => !item.ok && (tries[item.url] ?? 0) < MAX_TRIES);
+  const todo = current.filter((item) => (redoAll ? !item.replaced : !item.ok) && (tries[triesKey(item.url)] ?? 0) < MAX_TRIES);
   if (todo.length === 0) break;
   console.log(`runda ${round + 1}: ${todo.length} nagrań`);
   const candidates = [];
@@ -169,7 +181,7 @@ for (let round = 0; round < MAX_TRIES; round++) {
     const voice = voiceOf(item.url);
     const isWord = /\/(words|numbers)\//.test(item.url);
     const styles = isWord ? WORD_STYLES : PHRASE_STYLES;
-    const style = styles[Math.min(tries[item.url] ?? 0, styles.length - 1)];
+    const style = styles[Math.min(tries[triesKey(item.url)] ?? 0, styles.length - 1)];
     const body = { text: isWord ? item.text.charAt(0).toUpperCase() + item.text.slice(1) + "." : spoken(item.text), ...style };
     if (isWord && /[.!?]$/.test(item.text)) body.text = item.text;
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_IDS[voice]}?output_format=${FORMAT}`, {
@@ -177,7 +189,7 @@ for (let round = 0; round < MAX_TRIES; round++) {
       headers: { "xi-api-key": key, "Content-Type": "application/json", Accept: "audio/mpeg" },
       body: JSON.stringify(body),
     });
-    tries[item.url] = (tries[item.url] ?? 0) + 1;
+    tries[triesKey(item.url)] = (tries[triesKey(item.url)] ?? 0) + 1;
     if (!response.ok) {
       const msg = (await response.text()).slice(0, 160);
       console.log(`  błąd ${response.status}: ${msg}`);
@@ -195,10 +207,12 @@ for (let round = 0; round < MAX_TRIES; round++) {
   candidates.forEach((candidate, i) => {
     const verdict = judge(candidate.item.text, results[i], candidate.item.url);
     const before = current.find((item) => item.url === candidate.item.url);
-    if (verdict.score > before.score + 0.02) {
+    // --redo-all: nowe wygrywa, chyba że jest wyraźnie gorsze (rodzic wybrał nowy sposób uchem).
+    const better = redoAll ? verdict.ok || verdict.score >= before.score - 0.15 : verdict.score > before.score + 0.02;
+    if (better) {
       copyFileSync(candidate.file, fileOf(candidate.item.url));
       report.push(`${candidate.item.url} «${candidate.item.text}»: ${before.heard} (${before.minProb}) → ${verdict.heard} (${verdict.minProb}) ${candidate.style}`);
-      Object.assign(before, verdict);
+      Object.assign(before, verdict, { replaced: true });
     }
   });
 }
