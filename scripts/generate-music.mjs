@@ -15,7 +15,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
-const [outDir, countArg = "1", lengthArg = "14000"] = process.argv.slice(2);
+const [outDir, countArg = "1", lengthArg = "15000"] = process.argv.slice(2);
 if (!outDir) {
   console.log("Użycie: node scripts/generate-music.mjs <katalog> [ile-wersji] [długość-ms]");
   process.exit(1);
@@ -23,12 +23,15 @@ if (!outDir) {
 const key = readFileSync(path.join(homedir(), ".elevenlabs", "api-key.txt"), "utf8").trim();
 mkdirSync(outDir, { recursive: true });
 
+// Ten sam opis rodzic może wkleić w ElevenLabs → Music (długość 15 s, instrumental).
 const PROMPT =
-  "Triumphant cinematic superhero victory fanfare for full symphony orchestra. " +
-  "Starts immediately with a bold brass call: French horns and trumpets play a rising, noble, heroic theme " +
-  "over driving staccato strings, snare drum and thundering timpani. " +
-  "It builds quickly to a huge, bright final major chord with a cymbal crash and ends cleanly. " +
-  "Epic, uplifting, adventurous blockbuster film score. Instrumental only, no vocals, fast tempo.";
+  "Fifteen-second triumphant victory fanfare for a children's learning app. " +
+  "Bright, heroic, cinematic superhero-movie style. Starts instantly with a bold brass call from French horns " +
+  "and trumpets, then a short noble rising major-key theme over fast driving strings, snare drum and timpani, " +
+  "building to one big, warm final chord with a cymbal crash. " +
+  "Joyful, proud and motivating, a \"you did it!\" feeling. No intro, no slow build-up, " +
+  "ends cleanly on the final chord at fifteen seconds with no fade-out. " +
+  "Instrumental only, no vocals, no spoken words. Fast tempo, C major. Length: 15 seconds.";
 
 for (let i = 1; i <= Number(countArg); i++) {
   const response = await fetch("https://api.elevenlabs.io/v1/music?output_format=mp3_44100_128", {

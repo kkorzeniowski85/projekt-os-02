@@ -14,12 +14,24 @@
  * Odpowiedź z podpowiedzią liczy się jako „z pomocą”; takie pytanie wraca raz
  * na końcu rozmowy („Jeszcze raz”) i po czasie w kolejnych dniach (FSRS).
  *
+ * Trzy rzeczy dla skuteczniejszej nauki (prośba rodzica 2026-11-22):
+ *  - NAJPIERW POSŁUCHAJ — pytanie, którego dziecko jeszcze nigdy nie dostało,
+ *    bohater i Sam (dziecko-rozmówca, components/talk/parts.tsx) najpierw
+ *    odgrywają jako krótki dialog z polskim znaczeniem; dopiero potem pytanie
+ *    pada do dziecka. Najpierw wzór, potem własna próba.
+ *  - WZÓR PO ODPOWIEDZI — gdy dziecko odpowie, Sam od razu mówi wzorcową
+ *    odpowiedź (przy pytaniach o siebie: „Sam o sobie”), żeby dziecko mogło
+ *    porównać. To zastępuje poprawianie przez rodzica. Pomijane, gdy gotową
+ *    odpowiedź dziecko słyszało przed chwilą (podpowiedź 3).
+ *  - ZAMIANA RÓL — po rozmowie dziecko samo zadaje te pytania, a bohater
+ *    odpowiada (components/talk/RoleSwap.tsx). Dobrowolne, z ekranu końcowego.
+ *
  * „Poprzednie pytanie” cofa o jedno pytanie i KASUJE jego ocenę (jeszcze
  * niezapisaną) — przydaje się, gdy ktoś stuknął za szybko albo dziecko chce
  * powiedzieć jeszcze raz. Liczy się dopiero nowa ocena.
  *
- * Ruch (app/globals.css): bohater „mówi”, gdy gra pytanie; po pytaniu pulsuje
- * „Twoja kolej”; karta wjeżdża z boku; po odpowiedzi leci gwiazdka.
+ * Ruch (app/globals.css): kto mówi, ten się kiwa i ma fale dźwięku; po pytaniu
+ * pulsuje „Twoja kolej”; karta wjeżdża z boku; po odpowiedzi leci gwiazdka.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -35,9 +47,12 @@ import type { SessionMode } from "@/lib/progress/types";
 import { useBusy } from "@/lib/sessionBusy";
 import { useDeviceRole } from "@/lib/useDeviceRole";
 import type { Voice } from "@/lib/voices";
+import { PARTNER_NAME, PartnerAvatar, SpeechBubble, sleep } from "./parts";
+import { RoleSwap, type SwapResult } from "./RoleSwap";
 
-type Step = { entry: TalkEntry; again: boolean };
-type Stage = "start" | "running" | "done";
+/** `model` — nowe pytanie: najpierw wzorcowy dialog. `again` — runda „Jeszcze raz”. */
+type Step = { entry: TalkEntry; again: boolean; model: boolean };
+type Stage = "start" | "running" | "done" | "swap" | "swapDone";
 /** Ślad odpowiedzi — żeby „Poprzednie pytanie” mogło ją cofnąć. */
 type Answered = { hints: number; counted: boolean; addedAgain: boolean };
 
@@ -51,27 +66,42 @@ const MAX_HINT = 3;
 export function TalkRunner({ entries, title, onExit }: { entries: TalkEntry[]; title: string; onExit: () => void }) {
   const { role } = useDeviceRole();
   const { state, commitSession } = useProgress();
-  // Obsada liczona raz — zmiana postępu w trakcie (zapis) nie zmienia bohatera.
+  // Obsada i lista „nowych” pytań liczone raz — zapis w trakcie niczego nie podmienia.
   const [cast] = useState(() => talkCast(state));
+  const [steps, setSteps] = useState<Step[]>(() => {
+    const seen = new Set(
+      state.attempts.filter((attempt) => attempt.exercise === "talk").map((attempt) => attempt.item),
+    );
+    return entries.map((entry) => ({ entry, again: false, model: !seen.has(entry.key) }));
+  });
+  // Lustro `steps` czytane od razu po dopisaniu rundy „Jeszcze raz” (stan Reacta
+  // zmieni się dopiero przy następnym rysowaniu).
+  const stepsRef = useRef(steps);
   const [stage, setStage] = useState<Stage>("start");
   const [mode, setMode] = useState<SessionMode>("parent");
-  const [steps, setSteps] = useState<Step[]>(() => entries.map((entry) => ({ entry, again: false })));
   const [index, setIndex] = useState(0);
   const attemptsRef = useRef<PendingAttempt[]>([]);
   const startedRef = useRef(0);
-  const savedRef = useRef(false);
   const [result, setResult] = useState({ own: 0, helped: 0 });
+  const [swapResult, setSwapResult] = useState<SwapResult>({ own: 0, helped: 0 });
   const historyRef = useRef<Answered[]>([]);
   // Skąd wjeżdża karta: następne pytanie z prawej, poprzednie z lewej.
   const [direction, setDirection] = useState<"next" | "back">("next");
   // Gwiazdka (sam) albo kciuk (z pomocą) po odpowiedzi; `id` uruchamia animację od nowa.
   const [burst, setBurst] = useState<{ id: number; own: boolean } | null>(null);
 
-  useBusy(stage === "running");
+  useBusy(stage === "running" || stage === "swap");
 
+  // Pytania do zamiany ról: każde raz; bez tych, na które bohater nie odpowie
+  // sensownie (imię — on nie nazywa się Sam).
+  const swapEntries = useMemo(() => entries.filter((entry) => entry.question.swap !== false), [entries]);
+
+  /** Zapisuje to, co się zebrało (rozmowę, potem osobno zamianę ról) — można wołać wiele razy. */
   const save = useCallback(() => {
-    if (savedRef.current || attemptsRef.current.length === 0) return;
-    savedRef.current = true;
+    if (attemptsRef.current.length === 0) return;
+    const attempts = attemptsRef.current;
+    attemptsRef.current = [];
+    historyRef.current = [];
     commitSession({
       soundId: TALK_SESSION_ID,
       track: "vocab",
@@ -79,8 +109,9 @@ export function TalkRunner({ entries, title, onExit }: { entries: TalkEntry[]; t
       device: role,
       startedTs: startedRef.current,
       endedTs: Date.now(),
-      attempts: attemptsRef.current,
+      attempts,
     });
+    startedRef.current = Date.now();
   }, [commitSession, mode, role]);
 
   // Wyjście w trakcie (inna strona) zapisuje to, co padło — jak przerwana sesja.
@@ -95,8 +126,9 @@ export function TalkRunner({ entries, title, onExit }: { entries: TalkEntry[]; t
     setStage("running");
   }
 
-  function answered(hints: number, ms: number) {
-    const step = steps[index];
+  /** Ocena pada od razu po stuknięciu — przejście dalej osobno (`advance`), po wzorze odpowiedzi. */
+  function record(hints: number, ms: number) {
+    const step = stepsRef.current[index];
     attemptsRef.current.push({
       ts: Date.now(),
       soundId: TALK_SESSION_ID,
@@ -105,18 +137,19 @@ export function TalkRunner({ entries, title, onExit }: { entries: TalkEntry[]; t
       correct: hints === 0,
       responseMs: ms,
     });
-    playFeedbackTone("good");
     if (!step.again) setResult((r) => (hints === 0 ? { ...r, own: r.own + 1 } : { ...r, helped: r.helped + 1 }));
-    let next = steps;
-    // Z pomocą → jeszcze raz na końcu rozmowy (tylko raz).
+    // Z pomocą → jeszcze raz na końcu rozmowy (tylko raz, już bez wzorcowego dialogu).
     const addedAgain = hints > 0 && !step.again;
     if (addedAgain) {
-      next = [...steps, { entry: step.entry, again: true }];
-      setSteps(next);
+      stepsRef.current = [...stepsRef.current, { entry: step.entry, again: true, model: false }];
+      setSteps(stepsRef.current);
     }
     historyRef.current.push({ hints, counted: !step.again, addedAgain });
     setBurst((previous) => ({ id: (previous?.id ?? 0) + 1, own: hints === 0 }));
-    if (index + 1 >= next.length) {
+  }
+
+  function advance() {
+    if (index + 1 >= stepsRef.current.length) {
       stopAudio();
       save();
       setStage("done");
@@ -136,13 +169,25 @@ export function TalkRunner({ entries, title, onExit }: { entries: TalkEntry[]; t
       setResult((r) => (last.hints === 0 ? { ...r, own: r.own - 1 } : { ...r, helped: r.helped - 1 }));
     }
     // Dopisana runda „Jeszcze raz” tego pytania jest zawsze ostatnia (cofamy po kolei).
-    if (last?.addedAgain) setSteps((list) => list.slice(0, -1));
+    if (last?.addedAgain) {
+      stepsRef.current = stepsRef.current.slice(0, -1);
+      setSteps(stepsRef.current);
+    }
     setBurst(null);
     setDirection("back");
     setIndex(index - 1);
   }
 
+  function quit() {
+    stopAudio();
+    save();
+    onExit();
+  }
+
+  const heroSmall = <HeroAvatar hero={cast.hero} size={role === "phone" ? 64 : 80} />;
+
   if (stage === "start") {
+    const fresh = steps.filter((step) => step.model).length;
     return (
       <div className="flex flex-col items-center gap-5 text-center">
         <button
@@ -160,13 +205,15 @@ export function TalkRunner({ entries, title, onExit }: { entries: TalkEntry[]; t
         <p className="max-w-md text-paper/80">
           {cast.hero.codename} zada Ci {entries.length} pytań po angielsku. Odpowiadaj na głos! Gdy nie wiesz — stuknij
           „Podpowiedź”.
+          {fresh > 0 && ` Nowe pytania najpierw usłyszysz w rozmowie z ${PARTNER_NAME}em.`}
         </p>
         <div className="w-full max-w-xl">
           <ParentTip>
             <p>
               Aplikacja nie słucha dziecka i nie ocenia wymowy — oceniasz Ty: „Sam” albo, po podpowiedzi, „Z pomocą”.
-              Jedno słowo to też odpowiedź. Czekaj spokojnie kilka sekund, zanim zaproponujesz podpowiedź; po pomyłce
-              nie poprawiaj wprost — powtórz poprawną odpowiedź od niechcenia.
+              Jedno słowo to też odpowiedź. Czekaj spokojnie kilka sekund, zanim zaproponujesz podpowiedź. Nie trzeba
+              poprawiać: po każdej odpowiedzi {PARTNER_NAME} mówi wzór, a dziecko samo słyszy różnicę. Na końcu warto
+              zrobić zamianę ról — wtedy pyta dziecko.
             </p>
           </ParentTip>
         </div>
@@ -182,21 +229,43 @@ export function TalkRunner({ entries, title, onExit }: { entries: TalkEntry[]; t
     );
   }
 
-  if (stage === "done") {
+  if (stage === "done" || stage === "swapDone") {
+    const afterSwap = stage === "swapDone";
     return (
       <div className="flex flex-col items-center gap-5 text-center">
         <Celebration />
         <HeroAvatar hero={cast.hero} size={140} cheering />
-        <h1 className="text-3xl font-black">Brawo! Cała rozmowa po angielsku 🎉</h1>
+        <h1 className="text-3xl font-black">
+          {afterSwap ? "Brawo! Umiesz pytać po angielsku 🎉" : "Brawo! Cała rozmowa po angielsku 🎉"}
+        </h1>
         <Card className="flex flex-col gap-1">
           <p className="text-lg">
-            Sam: <strong className="text-hero-lime">{result.own}</strong> · z pomocą:{" "}
-            <strong className="text-hero-gold">{result.helped}</strong>
+            {afterSwap ? "Zapytane samodzielnie" : "Sam"}:{" "}
+            <strong className="text-hero-lime">{afterSwap ? swapResult.own : result.own}</strong> · z pomocą:{" "}
+            <strong className="text-hero-gold">{afterSwap ? swapResult.helped : result.helped}</strong>
           </p>
-          <p className="text-sm text-paper/60">Pytania z pomocą wrócą w kolejnych dniach.</p>
+          {!afterSwap && <p className="text-sm text-paper/60">Pytania z pomocą wrócą w kolejnych dniach.</p>}
         </Card>
+        {!afterSwap && swapEntries.length > 0 && (
+          <div className="flex w-full max-w-md flex-col items-center gap-2">
+            <BigButton
+              tone="yes"
+              onClick={() => {
+                unlockAudio();
+                startedRef.current = Date.now();
+                setStage("swap");
+              }}
+              full
+            >
+              🔄 Zamiana ról — teraz Ty pytasz!
+            </BigButton>
+            <p className="text-sm text-paper/60">
+              Ty zadajesz pytania, a {cast.hero.codename} odpowiada.
+            </p>
+          </div>
+        )}
         <div className="flex w-full max-w-md flex-col gap-3 sm:flex-row">
-          <BigButton onClick={onExit} full>
+          <BigButton tone={afterSwap ? "primary" : "quiet"} onClick={onExit} full>
             Inne rozmowy
           </BigButton>
           <BigButton href="/" tone="quiet" full>
@@ -207,17 +276,33 @@ export function TalkRunner({ entries, title, onExit }: { entries: TalkEntry[]; t
     );
   }
 
+  if (stage === "swap") {
+    return (
+      <RoleSwap
+        entries={swapEntries}
+        mode={mode}
+        heroVoice={cast.asker}
+        helperVoice={cast.answerer}
+        hero={heroSmall}
+        heroName={cast.hero.codename}
+        onAttempt={(attempt) => attemptsRef.current.push(attempt)}
+        onDone={(swap) => {
+          setSwapResult(swap);
+          save();
+          setStage("swapDone");
+        }}
+        onQuit={quit}
+      />
+    );
+  }
+
   const step = steps[index];
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"
-          onClick={() => {
-            stopAudio();
-            save();
-            onExit();
-          }}
+          onClick={quit}
           className="flex min-h-11 items-center rounded-full bg-white/10 px-5 text-sm"
         >
           ← Przerwij
@@ -242,29 +327,22 @@ export function TalkRunner({ entries, title, onExit }: { entries: TalkEntry[]; t
         asker={cast.asker}
         answerer={cast.answerer}
         heroName={cast.hero.codename}
-        hero={<HeroAvatar hero={cast.hero} size={role === "phone" ? 64 : 80} />}
+        hero={heroSmall}
+        partnerSize={role === "phone" ? 56 : 68}
         enter={direction}
-        onAnswered={answered}
+        onAnswered={record}
+        onNext={advance}
         onBack={index > 0 ? back : undefined}
       />
     </div>
   );
 }
 
-/** Fale dźwięku przy dymku — widać, że bohater właśnie mówi. */
-function SoundWaves() {
-  return (
-    <span className="ml-2 inline-flex h-4 items-end gap-0.5 align-middle" aria-hidden>
-      {[0, 1, 2, 3].map((bar) => (
-        <span
-          key={bar}
-          className="wave-bar h-full w-1 rounded-full bg-hero-gold"
-          style={{ animationDelay: `${bar * 120}ms` }}
-        />
-      ))}
-    </span>
-  );
-}
+/**
+ * Etapy karty: `listen` — wzorcowy dialog (tylko nowe pytanie); `ask` — pytanie
+ * do dziecka; `after` — Sam mówi wzór po odpowiedzi dziecka.
+ */
+type Phase = "listen" | "ask" | "after";
 
 function QuestionCard({
   step,
@@ -273,8 +351,10 @@ function QuestionCard({
   answerer,
   hero,
   heroName,
+  partnerSize,
   enter,
   onAnswered,
+  onNext,
   onBack,
 }: {
   step: Step;
@@ -283,43 +363,132 @@ function QuestionCard({
   answerer: Voice;
   hero: React.ReactNode;
   heroName: string;
+  partnerSize: number;
   /** Z której strony wjeżdża karta. */
   enter: "next" | "back";
+  /** Ocena — od razu po stuknięciu. */
   onAnswered: (hints: number, ms: number) => void;
+  /** Przejście do następnego pytania — po wzorze odpowiedzi. */
+  onNext: () => void;
   /** Powrót do poprzedniego pytania (brak przy pierwszym). */
   onBack?: () => void;
 }) {
   const { question } = step.entry;
+  const [phase, setPhase] = useState<Phase>(step.model ? "listen" : "ask");
   const [hint, setHint] = useState(0);
-  const startRef = useRef(Date.now());
   const [echoKey, setEchoKey] = useState(0);
-  // Bohater „mówi”, dopóki gra pytanie; potem „Twoja kolej”.
-  const [speaking, setSpeaking] = useState(false);
+  // Kto teraz mówi: bohater (pytanie) czy Sam (odpowiedź) — do animacji.
+  const [speaker, setSpeaker] = useState<"q" | "a" | null>(null);
+  // W dialogu wzorcowym odpowiedź pojawia się dopiero po pytaniu.
+  const [answerShown, setAnswerShown] = useState(false);
+  // Pytanie do dziecka padło do końca → „Twoja kolej”.
   const [heard, setHeard] = useState(false);
-  const askRunRef = useRef(0);
+  const startRef = useRef(Date.now());
+  // Numer odtwarzania: nowsze (stuknięcie, wyjście z karty) unieważnia starsze.
+  const runRef = useRef(0);
+  const leftRef = useRef(false);
+  // Zawsze najnowsze `onNext` — wołamy je po przerwie, już po kolejnym rysowaniu.
+  const nextRef = useRef(onNext);
+  nextRef.current = onNext;
 
-  const ask = useCallback(
-    async (slow = false) => {
-      const run = ++askRunRef.current;
-      setSpeaking(true);
-      await playPhrase(question.q, { voice: asker, slow, wait: true });
-      // Nowsze odtworzenie (albo wyjście z ekranu) — ten stan już nieaktualny.
-      if (run !== askRunRef.current) return;
-      setSpeaking(false);
-      setHeard(true);
+  /** Jedna kwestia: animacja mówcy na czas nagrania. False = przerwane przez nowsze odtwarzanie. */
+  const say = useCallback(
+    async (who: "q" | "a", run: number, slow = false, minMs = 0) => {
+      const began = Date.now();
+      setSpeaker(who);
+      await playPhrase(who === "q" ? question.q : question.answer, {
+        voice: who === "q" ? asker : answerer,
+        slow,
+        wait: true,
+      });
+      if (run !== runRef.current) return false;
+      // Bez dźwięku (wyciszony tablet) kwestia i tak ma chwilę postać na ekranie.
+      const left = minMs - (Date.now() - began);
+      if (left > 0) {
+        await sleep(left);
+        if (run !== runRef.current) return false;
+      }
+      setSpeaker(null);
+      return true;
     },
-    [question.q, asker],
+    [question.q, question.answer, asker, answerer],
   );
 
-  // Pytanie gra samo po wejściu na ekran.
+  /** Pytanie do dziecka (także „Jeszcze raz” i „Wolniej”). */
+  const ask = useCallback(
+    async (slow = false) => {
+      const run = ++runRef.current;
+      if (await say("q", run, slow)) setHeard(true);
+    },
+    [say],
+  );
+
+  const startAsk = useCallback(() => {
+    setPhase("ask");
+    setAnswerShown(false);
+    startRef.current = Date.now();
+    void ask();
+  }, [ask]);
+
+  /** Wzorcowy dialog: bohater pyta, Sam odpowiada, potem pytanie pada do dziecka. */
+  const listen = useCallback(async () => {
+    const run = ++runRef.current;
+    setAnswerShown(false);
+    if (!(await say("q", run, false, 1000))) return;
+    await sleep(350);
+    if (run !== runRef.current) return;
+    setAnswerShown(true);
+    if (!(await say("a", run, false, 1400))) return;
+    await sleep(1000);
+    if (run !== runRef.current) return;
+    startAsk();
+  }, [say, startAsk]);
+
+  // Karta zaczyna sama: nowe pytanie od dialogu, znane — od razu od pytania.
   useEffect(() => {
-    const timer = setTimeout(() => void ask(), 350);
+    const timer = setTimeout(() => void (step.model ? listen() : ask()), 350);
     return () => {
       clearTimeout(timer);
-      askRunRef.current += 1;
+      runRef.current += 1;
       stopAudio();
     };
-  }, [ask]);
+  }, [step.model, listen, ask]);
+
+  function goNext() {
+    if (leftRef.current) return;
+    leftRef.current = true;
+    runRef.current += 1;
+    stopAudio();
+    nextRef.current();
+  }
+
+  /** Dziecko odpowiedziało: ocena od razu, potem Sam mówi wzór i karta idzie dalej. */
+  async function answered() {
+    if (phase !== "ask") return;
+    playFeedbackTone("good");
+    onAnswered(hint, Date.now() - startRef.current);
+    // Gotową odpowiedź dziecko słyszało przed chwilą (echo) — nie powtarzamy.
+    if (hint >= MAX_HINT) {
+      goNext();
+      return;
+    }
+    const run = ++runRef.current;
+    stopAudio();
+    setPhase("after");
+    setSpeaker(null);
+    await sleep(450);
+    if (run !== runRef.current) return;
+    if (!(await say("a", run, false, 1400))) return;
+    await sleep(900);
+    if (run !== runRef.current) return;
+    goNext();
+  }
+
+  /** Stuknięty dymek odpowiedzi: jeszcze raz, już bez samoczynnego przejścia. */
+  function replayAnswer() {
+    const run = ++runRef.current;
+    void say("a", run);
+  }
 
   function nextHint() {
     const level = Math.min(MAX_HINT, hint + 1);
@@ -334,6 +503,8 @@ function QuestionCard({
   }
 
   const blanks = useMemo(() => question.frame?.split("___") ?? null, [question.frame]);
+  const yourTurn = phase === "ask" && heard && speaker === null && hint < MAX_HINT;
+  const answerVisible = phase === "after" || (phase === "listen" && answerShown);
 
   return (
     <Card
@@ -344,23 +515,41 @@ function QuestionCard({
       {step.again && (
         <p className="rounded-full bg-hero-gold/20 px-4 py-1 text-sm font-bold text-hero-gold">🔁 Jeszcze raz</p>
       )}
-      <div className="flex w-full max-w-2xl items-center gap-3 text-left">
-        <div className={`shrink-0 ${speaking ? "animate-talk" : ""}`}>{hero}</div>
-        <button
-          type="button"
-          onClick={() => void ask()}
-          className={`flex-1 rounded-2xl px-4 py-3 text-left transition active:translate-y-0.5 ${
-            speaking ? "bg-hero-gold/15 ring-2 ring-hero-gold/60" : "bg-white/10"
-          }`}
-          aria-label={`${heroName} pyta: ${question.q} — stuknij, żeby posłuchać`}
-        >
-          <span className="block text-xs font-bold tracking-wide text-paper/60 uppercase">
-            {heroName} pyta 🔊{speaking && <SoundWaves />}
-          </span>
-          <span className="font-reading block text-2xl leading-snug sm:text-3xl">{question.q}</span>
-          {hint >= 1 && <span className="block text-base text-hero-cyan">{question.qPl}</span>}
-        </button>
-      </div>
+      {phase === "listen" && (
+        <p className="rounded-full bg-hero-cyan/20 px-4 py-1 text-sm font-bold text-hero-cyan">
+          👂 Nowe pytanie — najpierw posłuchaj
+        </p>
+      )}
+
+      <SpeechBubble
+        avatar={hero}
+        label={`${heroName} pyta`}
+        text={question.q}
+        textPl={phase === "listen" || hint >= 1 ? question.qPl : undefined}
+        speaking={speaker === "q"}
+        onPlay={() => void (phase === "listen" ? listen() : phase === "ask" ? ask() : undefined)}
+      />
+
+      {answerVisible && (
+        <div className="animate-pop-in w-full max-w-2xl">
+          <SpeechBubble
+            avatar={<PartnerAvatar size={partnerSize} />}
+            side="right"
+            label={
+              question.personal
+                ? `${PARTNER_NAME} mówi o sobie`
+                : phase === "after"
+                  ? `${PARTNER_NAME} mówi tak`
+                  : `${PARTNER_NAME} odpowiada`
+            }
+            text={question.answer}
+            textPl={question.answerPl}
+            speaking={speaker === "a"}
+            tone="answer"
+            onPlay={() => (phase === "listen" ? void listen() : replayAnswer())}
+          />
+        </div>
+      )}
 
       {question.emoji && (
         <div className="animate-pop-in text-7xl sm:text-8xl" aria-hidden>
@@ -368,97 +557,127 @@ function QuestionCard({
         </div>
       )}
 
-      {/* Sygnał zmiany ról: pytanie padło — teraz mówi dziecko. Znika, gdy gra gotowa odpowiedź. */}
-      <p
-        className={`rounded-full px-5 py-2 text-lg font-black transition-opacity duration-300 ${
-          heard && !speaking && hint < MAX_HINT
-            ? "animate-nudge bg-hero-lime/20 text-hero-lime opacity-100"
-            : "opacity-0"
-        }`}
-        aria-hidden={!(heard && !speaking && hint < MAX_HINT)}
-      >
-        🗣️ Twoja kolej — powiedz na głos!
-      </p>
+      {phase === "listen" && (
+        <>
+          <div className="flex w-full max-w-md flex-col gap-3 sm:flex-row">
+            <BigButton onClick={startAsk} full>
+              Teraz ja ▸
+            </BigButton>
+            <BigButton tone="quiet" onClick={() => void listen()} full>
+              🔁 Jeszcze raz
+            </BigButton>
+          </div>
+          <p className="text-xs text-paper/50">
+            Posłuchaj, jak {heroName} pyta, a {PARTNER_NAME} odpowiada. Zaraz pytanie będzie do Ciebie.
+          </p>
+        </>
+      )}
 
-      <div className="flex flex-wrap justify-center gap-2">
-        <button
-          type="button"
-          onClick={() => void ask()}
-          className="min-h-11 rounded-full bg-white/10 px-4 text-sm font-bold"
-        >
-          🔊 Jeszcze raz
-        </button>
-        {hint >= 1 && (
-          <button
-            type="button"
-            onClick={() => void ask(true)}
-            className="min-h-11 rounded-full bg-white/10 px-4 text-sm font-bold"
+      {phase === "after" && (
+        <>
+          <BigButton onClick={goNext}>Dalej ▸</BigButton>
+          <p className="text-xs text-paper/50">
+            {question.personal
+              ? `${PARTNER_NAME} odpowiada o sobie — Ty mówisz o sobie.`
+              : "Posłuchaj i porównaj ze swoją odpowiedzią."}
+          </p>
+        </>
+      )}
+
+      {phase === "ask" && (
+        <>
+          {/* Sygnał zmiany ról: pytanie padło — teraz mówi dziecko. Znika, gdy gra gotowa odpowiedź. */}
+          <p
+            className={`rounded-full px-5 py-2 text-lg font-black transition-opacity duration-300 ${
+              yourTurn ? "animate-nudge bg-hero-lime/20 text-hero-lime opacity-100" : "opacity-0"
+            }`}
+            aria-hidden={!yourTurn}
           >
-            🐢 Wolniej
-          </button>
-        )}
-      </div>
+            🗣️ Twoja kolej — {question.personal ? "powiedz o sobie!" : "powiedz na głos!"}
+          </p>
 
-      {hint >= 2 && (
-        <div className="animate-pop-in flex w-full max-w-2xl flex-col items-center gap-3 rounded-2xl bg-hero-cyan/10 p-3">
-          {blanks && (
-            <p className="font-reading text-2xl">
-              {blanks[0]}
-              <span className="mx-1 inline-block min-w-16 border-b-4 border-hero-cyan" aria-label="luka" />
-              {blanks[1]}
-            </p>
-          )}
-          {question.options && question.options.length > 0 && (
-            <div className="flex flex-wrap justify-center gap-2">
-              {question.options.map((option) => (
-                <button
-                  key={option.en}
-                  type="button"
-                  onClick={() => playOption(option)}
-                  className="flex min-h-14 items-center gap-2 rounded-2xl bg-white/15 px-4 py-2 text-lg font-bold shadow-[0_4px_0_rgba(0,0,0,0.25)] transition active:translate-y-0.5 active:shadow-none"
-                >
-                  <span className="text-2xl" aria-hidden>
-                    {option.emoji}
-                  </span>
-                  <span className="font-reading">{option.en}</span>
-                </button>
-              ))}
+          <div className="flex flex-wrap justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => void ask()}
+              className="min-h-11 rounded-full bg-white/10 px-4 text-sm font-bold"
+            >
+              🔊 Jeszcze raz
+            </button>
+            {hint >= 1 && (
+              <button
+                type="button"
+                onClick={() => void ask(true)}
+                className="min-h-11 rounded-full bg-white/10 px-4 text-sm font-bold"
+              >
+                🐢 Wolniej
+              </button>
+            )}
+          </div>
+
+          {hint >= 2 && (
+            <div className="animate-pop-in flex w-full max-w-2xl flex-col items-center gap-3 rounded-2xl bg-hero-cyan/10 p-3">
+              {blanks && (
+                <p className="font-reading text-2xl">
+                  {blanks[0]}
+                  <span className="mx-1 inline-block min-w-16 border-b-4 border-hero-cyan" aria-label="luka" />
+                  {blanks[1]}
+                </p>
+              )}
+              {question.options && question.options.length > 0 && (
+                <div className="flex flex-wrap justify-center gap-2">
+                  {question.options.map((option) => (
+                    <button
+                      key={option.en}
+                      type="button"
+                      onClick={() => playOption(option)}
+                      className="flex min-h-14 items-center gap-2 rounded-2xl bg-white/15 px-4 py-2 text-lg font-bold shadow-[0_4px_0_rgba(0,0,0,0.25)] transition active:translate-y-0.5 active:shadow-none"
+                    >
+                      <span className="text-2xl" aria-hidden>
+                        {option.emoji}
+                      </span>
+                      <span className="font-reading">{option.en}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {question.personal && (
+                <p className="text-sm text-paper/70">
+                  {question.options?.length ? "Powiedz o sobie — obrazki to tylko przykłady." : "Powiedz o sobie."}
+                </p>
+              )}
             </div>
           )}
-          {question.personal && (
-            <p className="text-sm text-paper/70">
-              {question.options?.length ? "Powiedz o sobie — obrazki to tylko przykłady." : "Powiedz o sobie."}
-            </p>
+
+          {hint >= 3 && (
+            <div className="animate-pop-in flex flex-col items-center gap-2">
+              <p className="text-sm font-bold text-paper/70">
+                {question.personal ? "Na przykład tak (powiedz o sobie):" : "Odpowiedź — powtórz za mną:"}
+              </p>
+              <Echo text={question.answer} auto={echoKey} voice={answerer} />
+              <p className="text-base text-hero-cyan">{question.answerPl}</p>
+            </div>
           )}
-        </div>
-      )}
 
-      {hint >= 3 && (
-        <div className="animate-pop-in flex flex-col items-center gap-2">
-          <p className="text-sm font-bold text-paper/70">
-            {question.personal ? "Na przykład tak (powiedz o sobie):" : "Odpowiedź — powtórz za mną:"}
+          <div className="flex w-full max-w-md flex-col gap-3 sm:flex-row">
+            <BigButton tone="yes" onClick={() => void answered()} full>
+              {mode === "parent" ? (hint === 0 ? "Powiedział sam ✓" : "Powiedział z pomocą ✓") : "Powiedziałem ✓"}
+            </BigButton>
+            {hint < MAX_HINT && (
+              <BigButton tone="quiet" onClick={nextHint} full>
+                💡 Podpowiedź
+              </BigButton>
+            )}
+          </div>
+          <p className="text-xs text-paper/50">
+            {mode === "parent"
+              ? "Aplikacja nie słucha dziecka — oceniasz Ty. Najpierw daj chwilę na odpowiedź."
+              : "Powiedz odpowiedź na głos, potem stuknij."}
           </p>
-          <Echo text={question.answer} auto={echoKey} voice={answerer} />
-          <p className="text-base text-hero-cyan">{question.answerPl}</p>
-        </div>
+        </>
       )}
 
-      <div className="flex w-full max-w-md flex-col gap-3 sm:flex-row">
-        <BigButton tone="yes" onClick={() => onAnswered(hint, Date.now() - startRef.current)} full>
-          {mode === "parent" ? (hint === 0 ? "Powiedział sam ✓" : "Powiedział z pomocą ✓") : "Powiedziałem ✓"}
-        </BigButton>
-        {hint < MAX_HINT && (
-          <BigButton tone="quiet" onClick={nextHint} full>
-            💡 Podpowiedź
-          </BigButton>
-        )}
-      </div>
-      <p className="text-xs text-paper/50">
-        {mode === "parent"
-          ? "Aplikacja nie słucha dziecka — oceniasz Ty. Najpierw daj chwilę na odpowiedź."
-          : "Powiedz odpowiedź na głos, potem stuknij."}
-      </p>
-      {onBack && (
+      {onBack && phase !== "after" && (
         <button
           type="button"
           onClick={onBack}

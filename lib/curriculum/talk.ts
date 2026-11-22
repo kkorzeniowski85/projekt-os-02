@@ -38,6 +38,12 @@ export type TalkQuestion = {
   /** Do wyboru w podpowiedzi 2: słowo do luki albo cała krótka odpowiedź. */
   options?: TalkOption[];
   personal?: boolean;
+  /**
+   * `false` — pytania nie ma w zamianie ról (components/talk/RoleSwap.tsx), bo
+   * bohater nie odpowie na nie sensownie: wzór „My name is Sam.” to imię
+   * dziecka-rozmówcy, nie bohatera.
+   */
+  swap?: boolean;
 };
 
 export type TalkSet = {
@@ -56,7 +62,7 @@ export const TALK_SETS: TalkSet[] = [
     titlePl: "Poznajmy się",
     emoji: "🙋",
     questions: [
-      { id: "name", q: "What's your name?", qPl: "Jak masz na imię?", answer: "My name is Sam.", answerPl: "Mam na imię Sam.", frame: "My name is ___.", personal: true },
+      { id: "name", q: "What's your name?", qPl: "Jak masz na imię?", answer: "My name is Sam.", answerPl: "Mam na imię Sam.", frame: "My name is ___.", personal: true, swap: false },
       { id: "age", q: "How old are you?", qPl: "Ile masz lat?", answer: "I'm seven.", answerPl: "Mam siedem lat.", frame: "I'm ___.", options: [{ en: "seven", emoji: "7️⃣" }, { en: "eight", emoji: "8️⃣" }], personal: true },
       { id: "from", q: "Where are you from?", qPl: "Skąd jesteś?", answer: "I'm from Poland.", answerPl: "Jestem z Polski.", frame: "I'm from ___.", options: [{ en: "Poland", emoji: "🇵🇱" }], personal: true },
       { id: "sibling", q: "Have you got a brother or a sister?", qPl: "Masz brata albo siostrę?", answer: "Yes, I've got a sister.", answerPl: "Tak, mam siostrę.", frame: "Yes, I've got a ___.", options: [{ en: "brother", emoji: "👦" }, { en: "sister", emoji: "👧" }], personal: true },
