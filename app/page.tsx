@@ -1,30 +1,35 @@
 "use client";
 
 /**
- * Ekran główny — "baza drużyny" z dwoma działami.
+ * Ekran główny — "baza drużyny".
  *
  * Kolejność: misja na dziś (2 kroki + 1 dla chętnych, lib/dailyMission.ts),
- * potem dział Dźwięki (dotychczasowa strona główna Ligi Dźwięków: mapa
- * dźwięków, słowa i zwroty, drużyna), potem dział Akademia (kafelki hubów).
+ * potem MENU DZIAŁÓW: osiem jednakowych kafelków w dwóch grupach (Dźwięki i
+ * słowa / Akademia), potem drużyna i tempo głosu.
  *
- * Układ realnie się przebudowuje wg roli urządzenia (brief):
- *  - telefon: „szybka misja" + skrócona mapa dźwięków,
- *  - tablet: pełna mapa dźwięków, duże cele dotykowe,
- *  - komputer: dodatkowa kolumna dla rodzica (skrót postępu obu działów).
+ * Do 2026-11-22 każdy dział wyglądał tu inaczej i leżał gdzie indziej (mapa
+ * dźwięków w trzech kartach, Książeczki jako samotny przycisk, Słowa i zwroty
+ * jako karta z przyciskami, Rymowanki w tej karcie, Akademia kafelkami).
+ * Prośba rodzica: rozłożyć to porządnie. Dlatego jeden wzór kafelka dla
+ * wszystkich, a mapa dźwięków ma własną stronę (/dzwieki) — cały ekran
+ * główny mieści się teraz na jednym ekranie tabletu.
+ *
+ * Układ wg roli urządzenia: telefon — kafelki w 2 kolumnach, „szybka misja";
+ * tablet — 4 kolumny; komputer — dodatkowa kolumna dla rodzica.
  *
  * Celowo bez odliczania do szkoły i bez dat — prośba rodzica: ekran dziecka
  * nie przypomina o przeprowadzce. Plan z datami jest w panelu rodzica.
  */
 
-import { VoiceSpeedControl } from "@/components/VoiceSpeedControl";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { FactGrid } from "@/components/akademia/FactGrid";
 import { HeroAvatar } from "@/components/HeroAvatar";
 import { BigButton, Card } from "@/components/ui";
+import { VoiceSpeedControl } from "@/components/VoiceSpeedControl";
 import { CLASSROOM_UNITS } from "@/lib/akademia/curriculum/classroom";
 import { MATHS_TOPICS } from "@/lib/akademia/curriculum/maths";
 import { READING_TEXTS } from "@/lib/akademia/curriculum/reading";
-import { HEROES_BY_MODULE } from "@/lib/akademia/heroes";
 import { useProgress as useAkademiaProgress } from "@/lib/akademia/progress/store";
 import {
   unitKeyOf,
@@ -32,28 +37,47 @@ import {
   type ProgressState as AkademiaState,
 } from "@/lib/akademia/progress/types";
 import { tablesSummary } from "@/lib/akademia/tables/practice";
-import { hasLesson } from "@/lib/curriculum/lessons";
-import { getSound, SET_LABEL, SOUNDS, type Sound, type SoundSet } from "@/lib/curriculum/sounds";
+import { bookReads } from "@/lib/books/progress";
+import { BOOKS } from "@/lib/curriculum/books";
+import { RHYMES } from "@/lib/curriculum/rhymes";
+import { SOUNDS } from "@/lib/curriculum/sounds";
 import { TOPICS } from "@/lib/curriculum/vocab";
 import { combinedMission, type MissionStepView } from "@/lib/dailyMission";
 import { HEROES } from "@/lib/heroes";
 import { reviewCount } from "@/lib/progress/review";
-import { recommendNextTopic } from "@/lib/progress/rules";
 import { useProgress } from "@/lib/progress/store";
-import type { SoundState, SoundStatus } from "@/lib/progress/types";
 import { useDeviceRole } from "@/lib/useDeviceRole";
-
-const STATUS_STYLE: Record<SoundStatus | "locked", string> = {
-  mastered: "bg-hero-lime text-night",
-  learning: "bg-hero-gold text-night",
-  "needs-help": "bg-hero-pink text-white",
-  new: "bg-white/15 text-paper",
-  locked: "bg-white/5 text-paper/30",
-};
 
 function masteredIn(state: AkademiaState, module: ModuleId, ids: string[]): number {
   return ids.filter((id) => state.units[unitKeyOf(module, id)]?.status === "mastered").length;
 }
+
+/**
+ * Kolor kafelka: obwódka ikony i pasek postępu. Ikona leży na jasnym kółku —
+ * emoji są rysowane pod jasne tło i na granacie część z nich (nuty, czapka
+ * absolwenta) prawie znikała. Pełne nazwy klas — Tailwind szuka ich w źródle.
+ */
+type Accent = "blue" | "violet" | "cyan" | "pink" | "gold" | "lime";
+
+const ACCENT: Record<Accent, { icon: string; bar: string }> = {
+  blue: { icon: "ring-hero-blue", bar: "bg-hero-blue" },
+  violet: { icon: "ring-hero-violet", bar: "bg-hero-violet" },
+  cyan: { icon: "ring-hero-cyan", bar: "bg-hero-cyan" },
+  pink: { icon: "ring-hero-pink", bar: "bg-hero-pink" },
+  gold: { icon: "ring-hero-gold", bar: "bg-hero-gold" },
+  lime: { icon: "ring-hero-lime", bar: "bg-hero-lime" },
+};
+
+type Tile = {
+  href: string;
+  icon: string;
+  title: string;
+  /** Jedna krótka linijka pod tytułem (postęp). */
+  detail: string;
+  accent: Accent;
+  /** Postęp 0–1 (pasek na dole kafelka); bez niego — sam kafelek. */
+  progress?: number;
+};
 
 export default function HomePage() {
   const { role } = useDeviceRole();
@@ -64,51 +88,104 @@ export default function HomePage() {
 
   const mission = combinedMission(state, akademia);
   const firstUndone = mission.steps.findIndex((step) => !step.done);
+  const stepsDone = mission.steps.filter((step) => step.done).length;
 
   const masteredCount = Object.values(state.sounds).filter(
     (sound) => sound.status === "mastered",
   ).length;
-
-  const topicRecommendation = recommendNextTopic(state);
   const masteredTopics = Object.values(state.topics).filter(
     (topic) => topic.status === "mastered",
   ).length;
+  const booksRead = new Set(
+    bookReads(state)
+      .filter((read) => read.finished)
+      .map((read) => read.bookId),
+  ).size;
 
   const summary = tablesSummary(akademia.facts);
   const lastMock = akademia.mocks[akademia.mocks.length - 1];
+  const mathsDone = masteredIn(akademia, "maths", MATHS_TOPICS.map((t) => t.id));
+  const readingDone = masteredIn(akademia, "reading", READING_TEXTS.map((t) => t.id));
+  const tasksDone = masteredIn(akademia, "tasks", CLASSROOM_UNITS.map((u) => u.id));
 
-  const modules: { module: ModuleId; href: string; title: string; detail: string }[] = [
+  // Powtórka pomylonych słówek: osobny wiersz pod misją, chyba że misja już ją zawiera.
+  const toReview = ready ? reviewCount(state) : 0;
+  const reviewInMission =
+    mission.steps.some((step) => step.href === "/powtorka") || mission.bonus?.href === "/powtorka";
+
+  const of = (done: number, total: number, word: string, loaded: boolean) =>
+    loaded ? `${done}/${total} ${word}` : "…";
+
+  const soundTiles: Tile[] = [
     {
-      module: "tables",
-      href: "/tabliczka/",
-      title: "Tabliczka",
-      detail: akademiaReady ? `⚡ ${summary.fluent}/66 płynnie` : "…",
+      href: "/dzwieki",
+      icon: "🔤",
+      title: "Dźwięki",
+      detail: of(masteredCount, SOUNDS.length, "opanowane", ligaReady),
+      accent: "blue",
+      progress: masteredCount / SOUNDS.length,
     },
     {
-      module: "maths",
-      href: "/matematyka/",
-      title: "Matematyka po angielsku",
-      detail: akademiaReady
-        ? `${masteredIn(akademia, "maths", MATHS_TOPICS.map((t) => t.id))}/${MATHS_TOPICS.length} opanowane`
-        : "…",
+      href: "/ksiazeczki",
+      icon: "📖",
+      title: "Książeczki",
+      detail: of(booksRead, BOOKS.length, "przeczytane", ligaReady),
+      accent: "violet",
+      progress: booksRead / BOOKS.length,
     },
     {
-      module: "reading",
-      href: "/czytanie/",
-      title: "Czytanie",
-      detail: akademiaReady
-        ? `${masteredIn(akademia, "reading", READING_TEXTS.map((t) => t.id))}/${READING_TEXTS.length} opanowane`
-        : "…",
+      href: "/slownictwo",
+      icon: "🗣️",
+      title: "Słowa i zwroty",
+      detail: of(masteredTopics, TOPICS.length, "tematów", ligaReady),
+      accent: "cyan",
+      progress: masteredTopics / TOPICS.length,
     },
     {
-      module: "tasks",
-      href: "/polecenia/",
-      title: "Język klasy",
-      detail: akademiaReady
-        ? `${masteredIn(akademia, "tasks", CLASSROOM_UNITS.map((u) => u.id))}/${CLASSROOM_UNITS.length} opanowane`
-        : "…",
+      href: "/rymowanki",
+      icon: "🎶",
+      title: "Rymowanki",
+      detail: `${RHYMES.length} do śpiewania`,
+      accent: "pink",
     },
   ];
+
+  const akademiaTiles: Tile[] = [
+    {
+      href: "/tabliczka/",
+      icon: "🔢",
+      title: "Tabliczka",
+      detail: akademiaReady ? `⚡ ${summary.fluent}/66 płynnie` : "…",
+      accent: "cyan",
+      progress: summary.fluent / 66,
+    },
+    {
+      href: "/matematyka/",
+      icon: "🧮",
+      title: "Matematyka",
+      detail: of(mathsDone, MATHS_TOPICS.length, "opanowane", akademiaReady),
+      accent: "gold",
+      progress: mathsDone / MATHS_TOPICS.length,
+    },
+    {
+      href: "/czytanie/",
+      icon: "📚",
+      title: "Czytanie",
+      detail: of(readingDone, READING_TEXTS.length, "opanowane", akademiaReady),
+      accent: "lime",
+      progress: readingDone / READING_TEXTS.length,
+    },
+    {
+      href: "/polecenia/",
+      icon: "🏫",
+      title: "Język klasy",
+      detail: of(tasksDone, CLASSROOM_UNITS.length, "opanowane", akademiaReady),
+      accent: "pink",
+      progress: tasksDone / CLASSROOM_UNITS.length,
+    },
+  ];
+
+  const unlockedHeroes = HEROES.filter((hero) => state.unlockedHeroes.includes(hero.id)).length;
 
   return (
     <div className={role === "desktop" ? "grid grid-cols-[1fr_340px] gap-8" : "flex flex-col gap-6"}>
@@ -132,13 +209,33 @@ export default function HomePage() {
 
         {/* Misja z obu działów — jedno wyraźne „co teraz". */}
         <Card className="border-hero-gold/40 bg-hero-gold/10">
-          <p className="text-sm font-bold tracking-wide text-hero-gold uppercase">
-            {ready && mission.done
-              ? "Misja na dziś wykonana! 🎉"
-              : role === "phone"
-                ? "Szybka misja"
-                : "Misja na dziś"}
-          </p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-bold tracking-wide text-hero-gold uppercase">
+              {ready && mission.done
+                ? "Misja na dziś wykonana! 🎉"
+                : role === "phone"
+                  ? "Szybka misja"
+                  : "Misja na dziś"}
+            </p>
+            {ready && mission.steps.length > 0 && (
+              <p
+                className="flex items-center gap-2 text-sm font-bold text-paper/80"
+                aria-label={`Zrobione kroki: ${stepsDone} z ${mission.steps.length}`}
+              >
+                <span className="flex gap-1.5" aria-hidden>
+                  {mission.steps.map((step, index) => (
+                    <span
+                      key={index}
+                      className={`h-3 w-3 rounded-full ${step.done ? "bg-hero-lime" : "bg-white/20"}`}
+                    />
+                  ))}
+                </span>
+                <span aria-hidden>
+                  {stepsDone} z {mission.steps.length}
+                </span>
+              </p>
+            )}
+          </div>
           {!ready && (
             <div className="mt-3 flex flex-col gap-2" aria-hidden>
               {[0, 1, 2].map((i) => (
@@ -182,129 +279,70 @@ export default function HomePage() {
           )}
         </Card>
 
-        {/* Dział Dźwięki — dotychczasowa strona główna Ligi Dźwięków. */}
-        <section className="flex flex-col gap-6" aria-labelledby="dzial-dzwieki">
-          <SectionTitle id="dzial-dzwieki" emoji="🔤" title="Dźwięki" subtitle="czytanie po angielsku i słowa na co dzień" />
+        {/* Powtórka słówek pomylonych po przerwie — tylko gdy jest co powtarzać. */}
+        {toReview > 0 && !reviewInMission && (
+          <Link
+            href="/powtorka"
+            className="flex items-center gap-3 rounded-2xl border border-hero-lime/40 bg-hero-lime/15 p-3 transition active:translate-y-0.5"
+          >
+            <span
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/20 text-2xl"
+              aria-hidden
+            >
+              🔁
+            </span>
+            <span className="flex-1">
+              <span className="block text-lg leading-tight font-black">Powtórka ({toReview})</span>
+              <span className="text-sm text-paper/70">słowa i zwroty, które się ostatnio myliły</span>
+            </span>
+            <span aria-hidden className="text-xl">
+              ▸
+            </span>
+          </Link>
+        )}
 
-          {/* Tor 1: czytanie / phonics */}
-          <div className="flex flex-col gap-3">
-            <h3 className="text-xl font-bold">Mapa dźwięków (RWI)</h3>
-            {([1, 2, 3] as SoundSet[]).map((set) => (
-              <SoundSetRow
-                key={set}
-                set={set}
-                sounds={SOUNDS.filter((sound) => sound.set === set)}
-                statuses={state.sounds}
-                compact={role === "phone"}
-              />
-            ))}
-            <p className="text-xs text-paper/60">
-              Wszystkie 60 dźwięków ma gotowe sesje — można grać w dowolnej kolejności, choć
-              kolejność RWI (od lewej do prawej) ma sens. Lekcje pojedynczych liter nie uczą
-              kształtu litery (to dziecko zna z polskiego), tylko tego, JAK BRZMI PO ANGIELSKU
-              — przy 11 z 25 polski nawyk myli, np. „w”, „y”, „j” i „c” to zupełnie inne dźwięki.
-            </p>
-            {/* Książeczki: całe historyjki z poznanych dźwięków — krok między
-                zdaniem na koniec lekcji a prawdziwą książką. */}
-            <div className="flex flex-wrap gap-3">
-              <BigButton href="/ksiazeczki" tone="quiet">
-                📖 Książeczki
-              </BigButton>
-            </div>
-          </div>
+        {/* Menu działów: jeden wzór kafelka dla wszystkiego, w dwóch grupach. */}
+        <TileGroup
+          id="dzial-dzwieki"
+          emoji="🔤"
+          title="Dźwięki i słowa"
+          subtitle="czytanie po angielsku i słowa na co dzień"
+          tiles={soundTiles}
+        />
+        <TileGroup
+          id="dzial-akademia"
+          emoji="🎒"
+          title="Akademia"
+          subtitle="szkoła po angielsku: liczenie, czytanie, polecenia"
+          tiles={akademiaTiles}
+        />
 
-          {/* Tor 2: słuchanie i słownictwo */}
-          <Card className="border-hero-cyan/40 bg-hero-cyan/10">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-xl font-bold">Słowa i zwroty</h3>
-              <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-paper/70">
-                {masteredTopics} z {TOPICS.length} tematów
-              </span>
-            </div>
-            <p className="mt-1 mb-4 text-sm text-paper/70">
-              Drugi tor: rozumienie ze słuchu, zwroty i kolokacje. Bez czytania — pytaniem jest
-              nagranie, odpowiedzią obrazek. {topicRecommendation.labelPl}
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <BigButton href={`/slownictwo/${topicRecommendation.topicId}`}>
-                {topicRecommendation.reason === "repeat-hard"
-                  ? "Powtórka"
-                  : topicRecommendation.reason === "refresh"
-                    ? "Przypomnij sobie"
-                    : "Zaczynamy!"}
-              </BigButton>
-              {/* Powtórka słówek pomylonych po przerwie — tylko gdy jest co powtarzać. */}
-              {ready && reviewCount(state) > 0 && (
-                <BigButton href="/powtorka" tone="yes">
-                  🔁 Powtórka ({reviewCount(state)})
-                </BigButton>
-              )}
-              <BigButton href="/slownictwo" tone="quiet">
-                Wszystkie tematy
-              </BigButton>
-              <BigButton href="/rymowanki" tone="quiet">
-                🎵 Rymowanki
-              </BigButton>
-            </div>
-          </Card>
-
-          <div className="flex flex-col gap-3">
-            <h3 className="text-xl font-bold">Drużyna</h3>
-            <div className="flex flex-wrap gap-4">
-              {HEROES.map((hero) => {
-                const unlocked = state.unlockedHeroes.includes(hero.id);
-                return (
-                  <div key={hero.id} className="flex w-36 flex-col items-center text-center">
-                    <HeroAvatar
-                      hero={hero}
-                      size={90}
-                      dimmed={!unlocked}
-                      emblem={unlocked ? undefined : "?"}
-                    />
-                    <p className="text-sm font-bold">{unlocked ? hero.codename : "???"}</p>
-                    <p className="text-xs text-paper/50">
-                      {unlocked
-                        ? hero.power
-                        : typeof hero.unlockedBy === "object"
-                          ? `Odblokuj: dźwięk ${getSound(hero.unlockedBy.soundId)?.grapheme ?? ""}`
-                          : ""}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-            <p className="text-xs text-paper/50">
-              Imiona postaci są robocze — do wymyślenia razem z dzieckiem (plik lib/heroes.ts).
-            </p>
-          </div>
-        </section>
-
-        {/* Dział Akademia — kafelki hubów, jak na stronie głównej Akademii Ligi. */}
-        <section className="flex flex-col gap-4" aria-labelledby="dzial-akademia">
-          <SectionTitle
-            id="dzial-akademia"
-            emoji="🎓"
-            title="Akademia"
-            subtitle="tabliczka, matematyka, czytanie i język klasy"
-          />
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {modules.map(({ module, href, title, detail }) => {
-              const hero = HEROES_BY_MODULE[module];
+        {/* Drużyna w skrócie — pełna galeria (moce, co odblokowuje kogo) jest przy mapie dźwięków. */}
+        <Link
+          href="/dzwieki#druzyna"
+          className="flex flex-col gap-3 rounded-blob border border-white/10 bg-white/5 p-4 transition hover:bg-white/10 active:translate-y-0.5"
+        >
+          <span className="flex items-center justify-between gap-3">
+            <span className="text-lg font-black">Drużyna</span>
+            <span className="text-xs text-paper/65">
+              {ligaReady ? `${unlockedHeroes}/${HEROES.length} bohaterów` : "…"} <span aria-hidden>▸</span>
+            </span>
+          </span>
+          <span className="flex flex-wrap gap-x-2 gap-y-1" aria-hidden>
+            {HEROES.map((hero) => {
+              const unlocked = state.unlockedHeroes.includes(hero.id);
               return (
-                <Link
-                  key={module}
-                  href={href}
-                  className="flex flex-col items-center gap-2 rounded-blob border border-white/10 bg-white/5 p-4 text-center transition hover:bg-white/10 active:translate-y-0.5"
-                >
-                  <HeroAvatar hero={hero} size={role === "phone" ? 64 : 84} />
-                  <span className="text-xs font-bold text-hero-cyan">{hero.codename}</span>
-                  <span className="text-lg leading-tight font-black">{title}</span>
-                  <span className="text-xs text-paper/65">{detail}</span>
-                </Link>
+                <HeroAvatar
+                  key={hero.id}
+                  hero={hero}
+                  size={role === "phone" ? 40 : 48}
+                  dimmed={!unlocked}
+                  emblem={unlocked ? undefined : "?"}
+                />
               );
             })}
-          </div>
-        </section>
+          </span>
+        </Link>
 
         <div className="flex justify-center">
           <VoiceSpeedControl compact />
@@ -377,29 +415,74 @@ export default function HomePage() {
   );
 }
 
-function SectionTitle({
+/** Grupa działów: nagłówek i rząd jednakowych kafelków (2 kolumny na telefonie, 4 dalej). */
+function TileGroup({
   id,
   emoji,
   title,
   subtitle,
+  tiles,
 }: {
   id: string;
   emoji: string;
   title: string;
   subtitle: string;
+  tiles: Tile[];
 }) {
   return (
-    <div className="flex items-end gap-3 border-b border-white/10 pb-2">
-      <span className="text-3xl" aria-hidden>
-        {emoji}
-      </span>
-      <div>
-        <h2 id={id} className="text-2xl font-black sm:text-3xl">
-          {title}
-        </h2>
-        <p className="text-sm text-paper/60">{subtitle}</p>
+    <section className="flex flex-col gap-3" aria-labelledby={id}>
+      <div className="flex items-end gap-3 border-b border-white/10 pb-2">
+        <span className="text-3xl" aria-hidden>
+          {emoji}
+        </span>
+        <div>
+          <h2 id={id} className="text-2xl font-black">
+            {title}
+          </h2>
+          <p className="text-sm text-paper/60">{subtitle}</p>
+        </div>
       </div>
-    </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {tiles.map((tile) => (
+          <MenuTile key={tile.href} tile={tile} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Kafelek działu — ten sam wzór dla wszystkich ośmiu: ikona, nazwa, postęp. */
+function MenuTile({ tile }: { tile: Tile }) {
+  const tone = ACCENT[tile.accent];
+  const percent = Math.round(Math.min(1, Math.max(0, tile.progress ?? 0)) * 100);
+  return (
+    <Link
+      href={tile.href}
+      className="flex min-h-40 flex-col items-center gap-2 rounded-blob border border-white/10 bg-white/5 p-4 text-center shadow-[0_6px_0_rgba(0,0,0,0.25)] transition hover:bg-white/10 active:translate-y-1 active:shadow-none"
+    >
+      <TileIcon className={tone.icon}>{tile.icon}</TileIcon>
+      <span className="text-lg leading-tight font-black">{tile.title}</span>
+      <span className="text-xs text-paper/65">{tile.detail}</span>
+      {tile.progress !== undefined && (
+        <span
+          className="mt-auto block h-1.5 w-full max-w-28 overflow-hidden rounded-full bg-white/10"
+          aria-hidden
+        >
+          <span className={`block h-full rounded-full ${tone.bar}`} style={{ width: `${percent}%` }} />
+        </span>
+      )}
+    </Link>
+  );
+}
+
+function TileIcon({ children, className }: { children: ReactNode; className: string }) {
+  return (
+    <span
+      className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-paper text-4xl ring-4 ${className}`}
+      aria-hidden
+    >
+      {children}
+    </span>
   );
 }
 
@@ -416,20 +499,22 @@ function MissionLink({
   const tone = step.done
     ? "bg-hero-lime/15"
     : highlighted
-      ? "bg-hero-blue"
+      ? "bg-hero-blue shadow-[0_6px_0_#1c47b3] active:shadow-none"
       : bonus
         ? "border border-dashed border-hero-cyan/40 bg-white/5"
         : "bg-white/10";
   return (
     <Link
       href={step.href}
-      className={`flex items-center gap-3 rounded-2xl p-3 transition active:translate-y-0.5 ${tone}`}
+      className={`flex items-center gap-3 rounded-2xl transition active:translate-y-0.5 ${highlighted ? "p-4" : "p-3"} ${tone}`}
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/20 text-2xl">
+      <span
+        className={`flex shrink-0 items-center justify-center rounded-full bg-black/20 ${highlighted ? "h-12 w-12 text-3xl" : "h-10 w-10 text-2xl"}`}
+      >
         {step.done ? "✅" : step.emoji}
       </span>
       <span className="flex-1">
-        <span className="block text-lg leading-tight font-black">
+        <span className={`block leading-tight font-black ${highlighted ? "text-xl" : "text-lg"}`}>
           {step.title}
           {step.titleReading && (
             <>
@@ -438,63 +523,18 @@ function MissionLink({
             </>
           )}
         </span>
-        <span className="text-sm text-paper/70">{step.subtitle}</span>
+        <span className={`text-sm ${step.done ? "text-paper/55" : "text-paper/75"}`}>{step.subtitle}</span>
       </span>
-      <span aria-hidden className="text-xl">
-        ▸
-      </span>
+      {/* Następny krok ma wyraźne „Start"; pozostałe — samą strzałkę. */}
+      {highlighted ? (
+        <span className="shrink-0 rounded-full bg-white px-4 py-2 text-base font-black text-hero-blue" aria-hidden>
+          Start ▸
+        </span>
+      ) : (
+        <span aria-hidden className={`text-xl ${step.done ? "text-paper/40" : ""}`}>
+          {step.done ? "✓" : "▸"}
+        </span>
+      )}
     </Link>
-  );
-}
-
-function SoundSetRow({
-  set,
-  sounds,
-  statuses,
-  compact,
-}: {
-  set: SoundSet;
-  sounds: Sound[];
-  statuses: Record<string, SoundState>;
-  compact: boolean;
-}) {
-  // Na telefonie mapa ma być skrótem, nie ścianą kafelków.
-  const visible = compact
-    ? sounds.filter((sound) => hasLesson(sound.id) || sound.kind !== "single-letter")
-    : sounds;
-
-  return (
-    <Card>
-      <p className="mb-3 text-sm font-bold text-paper/70">{SET_LABEL[set]}</p>
-      <div className="flex flex-wrap gap-2">
-        {visible.map((sound) => {
-          const playable = hasLesson(sound.id);
-          const status = statuses[sound.id]?.status ?? "new";
-          const style = playable ? STATUS_STYLE[status] : STATUS_STYLE.locked;
-          const label = (
-            <span className="font-reading text-lg font-black">{sound.grapheme}</span>
-          );
-
-          return playable ? (
-            <Link
-              key={sound.id}
-              href={`/sesja/${sound.id}`}
-              className={`flex min-w-14 items-center justify-center rounded-xl px-3 py-2 ${style}`}
-              title={`${sound.grapheme} — ${sound.example}`}
-            >
-              {label}
-            </Link>
-          ) : (
-            <span
-              key={sound.id}
-              className={`flex min-w-14 items-center justify-center rounded-xl px-3 py-2 ${style}`}
-              title={`${sound.grapheme} — wkrótce`}
-            >
-              {label}
-            </span>
-          );
-        })}
-      </div>
-    </Card>
   );
 }

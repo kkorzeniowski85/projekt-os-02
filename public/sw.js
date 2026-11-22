@@ -62,6 +62,8 @@ const CACHE = `${PREFIX}v1`;
 const APP_SHELL = [
   `${BASE}/`,
   `${BASE}/rodzic/`,
+  `${BASE}/dzwieki/`,
+  `${BASE}/ksiazeczki/`,
   `${BASE}/slownictwo/`,
   `${BASE}/rymowanki/`,
   `${BASE}/tabliczka/`,

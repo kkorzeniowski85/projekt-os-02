@@ -496,6 +496,13 @@ function IntroScreen({
   const phone = role === "phone";
   const [chantMozliwy, setChantMozliwy] = useState(false);
   const [chantGra, setChantGra] = useState(false);
+  // „← Wróć" prowadzi tam, skąd dziecko przyszło: mapa dźwięków (/dzwieki)
+  // dopisuje do adresu ?z=mapa; z misji i z ekranu głównego wraca się do bazy.
+  // Odczyt w efekcie, bo strona jest prerenderowana bez adresu.
+  const [powrot, setPowrot] = useState("/");
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("z") === "mapa") setPowrot("/dzwieki");
+  }, []);
 
   // Chant z bitem wymaga nagrania czystej głoski — bez niego przycisk się
   // nie pokazuje (syntezator przeczytałby nazwę litery).
@@ -518,7 +525,7 @@ function IntroScreen({
 
   return (
     <div className={`flex flex-col items-center text-center ${phone ? "gap-4" : "gap-6"}`}>
-      <Link href="/" className="self-start text-sm text-paper/60 underline">
+      <Link href={powrot} className="self-start text-sm text-paper/60 underline">
         ← Wróć
       </Link>
 
